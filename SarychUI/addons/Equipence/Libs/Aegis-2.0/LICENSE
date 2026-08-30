@@ -1,0 +1,43 @@
+COPYRIGHT NOTICE AND RESTRICTED USE TERMS
+
+Library: Aegis Framework
+Description: Multi-version compatibility framework for World of Warcraft addons.
+Copyright (c) 2026 s0high. All rights reserved.
+
+1. OWNERSHIP
+
+Aegis Framework, including Aegis-2.0 and any later versions, revisions,
+renamed distributions, embedded copies, or derivative internal builds, is
+proprietary software owned by the copyright holder. It is an internal
+compatibility framework and engineering core for the copyright holder's addon
+projects.
+
+2. PERMITTED USE
+
+You may use Aegis Framework only as bundled with addon projects distributed by
+the copyright holder.
+
+3. RESTRICTIONS
+
+Without prior written permission from the copyright holder, you may not:
+
+- Extract, modify, fork, adapt, rename, reorganize, or create derivative works
+  from Aegis Framework.
+- Redistribute Aegis Framework as a standalone library or embedded dependency.
+- Copy, port, reimplement, or incorporate any part of Aegis Framework source
+  code, architecture, compatibility logic, namespaces, shims, or services into
+  another project.
+- Sell, sublicense, monetize, bundle, or include Aegis Framework in any addon,
+  framework, library, service, or commercial offering.
+- Remove copyright notices, change attribution, or claim authorship of any
+  part of Aegis Framework.
+
+4. NO WARRANTY
+
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE COPYRIGHT HOLDER SHALL
+NOT BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE USE
+OF THIS SOFTWARE.
+
+Any use outside the permissions granted above is prohibited unless explicitly
+authorized in writing by the copyright holder.

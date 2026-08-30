@@ -1,0 +1,60 @@
+## Interface: 30300, 11508, 11507, 20505, 30405, 38000, 40402, 50503, 50502, 120005
+## Title: |cff00F0FFE|rquipence
+## Author: s0high
+## Version: 1.0
+## X-Website: https://github.com/s0h2x/Equipence
+## X-Category: Jewelcrafting, Bags & Inventory, Buffs & Debuffs, Miscellaneous
+## X-License: Source-available proprietary, personal use only
+## X-Localizations: enUS, ruRU, deDE, frFR, esES, esMX, itIT, ptBR, zhCN, zhTW, koKR
+## SavedVariables: EquipenceDB
+
+## Notes: Detailed gear overview when inspecting characters: gems, enchants, and item levels.
+## Notes-ruRU: Детальный обзор снаряжения при осмотре персонажей: самоцветы, чары и уровни предметов.
+## Notes-deDE: Detaillierte Ausrüstungsübersicht beim Inspizieren von Charakteren: Edelsteine, Verzauberungen und Gegenstandsstufen.
+## Notes-frFR: Aperçu détaillé de l’équipement lors de l’inspection des personnages : gemmes, enchantements et niveaux d’objet.
+## Notes-esES: Resumen detallado del equipo al inspeccionar personajes: gemas, encantamientos y niveles de objeto.
+## Notes-esMX: Resumen detallado del equipo al inspeccionar personajes: gemas, encantamientos y niveles de objeto.
+## Notes-itIT: Panoramica dettagliata dell'equipaggiamento durante l'ispezione dei personaggi: gemme, incantamenti e livelli oggetto.
+## Notes-ptBR: Visão detalhada do equipamento ao inspecionar personagens: gemas, encantamentos e níveis de item.
+## Notes-zhCN: 观察角色时的详细装备概览：宝石、附魔和物品等级。
+## Notes-zhTW: 觀察角色時的詳細裝備總覽：寶石、附魔與物品等級。
+## Notes-koKR: 캐릭터를 살펴볼 때 장비를 자세히 보여줍니다: 보석, 마법부여, 아이템 레벨.
+
+# Embedded libraries
+Libs\Libs.xml
+
+# Engine
+Core\Init.lua
+Core\Database.lua
+Core\Localization.lua
+Core\Controllers.lua
+Core\SettingsDefinitions.lua
+Core\SettingsController.lua
+
+# Shared Data
+Shared\Constants.lua
+Shared\Data\EquipmentSlots.lua
+Shared\Data\ItemLevelColorInfo.lua
+Shared\Data\EnchantMetadata.lua
+Shared\Data\SocketVisualInfo.lua
+
+# Shared Utils
+Shared\Utils\TextUtil.lua
+
+# Modules & Feature Components
+Modules\DataProvider\DataProvider.lua
+Modules\DataProvider\SocketData.lua
+Modules\DataProvider\EnchantData.lua
+
+Modules\EquipmentLayout.lua
+Modules\PaperDollLayout.lua
+
+Modules\Components\ShineUtil.lua
+
+Modules\Features\Gems.lua
+Modules\Features\Enchants.lua
+Modules\Features\ItemQuality.lua
+Modules\Features\ItemLevels.lua
+
+Modules\EquipmentController.lua
+Modules\InspectionController.lua

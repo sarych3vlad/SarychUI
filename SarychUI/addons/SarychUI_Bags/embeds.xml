@@ -1,0 +1,20 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Include file="Libs\LibItemSearch-1.2\LibItemSearch-1.2.xml"/>
+	<Script file="Init.lua"/>
+	<Script file="Locales\enUS.lua"/>
+	<Script file="Locales\ruRU.lua"/>
+	<Script file="Core\Defaults.lua"/>
+	<Script file="Core\Media.lua"/>
+	<Script file="Core\Math.lua"/>
+	<Script file="Core\Toolkit.lua"/>
+	<Script file="Core\Animation.lua"/>
+	<Script file="Core\Smoothie.lua"/>
+	<Script file="Core\Cooldowns.lua"/>
+	<Script file="Core\API.lua"/>
+	<Script file="Core\Movers.lua"/>
+	<Script file="Core\Core.lua"/>
+	<Script file="Modules\Skins\Skins.lua"/>
+	<Script file="Modules\Bags\Bags.lua"/>
+	<Script file="Modules\Bags\Sort.lua"/>
+	<!-- BagBar.lua disabled for SarychUI: must not move action bar bag buttons -->
+</Ui>

@@ -1,0 +1,515 @@
+﻿<Ui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\..\FrameXML\UI.xsd" xmlns="http://www.blizzard.com/wow/ui/">
+	
+	<Frame name="BASpammerSettingBackgroundTemplate" virtual="true">
+		<Backdrop bgFile="Interface\Tooltips\UI-Tooltip-Background" edgeFile="Interface\Tooltips\UI-Tooltip-Border" tile="true">
+			<EdgeSize>
+				<AbsValue val="16"/>
+			</EdgeSize>
+			<TileSize>
+				<AbsValue val="16"/>
+			</TileSize>
+			<BackgroundInsets>
+				<AbsInset left="5" right="5" top="5" bottom="5"/>
+			</BackgroundInsets>
+		</Backdrop>
+		<Scripts>
+			<OnLoad>
+				self:SetBackdropBorderColor(TOOLTIP_DEFAULT_COLOR.r, TOOLTIP_DEFAULT_COLOR.g, TOOLTIP_DEFAULT_COLOR.b);
+				self:SetBackdropColor(TOOLTIP_DEFAULT_BACKGROUND_COLOR.r, TOOLTIP_DEFAULT_BACKGROUND_COLOR.g, TOOLTIP_DEFAULT_BACKGROUND_COLOR.b);
+			</OnLoad>
+		</Scripts>
+	</Frame>	
+	<Frame name="BASpammer" toplevel="true" enableMouse="true" movable="true" parent="UIParent" hidden="false">
+		<Size>
+			<AbsDimension x="150" y="20"/>
+		</Size>
+		<Anchors>
+			<Anchor point="CENTER" relativeTo="UIParent">
+				<Offset>
+					<AbsDimension x="0" y="0" />
+				</Offset>
+			</Anchor>
+ 		</Anchors>			
+		<Layers>
+			<Layer>
+				<FontString name="BASpammerText"  inherits="GameFontHighlight" text="Spammer OFF">
+					<Size x="140" y="16"/>
+					<Anchors> 
+						<Anchor point="TOP">
+							<Offset>
+								<AbsDimension x="0" y="-1" />
+							</Offset>
+						</Anchor>
+					</Anchors>
+					<FontString inherits="GameFontHighlight"/>
+				</FontString>
+			</Layer>
+		</Layers>
+		<Scripts>
+			<OnUpdate>
+				BASpammer:OnUpdate()
+			</OnUpdate>		
+			<OnMouseUp>
+				if ( self.isMoving ) then
+				  self:StopMovingOrSizing();
+				  self.isMoving = false;
+				  BASpammer:SavePosition(1)
+				end	
+			</OnMouseUp>
+			<OnMouseDown>
+				if ( ( ( not self.isLocked ) or ( self.isLocked == 0 ) ) and ( arg1 == "LeftButton" ) ) then
+				  self:StartMoving();
+				  self.isMoving = true;
+				end
+				BASpammer:OnMouseDown(self,arg1)
+			</OnMouseDown>
+			<OnEnter>
+				BASpammer:OnEnter()
+			</OnEnter>
+			<OnLeave>
+				BASpammer:OnLeave()
+			</OnLeave>
+		</Scripts>
+	</Frame>
+	<Frame name="BASpammerSetting" toplevel="true" enableMouse="true" movable="true" parent="UIParent" hidden="true" inherits="BASpammerSettingBackgroundTemplate">
+		<Size>
+			<AbsDimension x="430" y="300"/>
+		</Size>
+		<Anchors>
+ 			<Anchor point="CENTER">
+ 				<Offset>
+ 					<AbsDimension x="0" y="0"/>
+ 				</Offset>
+ 			</Anchor>
+ 		</Anchors>
+		<Layers>
+			<Layer>
+				<FontString name="BASpammerSettingTitleText1" inherits="GameFontHighlightLarge" text="BASpammer v1.04">
+					<Size>
+						<AbsDimension x="300" y="16"/>
+					</Size>
+					<Anchors>
+						<Anchor point="TOP" relativeTo="BASpammerSetting" relativePoint="TOP">
+							<Offset>
+								<AbsDimension x="0" y="-15"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+				</FontString>
+				<FontString name="BASpammerSettingTitleText21" inherits="GameFontNormal" text="Канал:" justifyH="LEFT">
+					<Size>
+						<AbsDimension x="200" y="16"/>
+					</Size>
+					<Anchors>
+						<Anchor point="TOPLEFT" relativeTo="BASpammerSetting" relativePoint="TOPLEFT">
+							<Offset>
+								<AbsDimension x="40" y="-40"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+				</FontString>
+				<FontString name="BASpammerSettingTitleText22" inherits="GameFontNormal" text="Шаблон:" justifyH="LEFT">
+					<Size>
+						<AbsDimension x="250" y="16"/>
+					</Size>
+					<Anchors>
+						<Anchor point="TOPLEFT" relativeTo="BASpammerSettingTitleText21" relativePoint="TOPRIGHT">
+							<Offset>
+								<AbsDimension x="0" y="0"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+				</FontString>
+				<FontString name="BASpammerSettingTitleText31" inherits="GameFontNormal" text="Текст:" justifyH="LEFT">
+					<Size>
+						<AbsDimension x="200" y="16"/>
+					</Size>
+					<Anchors>
+						<Anchor point="TOPLEFT" relativeTo="BASpammerSettingTitleText21" relativePoint="BOTTOMLEFT">
+							<Offset>
+								<AbsDimension x="0" y="-40"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+				</FontString>
+				<FontString name="BASpammerSettingTitleText32" inherits="GameFontNormal" text="Интервал:" justifyH="LEFT">
+					<Size>
+						<AbsDimension x="75" y="16"/>
+					</Size>
+					<Anchors>
+						<Anchor point="TOPLEFT" relativeTo="BASpammerSettingTitleText22" relativePoint="BOTTOMLEFT">
+							<Offset>
+								<AbsDimension x="0" y="-40"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+				</FontString>
+			</Layer>
+		</Layers>
+		<Frames>
+			<Button name="BASpammerSettingCloseButton" inherits="UIPanelCloseButton">
+				<Anchors>
+					<Anchor point="TOPRIGHT" relativeTo="BASpammerSetting" relativePoint="TOPRIGHT">
+						<Offset>
+							<AbsDimension x="-8" y="-8"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</Button>
+			<Button name="BASpammerSettingExitButton" inherits="UIPanelButtonTemplate" text="EXIT">
+				<Size>
+					<AbsDimension x="79" y="21"/>
+				</Size>
+				<Anchors>
+					<Anchor point="BOTTOMRIGHT" relativeTo="BASpammerSetting" relativePoint="BOTTOMRIGHT">
+						<Offset>
+							<AbsDimension x="-15" y="16"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						HideUIPanel(BASpammerSetting);
+					</OnClick>
+				</Scripts>
+			</Button>
+			<Button name="BASpammerSettingStartButton" inherits="UIPanelButtonTemplate" text="Start">
+				<Size>
+					<AbsDimension x="79" y="21"/>
+				</Size>
+				<Anchors>
+					<Anchor point="BOTTOMLEFT" relativeTo="BASpammerSetting" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="15" y="16"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						BASpammerSettingStartButton_OnClick()
+					</OnClick>
+				</Scripts>
+			</Button>
+			<Button name="BASpammerSettingStoptButton" inherits="UIPanelButtonTemplate" text="Stop">
+				<Size>
+					<AbsDimension x="79" y="21"/>
+				</Size>
+				<Anchors>
+					<Anchor point="BOTTOMLEFT" relativeTo="BASpammerSettingStartButton" relativePoint="BOTTOMRIGHT">
+						<Offset>
+							<AbsDimension x="0" y="0"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						BASpammerSettingStopButton_OnClick()
+					</OnClick>
+				</Scripts>
+			</Button>
+			<Frame name="BASpammerSettingChanel" inherits="BASpammerSettingBackgroundTemplate">
+				<Size>
+					<AbsDimension x="150" y="25"/>
+				</Size>
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="BASpammerSettingTitleText21" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="-5"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Layers>
+					<Layer>
+						<FontString name="BASpammerSettingChanelEditBox" inherits="ChatFontNormal" text="Канал" justifyH="LEFT">
+							<Size>
+								<AbsDimension x="125" y="16"/>
+							</Size>
+							<Anchors>
+								<Anchor point="TOPLEFT">
+									<Offset x="5" y="-4" />
+								</Anchor>
+							</Anchors>
+							<FontString inherits="ChatFontNormal"/>
+						</FontString>
+					</Layer>	
+				</Layers>	
+				<Frames>
+					<Button name="BASpammerSettingChanelButton">
+						<Size>
+							<AbsDimension x="24" y="24"/>
+						</Size>
+						<Anchors>
+							<Anchor point="TOPRIGHT">
+								<Offset>
+									<AbsDimension x="0" y="0"/>
+								</Offset>
+							</Anchor>
+						</Anchors>
+						<Scripts>
+							<OnClick>
+								BASpammerSettingChanelButton_OnClick();
+								PlaySound("igMainMenuOptionCheckBoxOn");
+							</OnClick>
+						</Scripts>
+						<NormalTexture name="$parentNormalTexture" file="Interface\ChatFrame\UI-ChatIcon-ScrollDown-Up">
+							<Size>
+								<AbsDimension x="24" y="24"/>
+							</Size>
+							<Anchors>
+								<Anchor point="RIGHT"/>
+							</Anchors>
+						</NormalTexture>
+						<PushedTexture name="$parentPushedTexture" file="Interface\ChatFrame\UI-ChatIcon-ScrollDown-Down">
+							<Size>
+								<AbsDimension x="24" y="24"/>
+							</Size>
+							<Anchors>
+								<Anchor point="RIGHT"/>
+							</Anchors>
+						</PushedTexture>
+						<DisabledTexture name="$parentDisabledTexture" file="Interface\ChatFrame\UI-ChatIcon-ScrollDown-Disabled">
+							<Size>
+								<AbsDimension x="24" y="24"/>
+							</Size>
+							<Anchors>
+								<Anchor point="RIGHT"/>
+							</Anchors>
+						</DisabledTexture>
+						<HighlightTexture name="$parentHighlightTexture" file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD">
+							<Size>
+								<AbsDimension x="24" y="24"/>
+							</Size>
+							<Anchors>
+								<Anchor point="RIGHT"/>
+							</Anchors>
+						</HighlightTexture>
+					</Button>
+				</Frames>
+			</Frame>
+			<Frame name="BASpammerSettingInterval" inherits="BASpammerSettingBackgroundTemplate">
+				<Size>
+					<AbsDimension x="75" y="25"/>
+				</Size>
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="BASpammerSettingTitleText32" relativePoint="TOPRIGHT">
+						<Offset>
+							<AbsDimension x="0" y="0"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Frames>
+					<EditBox name="BASpammerSettingIntervalEditBox" letters="4">
+						<Size>
+							<AbsDimension x="70" y="16"/>
+						</Size>
+						<Anchors>
+							<Anchor point="TOPLEFT">
+								<Offset x="5" y="-4" />
+							</Anchor>
+						</Anchors>
+						<FontString inherits="ChatFontNormal"/>
+						<Scripts>
+							<OnChar>
+								BASpammerSettingIntervalEditBox_OnChar(self,text);
+							</OnChar>
+							<OnTextChanged>
+								BASpammerSettingIntervalEditBox_OnTextChanged()
+							</OnTextChanged>
+						</Scripts>	
+					</EditBox>										
+				</Frames>
+			</Frame>
+			<Frame name="BASpammerSettingTextPattern" inherits="BASpammerSettingBackgroundTemplate" >
+				<Size>
+					<AbsDimension x="150" y="25"/>
+				</Size>
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="BASpammerSettingTitleText22" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="-5"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Layers>
+					<Layer>
+						<FontString name="BASpammerSettingTextPatternEditBox" inherits="ChatFontNormal" text="Канал" justifyH="LEFT">
+							<Size>
+								<AbsDimension x="125" y="16"/>
+							</Size>
+							<Anchors>
+								<Anchor point="TOPLEFT">
+									<Offset x="5" y="-4" />
+								</Anchor>
+							</Anchors>
+							<FontString inherits="ChatFontNormal"/>
+						</FontString>
+					</Layer>	
+				</Layers>	
+				<Frames>
+					<Button name="BASpammerSettingTextPatternButton">
+						<Size>
+							<AbsDimension x="24" y="24"/>
+						</Size>
+						<Anchors>
+							<Anchor point="TOPRIGHT">
+								<Offset>
+									<AbsDimension x="0" y="0"/>
+								</Offset>
+							</Anchor>
+						</Anchors>
+						<Scripts>
+							<OnClick>
+								BASpammerSettingTextPatternButton_OnClick();
+								PlaySound("igMainMenuOptionCheckBoxOn");
+							</OnClick>
+						</Scripts>
+						<NormalTexture name="$parentNormalTexture" file="Interface\ChatFrame\UI-ChatIcon-ScrollDown-Up">
+							<Size>
+								<AbsDimension x="24" y="24"/>
+							</Size>
+							<Anchors>
+								<Anchor point="RIGHT"/>
+							</Anchors>
+						</NormalTexture>
+						<PushedTexture name="$parentPushedTexture" file="Interface\ChatFrame\UI-ChatIcon-ScrollDown-Down">
+							<Size>
+								<AbsDimension x="24" y="24"/>
+							</Size>
+							<Anchors>
+								<Anchor point="RIGHT"/>
+							</Anchors>
+						</PushedTexture>
+						<DisabledTexture name="$parentDisabledTexture" file="Interface\ChatFrame\UI-ChatIcon-ScrollDown-Disabled">
+							<Size>
+								<AbsDimension x="24" y="24"/>
+							</Size>
+							<Anchors>
+								<Anchor point="RIGHT"/>
+							</Anchors>
+						</DisabledTexture>
+						<HighlightTexture name="$parentHighlightTexture" file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD">
+							<Size>
+								<AbsDimension x="24" y="24"/>
+							</Size>
+							<Anchors>
+								<Anchor point="RIGHT"/>
+							</Anchors>
+						</HighlightTexture>
+					</Button>
+				</Frames>
+			</Frame>
+			<Frame name="BASpammerSettingText" inherits="BASpammerSettingBackgroundTemplate">
+				<Size>
+					<AbsDimension x="350" y="100"/>
+				</Size>
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="BASpammerSettingTitleText31" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="-20"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Layers>
+					<Layer>
+						<FontString name="BASpammerSettingTextSymbols"  inherits="GameFontHighlight" justifyH="LEFT">
+							<Size x="150" y="16"/>
+							<Anchors> 
+								<Anchor point="BOTTOM">
+									<Offset>
+										<AbsDimension x="0" y="-15" />
+									</Offset>
+								</Anchor>
+							</Anchors>
+							<FontString inherits="GameFontHighlight"/>
+						</FontString>
+					</Layer>
+				</Layers>
+				<Frames>
+					<EditBox name="BASpammerSettingTextBox" letters="255" multiLine="true">
+						<Anchors>
+							<Anchor point="TOPLEFT">
+								<Offset>
+									<AbsDimension x="5" y="-5"/>
+								</Offset>
+							</Anchor>
+							<Anchor point="BOTTOM">
+								<Offset>
+									<AbsDimension x="0" y="5"/>
+								</Offset>
+							</Anchor>
+							<Anchor point="RIGHT">
+								<Offset>
+									<AbsDimension x="-5" y="0"/>
+								</Offset>
+							</Anchor>
+						</Anchors>
+						<FontString inherits="ChatFontNormal"/>
+						<Scripts>
+							<OnMouseDown>
+								BASpammerSettingTextBox_OnMouseDown(self,arg1)
+							</OnMouseDown>
+							<OnTextChanged>
+								BASpammerSettingTextBox_OnTextChanged()
+							</OnTextChanged>
+							<OnEnterPressed>
+								BASpammerSettingTextBox_OnEnterPressed()
+							</OnEnterPressed>
+							<OnTabPressed>
+								BASpammerSettingTextBox_OnTabPressed()
+							</OnTabPressed>					
+						</Scripts>
+					</EditBox>
+				</Frames>
+			</Frame>
+			<Frame name="BASpammerSettingTaximeter" inherits="BASpammerSettingBackgroundTemplate">
+				<Size>
+					<AbsDimension x="350" y="100"/>
+				</Size>
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="BASpammerSettingTitleText31" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="-20"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Layers>
+					<Layer>
+						<FontString name="BASpammerSettingTaximeterText"  inherits="GameFontGreenLarge">
+							<Size x="150" y="16"/>
+							<Anchors> 
+								<Anchor point="CENTER">
+									<Offset>
+										<AbsDimension x="0" y="0" />
+									</Offset>
+								</Anchor>
+							</Anchors>
+							<FontString inherits="GameFontGreenLarge"/>
+						</FontString>
+					</Layer>
+				</Layers>
+			</Frame>
+		</Frames>
+		<Scripts>
+			<OnHide>
+				if ( self.isMoving ) then
+				  self:StopMovingOrSizing();
+				  self.isMoving = false;
+				  BASpammer:SavePosition(2)
+				end
+			</OnHide>
+			<OnMouseUp>
+				if ( self.isMoving ) then
+				  self:StopMovingOrSizing();
+				  self.isMoving = false;
+				  BASpammer:SavePosition(2)
+				end
+			</OnMouseUp>
+			<OnMouseDown>
+				if ( ( ( not self.isLocked ) or ( self.isLocked == 0 ) ) and ( arg1 == "LeftButton" ) ) then
+				  self:StartMoving();
+				  self.isMoving = true;
+				end
+			</OnMouseDown>
+		</Scripts>
+	</Frame>
+</Ui>

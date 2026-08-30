@@ -1,0 +1,75 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+..\FrameXML\UI.xsd">
+
+<!--
+*******************************************************************************
+    Tooltip bordered frame
+*******************************************************************************
+-->
+<Frame name="TooltipBorderedFrameTemplate2" virtual="true">
+  <Layers>
+    <Layer level="BACKGROUND">
+      <Texture name="$parent.BorderTopLeft" parentKey="BorderTopLeft" file="Interface\AddOns\SarychUI\addons\LootHistory\compat\Interface\Tooltips\UI-Tooltip-TL.blp">
+        <Size x="8" y="8"/>
+        <Anchors>
+          <Anchor point="TOPLEFT"/>
+        </Anchors>
+      </Texture>
+      <Texture name="$parent.BorderTopRight" parentKey="BorderTopRight" file="Interface\AddOns\SarychUI\addons\LootHistory\compat\Interface\Tooltips\UI-Tooltip-TR.blp">
+        <Size x="8" y="8"/>
+        <Anchors>
+          <Anchor point="TOPRIGHT"/>
+        </Anchors>
+      </Texture>
+      <Texture name="$parent.BorderBottomRight" parentKey="BorderBottomRight" file="Interface\AddOns\SarychUI\addons\LootHistory\compat\Interface\Tooltips\UI-Tooltip-BR.blp">
+        <Size x="8" y="8"/>
+        <Anchors>
+          <Anchor point="BOTTOMRIGHT"/>
+        </Anchors>
+      </Texture>
+      <Texture name="$parent.BorderBottomLeft" parentKey="BorderBottomLeft" file="Interface\AddOns\SarychUI\addons\LootHistory\compat\Interface\Tooltips\UI-Tooltip-BL.blp">
+        <Size x="8" y="8"/>
+        <Anchors>
+          <Anchor point="BOTTOMLEFT"/>
+        </Anchors>
+      </Texture>
+      <Texture name="$parent.BorderTop" parentKey="BorderTop" file="Interface\AddOns\SarychUI\addons\LootHistory\compat\Interface\Tooltips\UI-Tooltip-T.blp">
+        <Size x="8" y="8"/>
+        <Anchors>
+          <Anchor point="TOPLEFT" relativeTo="$parent.BorderTopLeft" relativePoint="TOPRIGHT"/>
+          <Anchor point="TOPRIGHT" relativeTo="$parent.BorderTopRight" relativePoint="TOPLEFT"/>
+        </Anchors>
+      </Texture>
+      <Texture name="$parent.BorderRight" parentKey="BorderRight" file="Interface\AddOns\SarychUI\addons\LootHistory\compat\Interface\Tooltips\UI-Tooltip-R.blp">
+        <Size x="8" y="8"/>
+        <Anchors>
+          <Anchor point="TOPRIGHT" relativeTo="$parent.BorderTopRight" relativePoint="BOTTOMRIGHT"/>
+          <Anchor point="BOTTOMRIGHT" relativeTo="$parent.BorderBottomRight" relativePoint="TOPRIGHT"/>
+        </Anchors>
+      </Texture>
+      <Texture name="$parent.BorderBottom" parentKey="BorderBottom" file="Interface\AddOns\SarychUI\addons\LootHistory\compat\Interface\Tooltips\UI-Tooltip-B.blp">
+        <Size x="8" y="8"/>
+        <Anchors>
+          <Anchor point="BOTTOMLEFT" relativeTo="$parent.BorderBottomLeft" relativePoint="BOTTOMRIGHT"/>
+          <Anchor point="BOTTOMRIGHT" relativeTo="$parent.BorderBottomRight" relativePoint="BOTTOMLEFT"/>
+        </Anchors>
+      </Texture>
+      <Texture name="$parent.BorderLeft" parentKey="BorderLeft" file="Interface\AddOns\SarychUI\addons\LootHistory\compat\Interface\Tooltips\UI-Tooltip-L.blp">
+        <Size x="8" y="8"/>
+        <Anchors>
+          <Anchor point="TOPLEFT" relativeTo="$parent.BorderTopLeft" relativePoint="BOTTOMLEFT"/>
+          <Anchor point="BOTTOMLEFT" relativeTo="$parent.BorderBottomLeft" relativePoint="TOPLEFT"/>
+        </Anchors>
+      </Texture>
+      <Texture name="$parent.Background" parentKey="Background">
+        <Anchors>
+          <Anchor point="TOPLEFT" relativeTo="$parent.BorderTopLeft" relativePoint="BOTTOMRIGHT"/>
+          <Anchor point="BOTTOMRIGHT" relativeTo="$parent.BorderBottomRight" relativePoint="TOPLEFT"/>
+        </Anchors>
+        <Color r="0" g="0" b="0" a="0.8"/>
+      </Texture>
+    </Layer>
+  </Layers>
+</Frame>
+
+</Ui>

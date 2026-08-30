@@ -1,0 +1,89 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+..\FrameXML\UI.xsd">
+	<!-- Core Libraries -->
+	<Script file="LibStub\LibStub.lua"/>
+	<Script file="..\core\ace_embed_guard.lua"/>
+	<Script file="CallbackHandler-1.0\CallbackHandler-1.0.lua"/>
+	
+	<!-- Ace3 Communication Libraries (required by other libraries) -->
+	<Include file="AceComm-3.0\AceComm-3.0.xml"/>
+	<Include file="AceTimer-3.0\AceTimer-3.0.xml"/>
+	<Include file="AceSerializer-3.0\AceSerializer-3.0.xml"/>
+	
+	<!-- UnitFrameLayers Libraries -->
+	<Include file="LibHealComm-4.0\LibHealComm-4.0.xml"/>
+	
+	<!-- CompactRaidFrame Libraries -->
+	<Include file="LibTalentQuery-1.0\LibTalentQuery-1.0.xml"/>
+	<Include file="LibGroupTalents-1.0\LibGroupTalents-1.0.xml"/>
+	<!-- Single absorb engine, shared by CompactRaidFrame, UnitFrameLayers and GladiusEx -->
+	<Include file="SpecializedAbsorbs-1.0\SpecializedAbsorbs-1.0.xml"/>
+	<Include file="LibCUFAuras-1.0\lib.xml"/>
+	<Include file="LibResComm-1.0\LibResComm-1.0.xml"/>
+	
+	<!-- Ace3 Core Libraries -->
+	<Script file="AceAddon-3.0\AceAddon-3.0.lua"/>
+	<Script file="AceConsole-3.0\AceConsole-3.0.lua"/>
+	<Script file="AceEvent-3.0\AceEvent-3.0.lua"/>
+	<Script file="AceLocale-3.0\AceLocale-3.0.lua"/>
+	
+	<!-- AceHook-3.0 -->
+	<Include file="AceHook-3.0\AceHook-3.0.xml"/>
+	
+	<!-- AceBucket-3.0 -->
+	<Script file="AceBucket-3.0\AceBucket-3.0.lua"/>
+	
+	<!-- AceDB-3.0 -->
+	<Include file="AceDB-3.0\AceDB-3.0.xml"/>
+	
+	<!-- LibSharedMedia-3.0 -->
+	<Script file="LibSharedMedia-3.0\LibSharedMedia-3.0.lua"/>
+	
+	<!-- AceGUI-3.0 -->
+	<Include file="AceGUI-3.0\AceGUI-3.0.xml"/>
+	
+	<!-- AceConfig-3.0 -->
+	<Include file="AceConfig-3.0\AceConfig-3.0.xml"/>
+	
+	<!-- AceDBOptions-3.0 -->
+	<Include file="AceDBOptions-3.0\AceDBOptions-3.0.xml"/>
+	
+	<!-- AceGUI SharedMediaWidgets -->
+	<Include file="AceGUI-3.0-SharedMediaWidgets\widget.xml"/>
+	
+	<!-- LibCompat-1.0 -->
+	<Include file="LibCompat-1.0\lib.xml"/>
+	
+	<!-- LibDataBroker-1.1 -->
+	<Script file="LibDataBroker-1.1\LibDataBroker-1.1.lua"/>
+	
+	<!-- LibDualSpec-1.0 -->
+	<Script file="LibDualSpec-1.0\LibDualSpec-1.0.lua"/>
+	
+	<!-- LibBetterBlizzOptions-1.0 -->
+	<Script file="LibBetterBlizzOptions-1.0\LibBetterBlizzOptions-1.0.lua"/>
+	
+	<!-- LibNameplates-1.0 -->
+	<Script file="LibNameplates-1.0\LibNameplates-1.0.lua"/>
+	
+	<!-- LibAuraInfo-1.0 -->
+	<Include file="LibAuraInfo-1.0\lib.xml"/>
+	
+	<!-- LibSink-2.0 -->
+	<Include file="LibSink-2.0\lib.xml"/>
+	
+	<!-- LibInternalCooldowns-1.1 -->
+	<Include file="LibInternalCooldowns-1.1\lib.xml"/>
+	
+	<!-- LibDeflate -->
+	<Include file="LibDeflate\lib.xml"/>
+	
+	<!-- LibBabble-Zone-3.0 (required by LibTourist-3.0) -->
+	<Include file="LibBabble-Zone-3.0\lib.xml"/>
+	
+	<!-- LibTourist-3.0 -->
+	<Include file="LibTourist-3.0\lib.xml"/>
+	
+	<!-- LibWindow-1.1 -->
+	<Script file="LibWindow-1.1\LibWindow-1.1.lua"/>
+</Ui>

@@ -1,0 +1,169 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+..\FrameXML\UI.xsd">
+	
+	<Script file="localization.en.lua"/>
+	<Script file="localization.ru.lua"/>
+	<Script file="ChatBar.lua" />
+	
+	<Button name="ChatBarButtonTemplate" virtual="true" hidden="true">
+		<Size>
+			<AbsDimension x="24" y="24"/>
+		</Size>
+		<Layers>
+			<Layer level="OVERLAY">
+				<FontString name="$parentText" inherits="GameFontNormalSmall" nonspacewrap="true" justifyH="CENTER">
+					<Size>
+						<AbsDimension x="24" y="24"/>
+					</Size>
+					<Anchors>
+						<Anchor point="CENTER">
+							<Offset>
+								<AbsDimension x="0" y="0"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+				</FontString>
+				<!-- Удалена текстура Flash -->
+			</Layer>
+		</Layers>
+		<Scripts>
+			<OnLoad function="ChatBar_Button_OnLoad"/>
+	  		<OnEnter function="ChatBar_Button_OnEnter"/>
+	  		<OnLeave function="ChatBar_Button_OnLeave"/>
+			<OnClick function="ChatBar_Button_OnClick"/>
+		</Scripts>
+	</Button>
+	
+	<Frame name="ChatBarFrame" parent="UIParent" enableMouse="true" movable="true" hidden="false">
+		<Size>
+			<AbsDimension x="16" y="16"/>
+		</Size>
+		<Anchors>
+			<Anchor point="BOTTOMLEFT" relativeTo="ChatFrame1" relativePoint="TOPLEFT">
+				<Offset>
+					<AbsDimension x="0" y="30"/>
+				</Offset>
+			</Anchor>
+		</Anchors>
+		<Frames>
+			<Frame name="$parentBackground" setAllPoints="true">
+			</Frame>
+			<Button name="$parentButton1" inherits="ChatBarButtonTemplate" id="1">
+				<Anchors>
+					<Anchor point="LEFT">
+						<Offset>
+							<AbsDimension x="10" y="0"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</Button>
+			<Button name="$parentButton2" inherits="ChatBarButtonTemplate" id="2">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentButton1" relativePoint="RIGHT"/>
+				</Anchors>
+			</Button>
+			<Button name="$parentButton3" inherits="ChatBarButtonTemplate" id="3">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentButton2" relativePoint="RIGHT"/>
+				</Anchors>
+			</Button>
+			<Button name="$parentButton4" inherits="ChatBarButtonTemplate" id="4">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentButton3" relativePoint="RIGHT"/>
+				</Anchors>
+			</Button>
+			<Button name="$parentButton5" inherits="ChatBarButtonTemplate" id="5">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentButton4" relativePoint="RIGHT"/>
+				</Anchors>
+			</Button>
+			<Button name="$parentButton6" inherits="ChatBarButtonTemplate" id="6">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentButton5" relativePoint="RIGHT"/>
+				</Anchors>
+			</Button>
+			<Button name="$parentButton7" inherits="ChatBarButtonTemplate" id="7">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentButton6" relativePoint="RIGHT"/>
+				</Anchors>
+			</Button>
+			<Button name="$parentButton8" inherits="ChatBarButtonTemplate" id="8">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentButton7" relativePoint="RIGHT"/>
+				</Anchors>
+			</Button>
+			<Button name="$parentButton9" inherits="ChatBarButtonTemplate" id="9">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentButton8" relativePoint="RIGHT"/>
+				</Anchors>
+			</Button>
+			<Button name="$parentButton10" inherits="ChatBarButtonTemplate" id="10">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentButton9" relativePoint="RIGHT"/>
+				</Anchors>
+			</Button>
+			<Button name="$parentButton11" inherits="ChatBarButtonTemplate" id="11">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentButton10" relativePoint="RIGHT"/>
+				</Anchors>
+			</Button>
+			<Button name="$parentButton12" inherits="ChatBarButtonTemplate" id="12">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentButton11" relativePoint="RIGHT"/>
+				</Anchors>
+			</Button>
+			<Button name="$parentButton13" inherits="ChatBarButtonTemplate" id="13">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentButton12" relativePoint="RIGHT"/>
+				</Anchors>
+			</Button>
+			<Button name="$parentButton14" inherits="ChatBarButtonTemplate" id="14">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentButton13" relativePoint="RIGHT"/>
+				</Anchors>
+			</Button>
+			<Button name="$parentButton15" inherits="ChatBarButtonTemplate" id="15">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentButton14" relativePoint="RIGHT"/>
+				</Anchors>
+			</Button>
+			<Button name="$parentButton16" inherits="ChatBarButtonTemplate" id="16">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentButton15" relativePoint="RIGHT"/>
+				</Anchors>
+			</Button>
+			<Button name="$parentButton17" inherits="ChatBarButtonTemplate" id="17">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentButton16" relativePoint="RIGHT"/>
+				</Anchors>
+			</Button>
+			<Button name="$parentButton18" inherits="ChatBarButtonTemplate" id="18">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentButton17" relativePoint="RIGHT"/>
+				</Anchors>
+			</Button>
+			<Button name="$parentButton19" inherits="ChatBarButtonTemplate" id="19">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentButton18" relativePoint="RIGHT"/>
+				</Anchors>
+			</Button>
+			<Button name="$parentButton20" inherits="ChatBarButtonTemplate" id="20">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentButton19" relativePoint="RIGHT"/>
+				</Anchors>
+			</Button>
+			<GameTooltip name="$parentTooltip" frameStrata="TOOLTIP" hidden="true" inherits="GameTooltipTemplate" />
+		</Frames>
+		
+		<Scripts>
+			<OnLoad function="ChatBar_OnLoad"/>
+			<OnEvent function="ChatBar_OnEvent"/>
+			<OnUpdate function="ChatBar_OnUpdate"/>
+			<OnMouseDown function="ChatBar_OnMouseDown"/>
+			<OnDragStart function="ChatBar_OnDragStart"/>
+			<OnDragStop function="ChatBar_OnDragStop"/>
+		</Scripts>
+	</Frame>
+	
+	<!-- Меню настроек удалено -->
+</Ui>

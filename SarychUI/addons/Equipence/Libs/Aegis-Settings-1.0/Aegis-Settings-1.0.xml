@@ -1,0 +1,19 @@
+<!--
+    Aegis Settings
+    Copyright (c) 2026 s0high. All rights reserved.
+
+    Restricted proprietary library. See LICENSE for terms.
+-->
+
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Script file="SettingsConstants.lua"/>
+	<Script file="SettingsUtil.lua"/>
+	<Include file="SettingsTemplates.xml"/>
+	<Script file="SettingsBridge.lua"/>
+	<Script file="SettingsSchema.lua"/>
+	<Script file="SettingControls.lua"/>
+	<Script file="SettingsDropdown.lua"/>
+	<Script file="SettingsLayouts.lua"/>
+	<Script file="SettingsPanel.lua"/>
+	<Script file="SettingsRegistrar.lua"/>
+</Ui>

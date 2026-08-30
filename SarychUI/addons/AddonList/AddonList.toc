@@ -1,0 +1,9 @@
+## Interface: 30300
+## Title: AddOn List
+## Notes: In-game addon management.
+## Author: Blizzard, Tsoukie
+## RequiredDeps: !!!ClassicAPI
+## Version: 1.2
+
+Localization.lua
+AddonList.xml

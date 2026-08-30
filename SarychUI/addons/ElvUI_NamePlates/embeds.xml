@@ -1,0 +1,53 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+..\FrameXML\UI.xsd">
+	<!-- ENP-specific libraries (shared AceGUI/LibStub come from SarychUI libs\load-libs.xml) -->
+	<Script file="Libs\LibAnim\LibAnim.lua"/>
+	<Include file="Libs\UTF8\UTF8.xml"/>
+
+	<!-- Isolated AceGUI for NamePlates options ONLY — never touches AceGUI-3.0 used by WA. -->
+	<Include file="Libs\AceGUI-3.0-ENP\AceGUI-3.0-ENP.xml"/>
+	<Include file="Libs\AceConfig-ElvUI\AceConfig-3.0.xml"/>
+	<Script file="Libs\AceGUI-ElvUI\AceGUIWidget-Button-ElvUI.lua"/>
+	<Script file="Libs\AceGUI-ElvUI\AceGUIWidget-ColorPicker-ElvUI.lua"/>
+
+	<!-- Engine -->
+	<Script file="Init.lua"/>
+	<Script file="Core\PrivateAceGUI.lua"/>
+
+	<!-- Locales -->
+	<Script file="Locales\enUS.lua"/>
+	<Script file="Locales\ruRU.lua"/>
+
+	<Script file="Core\Media.lua"/>
+	<Script file="Core\Defaults.lua"/>
+	<Script file="Core\StyleFilterDefaults.lua"/>
+	<Script file="Core\Math.lua"/>
+	<Script file="Core\Toolkit.lua"/>
+	<Script file="Core\Animation.lua"/>
+	<Script file="Core\Smoothie.lua"/>
+	<Script file="Core\Cooldowns.lua"/>
+	<Script file="Core\Core.lua"/>
+
+	<!-- Skins (ElvUI-style options window; hooks AceGUI-3.0-ENP only when embedded) -->
+	<Script file="Modules\Skins\Skins.lua"/>
+
+	<!-- NamePlates module -->
+	<Script file="Modules\NamePlates\NamePlates.lua"/>
+	<Script file="Modules\NamePlates\StyleFilter.lua"/>
+	<Script file="Modules\NamePlates\Elements\Auras.lua"/>
+	<Script file="Modules\NamePlates\Elements\CastBar.lua"/>
+	<Script file="Modules\NamePlates\Elements\ComboPoints.lua"/>
+	<Script file="Modules\NamePlates\Elements\Glow.lua"/>
+	<Script file="Modules\NamePlates\Elements\HealthBar.lua"/>
+	<Script file="Modules\NamePlates\Elements\CutawayHealth.lua"/>
+	<Script file="Modules\NamePlates\Elements\Level.lua"/>
+	<Script file="Modules\NamePlates\Elements\Name.lua"/>
+	<Script file="Modules\NamePlates\Elements\RaidIcon.lua"/>
+	<Script file="Modules\NamePlates\Elements\HealerIcon.lua"/>
+	<Script file="Modules\NamePlates\Elements\Elite.lua"/>
+	<Script file="Modules\NamePlates\Elements\Highlight.lua"/>
+	<Script file="Modules\NamePlates\Elements\IconFrame.lua"/>
+
+	<!-- Options -->
+	<Script file="Options\Nameplates.lua"/>
+</Ui>

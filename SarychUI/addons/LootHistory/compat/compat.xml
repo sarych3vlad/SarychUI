@@ -1,0 +1,10 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+..\FrameXML\UI.xsd">
+
+<Script file="Interface\FrameXML\Constants.lua"/>
+<Script file="Interface\FrameXML\GlobalStrings.lua"/>
+<Include file="Interface\FrameXML\UIPanelTemplates.xml"/>
+
+<Script file="util.lua"/>
+<Script file="C_LootHistory.lua"/>
+</Ui>

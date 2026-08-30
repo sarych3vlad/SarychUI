@@ -1,0 +1,35 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Include file="Libs\Libs.xml"/>
+
+	<Script file="Core\Init.lua"/>
+	<Script file="Core\Database.lua"/>
+	<Script file="Core\Localization.lua"/>
+	<Script file="Core\Controllers.lua"/>
+	<Script file="Core\SettingsDefinitions.lua"/>
+	<Script file="Core\SettingsController.lua"/>
+
+	<Script file="Shared\Constants.lua"/>
+	<Script file="Shared\Data\EquipmentSlots.lua"/>
+	<Script file="Shared\Data\ItemLevelColorInfo.lua"/>
+	<Script file="Shared\Data\EnchantMetadata.lua"/>
+	<Script file="Shared\Data\SocketVisualInfo.lua"/>
+
+	<Script file="Shared\Utils\TextUtil.lua"/>
+
+	<Script file="Modules\DataProvider\DataProvider.lua"/>
+	<Script file="Modules\DataProvider\SocketData.lua"/>
+	<Script file="Modules\DataProvider\EnchantData.lua"/>
+
+	<Script file="Modules\EquipmentLayout.lua"/>
+	<Script file="Modules\PaperDollLayout.lua"/>
+
+	<Script file="Modules\Components\ShineUtil.lua"/>
+
+	<Script file="Modules\Features\Gems.lua"/>
+	<Script file="Modules\Features\Enchants.lua"/>
+	<Script file="Modules\Features\ItemQuality.lua"/>
+	<Script file="Modules\Features\ItemLevels.lua"/>
+
+	<Script file="Modules\EquipmentController.lua"/>
+	<Script file="Modules\InspectionController.lua"/>
+</Ui>

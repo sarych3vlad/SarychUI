@@ -1,2 +1,42 @@
-# SarychUI
-Modular UI framework for WoW 3.3.5a
+<p align="center">
+  <img src="SarychUI.png" alt="SarychUI" width="500">
+</p>
+
+<h1 align="center">SarychUI</h1>
+
+<p align="center">
+  Modular UI framework for World of Warcraft 3.3.5a<br>
+  Модульный интерфейс для World of Warcraft 3.3.5a
+</p>
+
+<p align="center">
+  <a href="https://discord.gg/ge2ufhyv"><strong>Discord</strong></a>
+  &nbsp;•&nbsp;
+  <a href="https://www.youtube.com/@sarych3vlad413"><strong>YouTube Guide / Видеогайд</strong></a>
+</p>
+
+---
+
+### English
+
+**SarychUI** is a modular UI framework for **World of Warcraft 3.3.5a**.
+
+A complete setup and configuration guide is available on **YouTube**.
+
+Additional **MPQ patches, client patches, DLLs, tools, and other modifications** can be found on the Discord server.
+
+**Discord:** https://discord.gg/ge2ufhyv
+**YouTube Guide:** YOUTUBE_LINK
+
+---
+
+### Русский
+
+**SarychUI** — модульный интерфейс для **World of Warcraft 3.3.5a**.
+
+Полный гайд по установке и настройке доступен на **YouTube**.
+
+Дополнительные **MPQ-патчи, патчи клиента, DLL, инструменты и другие модификации** можно найти на Discord-сервере.
+
+**Discord:** https://discord.gg/ge2ufhyv
+**Видеогайд:** [YOUTUBE_LINK](https://www.youtube.com/@sarych3vlad413)

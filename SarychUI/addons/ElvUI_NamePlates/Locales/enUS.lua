@@ -1,0 +1,60 @@
+local E, L = unpack(_G.SarychUI_ElvUI_NamePlates)
+
+-- enUS base values for keys whose English text differs from the key itself.
+-- Extracted verbatim from ElvUI_OptionsUI/Locales/enUS.lua and ElvUI/Locales/enUS.lua.
+-- Keys whose English value equals the key fall back automatically (Init.lua L metatable).
+
+L["BATTLEFIELDS"] = "Battlegrounds"
+L["BINDING_HEADER_RAID_TARGET"] = "Target Markers"
+L["COLOR"] = "Color"
+L["COLORS"] = "Colors"
+L["COMBO_POINTS"] = "Combo |4Point:Points;"
+L["copperabbrev"] = "|cffeda55fc|r"
+L["DAMAGER"] = "Damage"
+L["DISABLE"] = "Disable"
+L["DUNGEON_DIFFICULTY"] = "Dungeon Difficulty"
+L["DUNGEONS"] = "Dungeons"
+L["ENEMY_NPC"] = "Enemy NPC"
+L["ENEMY_PLAYER"] = "Enemy Player"
+L["FACTION_STANDING_LABEL2"] = "Hostile"
+L["FACTION_STANDING_LABEL4"] = "Neutral"
+L["FACTION_STANDING_LABEL5"] = "Friendly"
+L["FONT_SIZE"] = "Font Size"
+L["FRIENDLY_NPC"] = "Friendly NPC"
+L["FRIENDLY_PLAYER"] = "Friendly Player"
+L["goldabbrev"] = "|cffffd700g|r"
+L["HEALER"] = "Healer"
+L["INTERRUPTED"] = "Interrupted"
+L["LEVEL"] = "Level"
+L["LEVEL_BOSS"] = "Set level to -1 for boss units or set to 0 to disable."
+L["NAMEPLATE_DESC"] = "Modify the nameplate settings."
+L["NAMEPLATE_FRAMELEVEL_DESC"] = [=[If you set this to 1 then all plates triggered by this style filter will be above any of the non-triggered plates.
+
+If you set this to 2 in another style filter then all plates triggered by that filter will be above plates with frame level set to 1 and all non-triggered plates, and so on.
+
+NOTE: This setting will NOT fix the issue with clicking or mousing over nameplates that are overlapped. That issue is due to us not being able to manipulate the frame level of the clickable area for nameplates.]=]
+L["NONE"] = "None"
+L["PLAYER_DIFFICULTY1"] = "Normal"
+L["PLAYER_DIFFICULTY2"] = "Heroic"
+L["RAID"] = "Raid"
+L["RAID_TARGET_1"] = "Star"
+L["RAID_TARGET_2"] = "Circle"
+L["RAID_TARGET_3"] = "Diamond"
+L["RAID_TARGET_4"] = "Triangle"
+L["RAID_TARGET_5"] = "Moon"
+L["RAID_TARGET_6"] = "Square"
+L["RAID_TARGET_7"] = "Cross"
+L["RAID_TARGET_8"] = "Skull"
+L["ROLE"] = "Role"
+L["silverabbrev"] = "|cffc7c7cfs|r"
+L["SPEED"] = "Speed"
+L["TARGET"] = "Target"
+L["UNIT_NAMEPLATES_TYPE_1"] = "Overlapping Nameplates"
+L["UNIT_NAMEPLATES_TYPE_2"] = "Stacking Nameplates"
+L["UNIT_NAMEPLATES_TYPES"] = "Nameplate Motion Type"
+L["Abbreviation"] = "Abbreviation"
+L["No Word Abbreviation"] = "No Word Abbreviation"
+L["No Word Abbreviation Desc"] = "Shows the full name without word abbreviation, truncating with ... to fit the nameplate width and character limit."
+L["Name Max Characters"] = "Character Limit"
+L["Name Max Characters Desc"] = "Maximum number of name characters before truncation. The name is also clipped to the current nameplate width."
+L["You need to reload the UI to apply your changes."] = "You need to reload the UI to apply your changes."

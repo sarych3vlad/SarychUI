@@ -1,0 +1,11 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+..\FrameXML\UI.xsd">
+
+<Script file="Modules\Bartender4.lua"/>
+<Script file="Modules\BlizzardActionBars.lua"/>
+<Script file="Modules\Forte.lua"/>
+<Script file="Modules\PaperDollFrame.lua"/>
+<Script file="Modules\ProcOverlay.lua"/>
+<Script file="Modules\TrinketGCD.lua"/>
+
+</Ui>

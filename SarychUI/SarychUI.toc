@@ -1,0 +1,452 @@
+## Interface: 30300
+## Title: |cFFFFFFFFSarych|rUI
+## Notes: Complete UI for WotLK 3.3.5
+## Notes-ruRU: Комплексный интерфейс для WotLK 3.3.5
+## Author: Сарыч
+## Version: 1.0.0
+## SavedVariables: SarychUIDB, CompactRaidFrameDB, InternalCooldownsDB, BagnonForeverDB, BigDebuffsDB, OmniBarDB, LootClickerDB, LootHistoryDB, MapsterDB, WDMdb, SarychUIElvNamePlatesDB, SarychUIElvNamePlatesPrivateDB, SarychUIElvBagsDB, SarychUIElvBagsPrivateDB, GladiusExDB, EquipenceDB, TrufiGCDGlSave, Postal3DB, AUCTIONATOR_SAVEDVARS, AUCTIONATOR_PRICING_HISTORY, AUCTIONATOR_SHOPPING_LISTS, AUCTIONATOR_PRICE_DATABASE, AUCTIONATOR_MEAN_PRICE_DATABASE, AUCTIONATOR_LAST_SCAN_TIME, AUCTIONATOR_TOONS, AUCTIONATOR_STACKING_PREFS, AUCTIONATOR_SCAN_MINLEVEL, _CursorOptions, InspectEquipConfig, FindGroupDB, RaidRoll_DB, RaidRoll_DBPC, TalentedDB
+## SavedVariablesPerCharacter: TrufiGCDChSave, AUCTIONATOR_SHOW_ST_PRICE, AUCTIONATOR_ENABLE_ALT, AUCTIONATOR_OPEN_FIRST, AUCTIONATOR_OPEN_BUY, AUCTIONATOR_OPEN_ALL_BAGS, AUCTIONATOR_DEF_DURATION, AUCTIONATOR_SHOW_TIPS, AUCTIONATOR_V_TIPS, AUCTIONATOR_A_TIPS, AUCTIONATOR_D_TIPS, AUCTIONATOR_SHIFT_TIPS, AUCTIONATOR_DE_DETAILS_TIPS, AUCTIONATOR_DEFTAB, AUCTIONATOR_CHARACTER_RECENTS, _CursorOptionsCharacter, BASpammerDB, BaudBag_Cfg, BaudBag_Cache, RR_Accept_All_Rolls, RR_Track_Unannounced_Rolls, RR_Roll_Tracking_Enabled, RR_AllowExtraRolls, RR_Show_Ranks, RR_RankPriority, RR_ExtraWidth, RR_ShowGroupNumber, RR_RollFrameHeight
+
+# Libraries
+libs\load-libs.xml
+
+# ClassicAPI (before modules)
+addons\!!!ClassicAPI\embeds.xml
+addons\!!!ClassicAPI\Load.xml
+
+# Core
+core\init.lua
+core\format_money.lua
+core\profile.lua
+core\perf.lua
+core\perf_debug.lua
+core\compatibility.lua
+core\runtime.lua
+core\carbonite_detect.lua
+core\channel_frame_fix.lua
+core\registry.lua
+core\defaults.lua
+core\profiles\Sarych.lua
+core\coordinator.lua
+core\media.lua
+core\alt_mode.lua
+core\combat_animations.lua
+core\drag_mode.lua
+core\combat_text_drag_panel.lua
+core\addons_registry.lua
+# Localization
+core\localization\Locale.lua
+core\localization\en.lua
+core\localization\ru.lua
+core\localization\ptBR.lua
+core\localization\esES.lua
+core\localization\esMX.lua
+core\localization\deDE.lua
+core\localization\frFR.lua
+core\localization\itIT.lua
+core\localization\koKR.lua
+core\localization\zhCN.lua
+core\localization\zhTW.lua
+core\localization\maps\enUS.lua
+core\localization\maps\ptBR.lua
+core\localization\maps\esES.lua
+core\localization\maps\esMX.lua
+core\localization\maps\deDE.lua
+core\localization\maps\frFR.lua
+core\localization\maps\itIT.lua
+core\localization\maps\koKR.lua
+core\localization\maps\zhCN.lua
+core\localization\maps\zhTW.lua
+core\localization\Apply.lua
+
+# Modules
+modules\mainmenubar\module.lua
+modules\minimap\module.lua
+modules\minimap\preview.lua
+modules\map\module.lua
+modules\frame\module.lua
+modules\frame\portraits.lua
+modules\frame\preview.lua
+modules\frame\pvp_preview.lua
+modules\auras\module.lua
+modules\auras\preview.lua
+modules\chat\module.lua
+modules\chat\functionality.lua
+modules\chat\meme_pack_v2_data.lua
+modules\chat\emotions.lua
+modules\chat\appearance.lua
+modules\chat\tooltip_preview.lua
+modules\chat\spam_filter.lua
+modules\chat\chatwheel.lua
+modules\chat\ChatBar.xml
+modules\cc\module.lua
+modules\cc\previews.lua
+modules\bags\module.lua
+modules\bags\bag_sort.lua
+modules\automation\module.lua
+modules\tools\flight_data_alliance.lua
+modules\tools\flight_data_horde.lua
+modules\tools\font_outline_values.lua
+modules\tools\loot_roll_counts.lua
+modules\tools\loot_roll_preview.lua
+modules\tools\module.lua
+modules\tools\quest_tracker.lua
+modules\floating_text\module.lua
+modules\floating_text\preview.lua
+modules\health_indicators\module.lua
+modules\health_indicators\distance_preview.lua
+modules\plates_auras\configID.lua
+modules\plates_auras\elvui_layout.lua
+modules\plates_auras\glow.lua
+modules\plates_auras\core.lua
+modules\plates_auras\pb_bridge.lua
+modules\plates_auras\module.lua
+modules\plates_auras\test.lua
+modules\plates_auras\layout_preview.lua
+modules\arena\drag_mode.lua
+modules\arena\module.lua
+modules\arena\preview.lua
+
+# MainMenuBar Panels (loaded after main module)
+modules\mainmenubar\panelText.lua
+modules\mainmenubar\panelVisual.lua
+modules\mainmenubar\panelColor.lua
+modules\mainmenubar\preview.lua
+
+# Module Options
+modules\mainmenubar\options.lua
+modules\minimap\options.lua
+modules\map\options.lua
+modules\frame\options.lua
+modules\auras\options.lua
+modules\chat\options.lua
+modules\cc\options.lua
+modules\bags\options.lua
+modules\automation\options.lua
+modules\tools\options.lua
+modules\floating_text\options.lua
+modules\health_indicators\options.lua
+modules\plates_auras\options.lua
+modules\arena\options.lua
+
+# Options Interface
+options\options_perf.lua
+options\options_acegui_overrides.lua
+options\options_skin.lua
+options\options_widgets.lua
+options\options_cleanup.lua
+options\module_options_wrapper.lua
+# Custom Details-like options core (primary UI)
+options\options_theme.lua
+options\options_widgets_custom.lua
+options\options_window.lua
+options\options_renderer.lua
+options\options_core.lua
+options\options.lua
+
+# AddOns (from addons folder)
+# UnitFrameLayers
+addons\UnitFrameLayers\embeds.xml
+addons\UnitFrameLayers\Dependence\BuilderSpenderFrame.xml
+addons\UnitFrameLayers\Dependence\MathUtil.lua
+addons\UnitFrameLayers\Dependence\Mixin.lua
+addons\UnitFrameLayers\Dependence\GetSpellPowerCost.lua
+addons\UnitFrameLayers\Dependence\AnimatedHealthLossMixin.lua
+addons\UnitFrameLayers\Dependence\BuilderSpenderFrame.lua
+addons\UnitFrameLayers\UnitFrame.xml
+addons\UnitFrameLayers\UnitFrame.lua
+addons\UnitFrameLayers\wrapper.lua
+
+# pw_lossofcontrol
+addons\pw_lossofcontrol\pw_lossofcontrol.xml
+addons\pw_lossofcontrol\wrapper.lua
+
+# BNetToast
+addons\BNetToast\BNetToast.lua
+addons\BNetToast\wrapper.lua
+
+# Cheese
+addons\Cheese\Data.lua
+addons\Cheese\APIAnimation.xml
+addons\Cheese\APISpellActivationOverlay.lua
+addons\Cheese\GlobalStrings.lua
+addons\Cheese\UIParent.lua
+addons\Cheese\InterfaceOptionsPanels.xml
+addons\Cheese\ActionBarFrame.xml
+addons\Cheese\SpellActivationOverlay.xml
+addons\Cheese\wrapper.lua
+
+# GearScoreLite
+addons\GearScoreLite\informationLite.lua
+addons\GearScoreLite\GearScoreLite.lua
+addons\GearScoreLite\wrapper.lua
+
+# pretty_lootalert
+addons\pretty_lootalert\pretty_lootalert.xml
+addons\pretty_lootalert\wrapper.lua
+
+# FlashWindow
+addons\FlashWindow\main.lua
+addons\FlashWindow\wrapper.lua
+
+# IdTip
+addons\IdTip\core.lua
+addons\IdTip\wrapper.lua
+
+# LevelUpDisplay
+addons\LevelUpDisplay\LevelUpDisplay.xml
+addons\LevelUpDisplay\wrapper.lua
+
+# LootClicker
+addons\LootClicker\global_patches.lua
+addons\LootClicker\util.lua
+addons\LootClicker\locale.lua
+addons\LootClicker\init.lua
+addons\LootClicker\core.lua
+addons\LootClicker\options.lua
+addons\LootClicker\wrapper.lua
+
+# LootHistory
+addons\LootHistory\compat\compat.xml
+addons\LootHistory\LootHistory.xml
+addons\LootHistory\core.lua
+addons\LootHistory\wrapper.lua
+
+# BigDebuffs
+addons\BigDebuffs\embeds.xml
+addons\BigDebuffs\CircleCooldownTemplate\CircleCooldownTemplate.xml
+addons\BigDebuffs\locale\locale.xml
+addons\BigDebuffs\BigDebuffs.xml
+addons\BigDebuffs\BigDebuffs.lua
+addons\BigDebuffs\Options.lua
+addons\BigDebuffs\wrapper.lua
+
+# InternalCooldowns
+addons\InternalCooldowns\embeds.xml
+addons\InternalCooldowns\Core.lua
+addons\InternalCooldowns\modules.xml
+addons\InternalCooldowns\wrapper.lua
+
+# OmniBar
+addons\OmniBar\Locales\Locales.xml
+addons\OmniBar\OmniBar.xml
+addons\OmniBar\OmniBar_Wrath.lua
+addons\OmniBar\OmniBar.lua
+addons\OmniBar\Options.lua
+addons\OmniBar\wrapper.lua
+
+# ElvUI NamePlates (embedded)
+addons\ElvUI_NamePlates\embeds.xml
+addons\ElvUI_NamePlates\wrapper.lua
+
+# SarychUI Bags (embedded)
+addons\SarychUI_Bags\embeds.xml
+addons\SarychUI_Bags\wrapper.lua
+
+# BaudBag (embedded)
+addons\BaudBag\embeds.xml
+addons\BaudBag\wrapper.lua
+
+# GladiusEx (embedded)
+addons\GladiusEx\embeds.xml
+addons\GladiusEx\localization\enUS.lua
+addons\GladiusEx\localization\ruRU.lua
+addons\GladiusEx\localization\locales.lua
+addons\GladiusEx\GladiusEx.lua
+addons\GladiusEx\bootstrap.lua
+addons\GladiusEx\options.lua
+addons\GladiusEx\Data.lua
+addons\GladiusEx\modules\spectate.lua
+addons\GladiusEx\modules\alerts.lua
+addons\GladiusEx\modules\announcements.lua
+addons\GladiusEx\modules\auras.lua
+addons\GladiusEx\modules\castbar.lua
+addons\GladiusEx\modules\classicon.lua
+addons\GladiusEx\modules\clicks.lua
+addons\GladiusEx\modules\cooldowns.lua
+addons\GladiusEx\modules\drtracker.lua
+addons\GladiusEx\modules\healthbar.lua
+addons\GladiusEx\modules\highlight.lua
+addons\GladiusEx\modules\powerbar.lua
+addons\GladiusEx\modules\skill_history.lua
+addons\GladiusEx\modules\tags.lua
+addons\GladiusEx\modules\unitbar.lua
+addons\GladiusEx\modules\targetbar.lua
+addons\GladiusEx\modules\petbar.lua
+addons\GladiusEx\modules\interrupts.lua
+addons\GladiusEx\wrapper.lua
+
+# Cromulent
+addons\Cromulent\embeds.xml
+addons\Cromulent\Locales\locales.xml
+addons\Cromulent\Cromulent.lua
+addons\Cromulent\wrapper.lua
+
+# Equipence (embedded)
+addons\Equipence\bootstrap.lua
+addons\Equipence\embeds.xml
+addons\Equipence\wrapper.lua
+
+# TrufiGCD (embedded)
+addons\TrufiGCD\bootstrap.lua
+addons\TrufiGCD\embeds.xml
+addons\TrufiGCD\wrapper.lua
+
+# Postal (strict embedded)
+addons\Postal\bootstrap.lua
+addons\Postal\embed_compat.lua
+addons\Postal\Localization.lua
+addons\Postal\Postal.lua
+addons\Postal\Modules\Express.lua
+addons\Postal\Modules\OpenAll.lua
+addons\Postal\Modules\Wire.lua
+addons\Postal\Modules\Select.lua
+addons\Postal\Modules\TradeBlock.lua
+addons\Postal\Modules\Rake.lua
+addons\Postal\Modules\BlackBook.lua
+addons\Postal\Modules\DoNotWant.lua
+addons\Postal\wrapper.lua
+
+# !Astrolabe (map library, load before WDM)
+addons\!Astrolabe\Load.xml
+addons\!Astrolabe\wrapper.lua
+
+# WDM (WoW Dungeon Maps)
+addons\WDM\embeds.xml
+
+# Mapster
+addons\Mapster\embeds.xml
+addons\Mapster\Locale\locale.xml
+addons\Mapster\Mapster.lua
+addons\Mapster\Config.lua
+addons\Mapster\Coords.lua
+addons\Mapster\GroupIcons.lua
+addons\Mapster\BattleMap.lua
+addons\Mapster\FogClear.lua
+addons\Mapster\InstanceMaps.lua
+addons\Mapster\Scaling.lua
+addons\Mapster\wrapper.lua
+
+# SnowfallKeyPress
+addons\SnowfallKeyPress\embeds.xml
+addons\SnowfallKeyPress\Init.lua
+addons\SnowfallKeyPress\SnowfallKeyPressAnimation\SnowfallKeyPressAnimation.lua
+addons\SnowfallKeyPress\SnowfallKeyPress.lua
+addons\SnowfallKeyPress\SnowfallKeyPressSettings\SnowfallKeyPressSettings.lua
+addons\SnowfallKeyPress\wrapper.lua
+
+# CL_Fix
+addons\CL_Fix\embeds.xml
+addons\CL_Fix\CL_Fix.lua
+addons\CL_Fix\wrapper.lua
+
+# Auctionator
+addons\Auctionator\embeds.xml
+addons\Auctionator\Locales\enUS.lua
+addons\Auctionator\Locales\deDE.lua
+addons\Auctionator\Locales\ruRU.lua
+addons\Auctionator\Locales\frFR.lua
+addons\Auctionator\Locales\esES.lua
+addons\Auctionator\zcUtils.lua
+addons\Auctionator\Auctionator.lua
+addons\Auctionator\AuctionatorShop.lua
+addons\Auctionator\Auctionator.xml
+addons\Auctionator\AuctionatorLocalize.lua
+addons\Auctionator\AuctionatorPane.lua
+addons\Auctionator\AuctionatorScan.lua
+addons\Auctionator\AuctionatorQuery.lua
+addons\Auctionator\AuctionatorHints.lua
+addons\Auctionator\AuctionatorVendor.lua
+addons\Auctionator\AuctionatorConflicts.lua
+addons\Auctionator\AuctionatorAPI.lua
+addons\Auctionator\AuctionatorConfig.lua
+addons\Auctionator\AuctionatorBuy.lua
+addons\Auctionator\AuctionatorConfig.xml
+addons\Auctionator\wrapper.lua
+
+# AddonList (replaces ACP)
+addons\AddonList\Localization.lua
+addons\AddonList\AddonList.xml
+addons\AddonList\wrapper.lua
+
+# autolos
+addons\autolos\font_flags.lua
+addons\autolos\main.lua
+addons\autolos\elvui_layout.lua
+addons\autolos\wrapper.lua
+
+# CompactRaidFrame
+addons\CompactRaidFrame\embeds.xml
+addons\CompactRaidFrame\locales.xml
+addons\CompactRaidFrame\Dependence\load.xml
+addons\CompactRaidFrame\Templates\load.xml
+addons\CompactRaidFrame\FlowContainer.lua
+addons\CompactRaidFrame\CompactUnitFrame.xml
+addons\CompactRaidFrame\CompactRaidGroup.xml
+addons\CompactRaidFrame\CompactPartyFrame.xml
+addons\CompactRaidFrame\CUFProfiles\CompactUnitFrameProfiles.xml
+addons\CompactRaidFrame\CompactRaidFrames\CompactRaidFrameReservationManager.lua
+addons\CompactRaidFrame\CompactRaidFrames\CompactRaidFrameContainer.xml
+addons\CompactRaidFrame\CompactRaidFrames\CompactRaidFrameManager.xml
+addons\CompactRaidFrame\wrapper.lua
+
+# !!!ClassicAPI wrapper (registration only, addon already loaded)
+addons\!!!ClassicAPI\wrapper.lua
+
+# Bagnon_FT
+addons\Bagnon_FT\localization\localization.lua
+addons\Bagnon_FT\localization\localization.tw.lua
+addons\Bagnon_FT\localization\localization.cn.lua
+addons\Bagnon_FT\localization\localization.ru.lua
+addons\Bagnon_FT\localization\localization.de.lua
+addons\Bagnon_FT\db.lua
+addons\Bagnon_FT\ui.xml
+addons\Bagnon_FT\tooltips.lua
+addons\Bagnon_FT\wrapper.lua
+
+# _Cursor (embedded) — runtime valve (no loadfile on this client)
+addons\_Cursor\bootstrap.lua
+addons\_Cursor\Locales.xml
+addons\_Cursor\_Cursor.lua
+addons\_Cursor\_Cursor.Options.lua
+addons\_Cursor\wrapper.lua
+
+# BASpammer (embedded)
+addons\BASpammer\bootstrap.lua
+addons\BASpammer\BASpammer.xml
+addons\BASpammer\BASpammer.lua
+addons\BASpammer\wrapper.lua
+
+# InspectEquip (embedded)
+addons\InspectEquip\bootstrap.lua
+addons\InspectEquip\embeds.xml
+addons\InspectEquip\Locales\Locales.xml
+addons\InspectEquip\ItemSources.lua
+addons\InspectEquip\InfoWindow.xml
+addons\InspectEquip\Core.lua
+addons\InspectEquip\Tooltips.lua
+addons\InspectEquip\wrapper.lua
+
+# FindGroup (embedded)
+addons\FindGroup\bootstrap.lua
+addons\FindGroup\libs.xml
+addons\FindGroup\FindGroup.xml
+addons\FindGroup\embed.lua
+addons\FindGroup\wrapper.lua
+
+# RaidRoll (embedded: RaidRoll + RaidRoll_EPGP + RaidRoll_LootTracker as one settings entry)
+addons\RaidRoll\RaidRoll.xml
+addons\RaidRoll\RaidRoll_EPGP\RaidRoll_EPGP.lua
+addons\RaidRoll\RaidRoll_LootTracker\RaidRoll_LootTracker.lua
+addons\RaidRoll\wrapper.lua
+
+# Talented (embedded)
+addons\Talented\Libs\Libs.xml
+addons\Talented\Locales\Locales.xml
+addons\Talented\Talented.lua
+addons\Talented\Options.lua
+addons\Talented\Data.lua
+addons\Talented\Ui.lua
+addons\Talented\Glyphs.lua
+addons\Talented\Talented_Skin.lua
+addons\Talented\wrapper.lua

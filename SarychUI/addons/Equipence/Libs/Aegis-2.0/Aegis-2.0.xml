@@ -1,0 +1,44 @@
+<!--
+    Aegis Framework
+    Copyright (c) 2026 s0high. All rights reserved.
+
+    Restricted proprietary library. See LICENSE for terms.
+-->
+
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<!-- Aegis Core -->
+	<Script file="Core.lua"/>
+
+	<!-- Aegis Data -->
+	<Script file="Data\NamespaceTrustRules.lua"/>
+	<Script file="Data\EnvironmentProbes.lua"/>
+	<Script file="Data\LocalizationFallbacks.lua"/>
+	<Script file="Data\CommonAtlasData.lua"/>
+
+	<!-- Aegis Shared -->
+	<Script file="Shared\Enum.lua"/>
+	<Script file="Shared\GlobalStrings.lua"/>
+	<Script file="Shared\FlagsUtil.lua"/>
+	<Script file="Shared\LinkUtil.lua"/>
+	<Script file="Shared\TextureUtil.lua"/>
+	<Script file="Shared\TooltipUtil.lua"/>
+	<Script file="Shared\ColorManager.lua"/>
+
+	<!-- Aegis Services -->
+	<Script file="Services\Environment.lua"/>
+	<Script file="Services\AsyncLoaderSystem.lua"/>
+	<Script file="Services\TooltipScanner.lua"/>
+	<Script file="Services\ItemEventListener.lua"/>
+	<Script file="Services\AtlasRegistry.lua"/>
+
+	<!-- Aegis Modules -->
+	<Script file="Modules\C_AddOns.lua"/>
+	<Script file="Modules\C_Item.lua"/>
+	<Script file="Modules\C_Spell.lua"/>
+	<Script file="Modules\C_TooltipInfo.lua"/>
+	<Script file="Modules\C_Texture.lua"/>
+
+	<!-- Aegis ObjectAPI -->
+	<Script file="ObjectAPI\ItemLocation.lua"/>
+	<Script file="ObjectAPI\Item.lua"/>
+</Ui>

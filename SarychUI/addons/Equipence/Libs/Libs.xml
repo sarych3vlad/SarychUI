@@ -1,0 +1,17 @@
+<!--
+    Equipence
+    Copyright (c) 2026 s0high. All rights reserved.
+
+    Source-available proprietary software. See LICENSE for terms.
+-->
+
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<!-- LibStub -->
+	<Script file="LibStub\LibStub.lua"/>
+
+	<!-- Aegis-2.0 -->
+	<Include file="Aegis-2.0\Aegis-2.0.xml"/>
+	
+	<!-- Aegis-Settings-1.0 -->
+	<Include file="Aegis-Settings-1.0\Aegis-Settings-1.0.xml"/>
+</Ui>
