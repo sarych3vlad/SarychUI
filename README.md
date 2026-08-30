@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="SarychUI.png" alt="SarychUI" width="500">
+  <img src="SarychUI.png" alt="SarychUI" width="250">
 </p>
 
 <h1 align="center">SarychUI</h1>
@@ -26,7 +26,7 @@ A complete setup and configuration guide is available on **YouTube**.
 Additional **MPQ patches, client patches, DLLs, tools, and other modifications** can be found on the Discord server.
 
 **Discord:** https://discord.gg/ge2ufhyv
-**YouTube Guide:** YOUTUBE_LINK
+**YouTube Guide:** https://www.youtube.com/@sarych3vlad413
 
 ---
 
@@ -39,4 +39,4 @@ Additional **MPQ patches, client patches, DLLs, tools, and other modifications**
 Дополнительные **MPQ-патчи, патчи клиента, DLL, инструменты и другие модификации** можно найти на Discord-сервере.
 
 **Discord:** https://discord.gg/ge2ufhyv
-**Видеогайд:** [YOUTUBE_LINK](https://www.youtube.com/@sarych3vlad413)
+**Видеогайд:** https://www.youtube.com/@sarych3vlad413
