@@ -766,7 +766,7 @@ function OW:CreateFooter()
 	local fc = T.colors.footerCredit or { 0.42, 0.42, 0.45, 0.55 }
 
 	-- Left: Discord invite (Details-style selectable EditBox + backdrop).
-	local DISCORD_URL = "https://discord.gg/bds4APkf"
+	local DISCORD_URL = "https://discord.gg/Thyh85WfmP"
 	local discordLabel = f:CreateFontString(nil, "OVERLAY", T.fonts.small)
 	discordLabel:SetPoint("LEFT", 8, 0)
 	discordLabel:SetText("Discord:")
