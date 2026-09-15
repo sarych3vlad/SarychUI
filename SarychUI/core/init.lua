@@ -164,6 +164,16 @@ function SarychUI:ProcessPendingOptionsRefresh()
 		return
 	end
 	self._pendingOptionsRefresh = nil
+	-- Custom /sui window stays open through combat, so its deferred refresh has to
+	-- land here too (IsSarychUIConfigOpen only knows the Ace dialog).
+	local core = self.OptionsCore
+	if core and core.IsOpen and core:IsOpen() then
+		self:DebugCombatOptions("ProcessPendingOptionsRefresh", "custom window")
+		if core.ScheduleSmartRefresh then
+			core:ScheduleSmartRefresh()
+		end
+		return
+	end
 	if not self:IsSarychUIConfigOpen() then
 		self:DebugCombatOptions("ProcessPendingOptionsRefresh skipped", "config closed")
 		return

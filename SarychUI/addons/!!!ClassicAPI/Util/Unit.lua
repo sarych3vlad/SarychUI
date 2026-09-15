@@ -16,21 +16,37 @@ local UnitIsTappedByAllThreatList = UnitIsTappedByAllThreatList
 
 local EventHandler = Private.EventHandler
 local EventHandler_Fire = EventHandler.Fire
-local EventHandler_Register = EventHandler.Register
+local EventHandler_Define = EventHandler.Define
 
 local GTCOMM
-local UNIT_IN_RANGE = (WOW_PROJECT_ID_RCE ~= WOW_PROJECT_CLASSIC) and 34471
+local UNIT_RANGE_ITEM = (WOW_PROJECT_ID_RCE ~= WOW_PROJECT_CLASSIC) and 34471
 
 function C_UnitInRange(Unit)
-	return (UNIT_IN_RANGE == 34471 and IsItemInRange(34471, Unit) == 1 or UnitInRange(Unit)) or CheckInteractDistance(Unit, 1) == 1, true
+	-- 1. CheckInteractDistance(Unit, 4) is ~28 yards and very cheap.
+	-- 2. UnitInRange(Unit) handles party/raid members (~36 yards).
+	-- 3. IsItemInRange uses a specific item (34471 - Vial of Sunwell) (40 yards).
+	-- Force a boolean true/false if the result is 1/nil
+
+	return not not (
+		CheckInteractDistance(Unit, 4) or
+		UnitInRange(Unit) or
+		(UNIT_RANGE_ITEM and IsItemInRange(UNIT_RANGE_ITEM, Unit) == 1)
+	), true
 end
 
 function UnitDistanceSquared(Unit)
 	if ( UnitIsConnected(Unit) ) then
-		local PX, PY = GetPlayerMapPosition("player")
-		local UX, UY = GetPlayerMapPosition(Unit)
-		return CalculateDistance(PX, PY, UX, UY) * 100000, true
+		local Px, Py = GetPlayerMapPosition("player")
+		local Ux, Uy = GetPlayerMapPosition(Unit)
+
+		-- Inline the distance squared calculation: (x2-x1)^2 + (y2-y1)^2
+		local Dx = Ux - Px
+		local Dy = Uy - Py
+
+		local DistanceSq = (Dx * Dx + Dy * Dy) * 100000
+		return DistanceSq, true
 	end
+
 	return 0, false
 end
 
@@ -121,9 +137,9 @@ local function PLAYER_ROLES_ASSIGNED_EH(Trigger)
 	end
 end
 
-EventHandler_Register("Event", "PLAYER_ROLES_ASSIGNED")
-EventHandler_Register("OnRegister", "PLAYER_ROLES_ASSIGNED", PLAYER_ROLES_ASSIGNED_EH)
-EventHandler_Register("OnUnregister", "PLAYER_ROLES_ASSIGNED", PLAYER_ROLES_ASSIGNED_EH)
+EventHandler_Define("Event", "PLAYER_ROLES_ASSIGNED")
+EventHandler_Define("OnRegister", "PLAYER_ROLES_ASSIGNED", PLAYER_ROLES_ASSIGNED_EH)
+EventHandler_Define("OnUnregister", "PLAYER_ROLES_ASSIGNED", PLAYER_ROLES_ASSIGNED_EH)
 
 --[[ EventHandler: UNIT_CONNECTION ]]
 
@@ -149,8 +165,8 @@ local function UNIT_CONNECTION_EH(Trigger, Event, UnitID, Connected)
 	end
 end
 
-EventHandler_Register("Event", "UNIT_CONNECTION", "UNIT_FACTION")
-EventHandler_Register("OnEvent", "UNIT_CONNECTION", UNIT_CONNECTION_EH)
-EventHandler_Register("OnRegister", "UNIT_CONNECTION", UNIT_CONNECTION_EH)
-EventHandler_Register("OnUnregister", "UNIT_CONNECTION", UNIT_CONNECTION_EH)
+EventHandler_Define("Event", "UNIT_CONNECTION", "UNIT_FACTION")
+EventHandler_Define("OnEvent", "UNIT_CONNECTION", UNIT_CONNECTION_EH)
+EventHandler_Define("OnRegister", "UNIT_CONNECTION", UNIT_CONNECTION_EH)
+EventHandler_Define("OnUnregister", "UNIT_CONNECTION", UNIT_CONNECTION_EH)
 ]]

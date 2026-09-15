@@ -1,23 +1,26 @@
-local select = select
+local Select = select
+local Pairs = pairs
 
-function Mixin(object, ...)
-	for i = 1, select("#", ...) do
-		local mixin = select(i, ...)
-		if ( mixin ) then
-			for k, v in pairs(mixin) do
-				object[k] = v
+if ( not Mixin ) then
+	function Mixin(Object, ...)
+		for i = 1, Select("#", ...) do
+			local Mixin = Select(i, ...)
+			if ( Mixin ) then
+				for k, v in Pairs(Mixin) do
+					Object[k] = v
+				end
 			end
 		end
+		return Object
 	end
-	return object
 end
 
 function CreateFromMixins(...)
 	return Mixin({}, ...)
 end
 
-function CreateAndInitFromMixin(mixin, ...)
-	local object = CreateFromMixins(mixin)
-	object:Init(...)
-	return object
+function CreateAndInitFromMixin(Mixin, ...)
+	local Object = CreateFromMixins(Mixin)
+	Object:Init(...)
+	return Object
 end

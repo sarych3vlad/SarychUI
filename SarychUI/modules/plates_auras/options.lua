@@ -181,7 +181,8 @@ local function ProfileLayoutSlot(slotName)
 end
 
 local function RefreshOptionsDisabledState()
-	-- Custom /sui UI only re-evaluates widget:disabled on full refresh.
+	-- Options window re-evaluates dependents after every set on its own; this is
+	-- only kept for paths that write the profile outside a set handler.
 	if SarychUI and SarychUI.NotifySarychUIOptionsChange then
 		SarychUI:NotifySarychUIOptionsChange()
 	elseif SarychUI and SarychUI.RefreshConfig then
@@ -835,51 +836,17 @@ local function BuildSpells()
 								func = function()
 									local spellName = GetSpellInfo(spellID) or ("ID " .. spellID)
 									local success, message = module:RemoveSpell(spellID)
-									if success then
-										print("|cffffd200SarychUI:|r |cff00ff00 Заклинание удалено: " .. spellName .. " (ID: " .. spellID .. ")")
-										-- Refresh module
-										RefreshModule()
-										-- Update module options directly
-										local AceConfigRegistry = LibStub and LibStub("AceConfigRegistry-3.0", true)
-										if AceConfigRegistry then
-											-- Get options table from registry
-											local optionsGetter = AceConfigRegistry:GetOptionsTable("SarychUI")
-											if optionsGetter and type(optionsGetter) == "function" then
-												-- Get actual options table
-												local success, optionsTable = pcall(optionsGetter, "dialog", "AceConfigDialog-3.0")
-												if success and optionsTable and optionsTable.args and optionsTable.args.modules and optionsTable.args.modules.args then
-													-- Rebuild module options without removed spell (GetOptions() rebuilds via BuildSpells())
-													if SarychUI.GetWrappedModuleOptions then
-														optionsTable.args.modules.args[moduleName] = SarychUI:GetWrappedModuleOptions(moduleName)
-													else
-														optionsTable.args.modules.args[moduleName] = module:GetOptions()
-													end
-													local moduleOrder = {
-														frame = 10,
-														minimap = 20,
-														mainmenubar = 30,
-														cc = 31,
-														chat = 40,
-														automation = 70,
-														plates_auras = 80,
-														tools = 90,
-													}
-													optionsTable.args.modules.args[moduleName].order = moduleOrder[moduleName] or 100
-												end
-											end
-											-- Notify registry about changes (this will trigger UI refresh)
-											AceConfigRegistry:NotifyChange("SarychUI")
-										end
-										-- Select spells tab after a short delay to refresh UI
-										if LibStub and LibStub("AceConfigDialog-3.0", true) then
-											local AceConfigDialog = LibStub("AceConfigDialog-3.0", true)
-											C_Timer.After(0.2, function()
-												-- Select spells tab (options are now rebuilt without removed spell)
-												AceConfigDialog:SelectGroup("SarychUI", "modules", moduleName, "spells")
-											end)
-										end
-									else
+									if not success then
 										print("|cffffd200SarychUI:|r |cffff0000 Ошибка: " .. (message or "Неизвестная ошибка"))
+										return
+									end
+									print("|cffffd200SarychUI:|r |cff00ff00 Заклинание удалено: " .. spellName .. " (ID: " .. spellID .. ")")
+									RefreshModule()
+									-- Same path as adding a spell: GetOptions() rebuilds the list.
+									if SarychUI.RebuildModuleOptions then
+										SarychUI:RebuildModuleOptions(moduleName)
+									elseif SarychUI.NotifySarychUIOptionsChange then
+										SarychUI:NotifySarychUIOptionsChange()
 									end
 								end,
 							},
@@ -1763,6 +1730,9 @@ function module:GetOptions()
 										order = 2,
 										suiSaveButton = "Добавить",
 										get = function() return spellIDToAdd end,
+										suiOnDraft = function(text)
+											spellIDToAdd = text or ""
+										end,
 										set = function(info, value)
 											TryAddSpell(value)
 										end,

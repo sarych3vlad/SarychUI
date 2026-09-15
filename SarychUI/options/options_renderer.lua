@@ -253,7 +253,8 @@ local function CallFunc(opt, info)
 	end
 end
 
-local function IsHidden(opt, info)
+-- Canonical hidden evaluation without side effects (OptionsCore re-checks with it).
+local function EvalHidden(opt, info)
 	if not opt then return true end
 	local h = opt.hidden
 	if type(h) == "function" then
@@ -266,6 +267,23 @@ local function IsHidden(opt, info)
 		end
 	end
 	return h and true or false
+end
+R.EvalHidden = EvalHidden
+
+-- Dynamic hidden checks made while rendering are recorded, so a later setting
+-- change can tell "the page must be rebuilt" from "only values/disabled moved".
+local function IsHidden(opt, info)
+	local hidden = EvalHidden(opt, info)
+	if type(opt) == "table" then
+		local h = opt.hidden
+		if type(h) == "function" or type(h) == "string" then
+			local core = SUI._activeOptionsCore or SUI.OptionsCore
+			if core and core.WatchHidden then
+				core:WatchHidden(opt, info, hidden)
+			end
+		end
+	end
+	return hidden
 end
 
 local function IsDisabled(opt, info)
@@ -302,6 +320,39 @@ local function IsDisabled(opt, info)
 	return false
 end
 
+local function BindDisabled(widget, opt, info)
+	if not widget or not widget.SetDisabled then
+		return
+	end
+	widget._suiGetDisabled = function()
+		return IsDisabled(opt, info)
+	end
+	widget:SetDisabled(widget._suiGetDisabled())
+end
+
+-- Callback-driven names (status lines, counters, current profile) must follow a
+-- setting change without a full page rebuild.
+local function BindDynamicName(widget, opt, info)
+	if not widget or type(opt) ~= "table" or type(opt.name) ~= "function" then
+		return
+	end
+	if type(widget.SetDynamicText) ~= "function" and not widget.label then
+		return
+	end
+	widget._suiValueWidget = true
+	widget.Refresh = function(self)
+		local text = ResolveName(opt, info)
+		if type(text) == "string" then
+			text = text:gsub("^[%s\r\n]+", ""):gsub("[%s\r\n]+$", "")
+		end
+		if type(self.SetDynamicText) == "function" then
+			self:SetDynamicText(text)
+		elseif self.label then
+			self.label:SetText(text)
+		end
+	end
+end
+
 local function SortedKeys(args)
 	local list = {}
 	if type(args) ~= "table" then return list end
@@ -321,6 +372,22 @@ end
 
 local function ResolveContentWidth()
 	local OW = SUI.OptionsWindow
+	if OW and OW.GetScrollPixelWidth then
+		local expected = OW:GetScrollPixelWidth()
+		if OW.contentScroll then
+			local w = OW.contentScroll:GetWidth()
+			if w and w > 80 then
+				return w
+			end
+		end
+		if OW.contentChild then
+			local w = OW.contentChild:GetWidth()
+			if w and w > 80 then
+				return w
+			end
+		end
+		return expected
+	end
 	if OW and OW.contentScroll then
 		local w = OW.contentScroll:GetWidth()
 		if w and w > 80 then
@@ -744,7 +811,9 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 			ApplyConfirm(opt, info, function()
 				CallFunc(opt, info)
 			end)
-		end, MakeTooltip(opt, info))
+		end, MakeTooltip(opt, info), function()
+			return ResolveName(opt, info)
+		end)
 		if compactW then
 			widget:SetWidth(compactW)
 		elseif opt.width == "full" then
@@ -1012,6 +1081,7 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 			else
 				widget = W:Description(parent, text)
 			end
+			BindDynamicName(widget, opt, info)
 			compactW = nil
 		end
 	elseif t == "header" then
@@ -1026,6 +1096,7 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 			end
 		end
 		widget = W:Header(parent, name, tipFn)
+		BindDynamicName(widget, opt, info)
 		compactW = nil
 	elseif t == "group" then
 		local childHandler = opt.handler or handler
@@ -1087,6 +1158,12 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 				end
 				local typeInfo = MakeInfo(typePath, typeOpt, childHandler)
 				local idInfo = MakeInfo(idPath, idOpt, childHandler)
+				local onDraft
+				if type(idOpt.suiOnDraft) == "function" then
+					onDraft = function(text)
+						idOpt.suiOnDraft(text)
+					end
+				end
 				widget = W:SelectInputButton(
 					parent,
 					ResolveName(typeOpt, typeInfo),
@@ -1096,7 +1173,8 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 					ResolveName(idOpt, idInfo),
 					function() return CallGet(idOpt, idInfo) end,
 					function(value) CallSet(idOpt, idInfo, value) end,
-					tostring(idOpt.suiSaveButton or "Добавить")
+					tostring(idOpt.suiSaveButton or "Добавить"),
+					onDraft
 				)
 				y = self:LayoutChild(parent, widget, y, padX)
 				return y
@@ -1226,8 +1304,8 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 						end)
 					end
 				end
-				if widget and widget.SetDisabled then
-					widget:SetDisabled(IsDisabled(eOpt, eInfo))
+				if widget then
+					BindDisabled(widget, eOpt, eInfo)
 				end
 				return widget
 			end
@@ -1277,9 +1355,7 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 					if rowWidget.actionBtn and opt.args.applyProfile == buttonOpt then
 						rowWidget.actionBtn:SetWidth(90)
 					end
-					if rowWidget.SetDisabled then
-						rowWidget:SetDisabled(IsDisabled(selectOpt, selectInfo))
-					end
+					BindDisabled(rowWidget, selectOpt, selectInfo)
 					innerY = self:LayoutChild(panel, rowWidget, innerY, pad)
 					rendered = rendered + 1
 					local skip = {}
@@ -1500,9 +1576,7 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 				end
 			end
 		end
-		if widget.SetDisabled then
-			widget:SetDisabled(IsDisabled(opt, info))
-		end
+		BindDisabled(widget, opt, info)
 		y = self:LayoutChild(parent, widget, y, padX)
 	end
 	return y
@@ -1598,8 +1672,8 @@ local function CollectTwoPaneEntries(groupOpt)
 	end
 	for k, v in pairs(groupOpt.args) do
 		if type(v) == "table" and v.type then
-			-- ENP stays a separate window (/enp); never list it here.
-			if k == "ElvUI_NamePlates" then
+			-- ENP stays a separate window (/enp); bags/arena engines live in their modules.
+			if k == "ElvUI_NamePlates" or k == "BaudBag" or k == "GladiusEx" or k == "SarychUI_Bags" then
 				-- skip
 			elseif v.type == "group" and not v.inline and not v.dialogInline and not v.guiInline and not IsHidden(v, MakeInfo({ k }, v)) then
 				local info = MakeInfo({ k }, v)
@@ -1613,6 +1687,9 @@ local function CollectTwoPaneEntries(groupOpt)
 					opt = v,
 					label = ResolveName(v, info),
 					icon = icon,
+					listGroup = v.suiListGroup,
+					listGroupRank = tonumber(v.suiListGroupRank),
+					listGroupOrder = tonumber(v.suiListGroupOrder),
 				})
 			elseif not IsHidden(v, MakeInfo({ k }, v)) then
 				-- Shared controls above the two-pane (headers, toggles, buttons…).
@@ -1625,6 +1702,28 @@ local function CollectTwoPaneEntries(groupOpt)
 		end
 	end
 	sort(list, function(a, b)
+		local ga, gb = a.listGroup, b.listGroup
+		if not ga and gb then
+			return true
+		end
+		if ga and not gb then
+			return false
+		end
+		if ga and gb then
+			local ra = a.listGroupRank or 100
+			local rb = b.listGroupRank or 100
+			if ra ~= rb then
+				return ra < rb
+			end
+			if ga ~= gb then
+				return ga < gb
+			end
+			local oa = a.listGroupOrder or a.order or 100
+			local ob = b.listGroupOrder or b.order or 100
+			if oa ~= ob then
+				return oa < ob
+			end
+		end
 		local la = tostring(a.label or a.key):lower()
 		local lb = tostring(b.label or b.key):lower()
 		if la == lb then
@@ -1691,7 +1790,21 @@ local function StyleLocalTab(btn, active)
 	end
 end
 
+-- Two-pane detail redraws on its own (left-list click, nested tabs), so it keeps
+-- a separate hidden snapshot instead of piggybacking on the page one.
 function R:RenderAddonDetail(detailHost, addonOpt, addonPath, addonKey)
+	local core = SUI._activeOptionsCore or SUI.OptionsCore
+	local token = core and core.BeginHiddenCapture and core:BeginHiddenCapture()
+	local ok, err = pcall(self._RenderAddonDetail, self, detailHost, addonOpt, addonPath, addonKey)
+	if core and core.EndHiddenCapture then
+		core:EndHiddenCapture(token)
+	end
+	if not ok then
+		geterrorhandler()(err)
+	end
+end
+
+function R:_RenderAddonDetail(detailHost, addonOpt, addonPath, addonKey)
 	-- Clear previous detail by recreating body (avoids GetChildren unpack).
 	local old = detailHost._body
 	if old then
@@ -1777,9 +1890,7 @@ function R:RenderAddonDetail(detailHost, addonOpt, addonPath, addonKey)
 			end, function(value)
 				CallSet(enableOpt, enableInfo, value)
 			end, tooltipFn)
-			if widget.SetDisabled then
-				widget:SetDisabled(IsDisabled(enableOpt, enableInfo))
-			end
+			BindDisabled(widget, enableOpt, enableInfo)
 			local needW = 16 + 6 + ((widget.label and widget.label:GetStringWidth()) or 60) + 4
 			needW = math.max(80, needW)
 			enableHost:SetWidth(needW)
@@ -1897,9 +2008,13 @@ function R:RenderAddonDetail(detailHost, addonOpt, addonPath, addonKey)
 
 		local function ShowTab(tab)
 			if not tab then return end
+			if contentFrame._activeKey == tab.key and contentFrame._inner then
+				return
+			end
 			if addonKey and OC then
 				OC._addonListTabState[addonKey] = tab.key
 			end
+			contentFrame._activeKey = tab.key
 			for _, b in ipairs(tabButtons) do
 				StyleLocalTab(b, b.tabKey == tab.key)
 			end
@@ -1920,24 +2035,31 @@ function R:RenderAddonDetail(detailHost, addonOpt, addonPath, addonKey)
 				tabPath[i] = addonPath[i]
 			end
 			tinsert(tabPath, tab.key)
+			local core = SUI._activeOptionsCore or SUI.OptionsCore
+			local token = core and core.BeginHiddenCapture and core:BeginHiddenCapture()
 			self:RenderSection(inner, tab.opt, tabPath)
+			if core and core.EndHiddenCapture then
+				core:EndHiddenCapture(token)
+			end
 			RefreshDetailHeights()
 		end
 
 		for _, tab in ipairs(tabs) do
+			local tabKey = tab.key
 			local btn = CreateFrame("Button", nil, tabBar)
 			btn:SetHeight(tabH)
+			btn:RegisterForClicks("LeftButtonDown")
 			local fs = btn:CreateFontString(nil, "OVERLAY", T.fonts.small)
 			fs:SetPoint("LEFT", 8, 0)
 			fs:SetPoint("RIGHT", -8, 0)
 			fs:SetJustifyH("CENTER")
-			fs:SetText(tab.label or tab.key)
+			fs:SetText(tab.label or tabKey)
 			btn.label = fs
-			btn.tabKey = tab.key
+			btn.tabKey = tabKey
 			local w = math.max(70, (fs:GetStringWidth() or 40) + 20)
 			btn:SetWidth(w)
 			btn:SetPoint("TOPLEFT", tabBar, "TOPLEFT", x, 0)
-			StyleLocalTab(btn, tab.key == active.key)
+			StyleLocalTab(btn, tabKey == active.key)
 			btn:SetScript("OnEnter", function(self)
 				if self._active then return end
 				T:ApplyFlat(self, T.colors.navHover, T.colors.borderSoft)
@@ -1945,8 +2067,19 @@ function R:RenderAddonDetail(detailHost, addonOpt, addonPath, addonKey)
 			btn:SetScript("OnLeave", function(self)
 				StyleLocalTab(self, self._active)
 			end)
-			btn:SetScript("OnClick", function()
-				ShowTab(tab)
+			btn:SetScript("OnClick", function(self)
+				local key = self.tabKey
+				if not key then return end
+				local chosen
+				for i = 1, #tabs do
+					if tabs[i].key == key then
+						chosen = tabs[i]
+						break
+					end
+				end
+				if chosen then
+					ShowTab(chosen)
+				end
 			end)
 			tinsert(tabButtons, btn)
 			x = x + w + 2
@@ -2643,7 +2776,22 @@ function R:RenderTwoPaneAddonList(parent, groupOpt, path)
 	end
 
 	local y = 0
+	local lastGroup
 	for _, entry in ipairs(entries) do
+		if entry.listGroup and entry.listGroup ~= lastGroup then
+			lastGroup = entry.listGroup
+			if y > 0 then
+				y = y + 6
+			end
+			local hdr = listChild:CreateFontString(nil, "OVERLAY", T.fonts.small)
+			hdr:SetHeight(math.max(16, itemH - 4))
+			hdr:SetPoint("TOPLEFT", listChild, "TOPLEFT", 6, -y)
+			hdr:SetPoint("TOPRIGHT", listChild, "TOPRIGHT", -4, -y)
+			hdr:SetJustifyH("LEFT")
+			hdr:SetText(entry.listGroup)
+			T:SetTextColor(hdr, "title")
+			y = y + (itemH - 2)
+		end
 		local btn = CreateFrame("Button", nil, listChild)
 		btn:SetHeight(itemH)
 		btn:SetPoint("TOPLEFT", listChild, "TOPLEFT", 0, -y)
@@ -2673,6 +2821,7 @@ function R:RenderTwoPaneAddonList(parent, groupOpt, path)
 		btn.label = fs
 		btn.addonKey = entry.key
 		btn.entry = entry
+		btn:RegisterForClicks("LeftButtonDown")
 		StyleAddonListButton(btn, entry.key == selected)
 		btn:SetScript("OnEnter", function(self)
 			if self._active then return end

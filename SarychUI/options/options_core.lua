@@ -92,7 +92,12 @@ local function IsHidden(opt)
 	OC._perf.hiddenCalls = OC._perf.hiddenCalls + 1
 	if not opt then return true end
 	local h = opt.hidden
-	if type(h) == "function" then return Safe(h) and true or false end
+	if type(h) == "function" then
+		local hidden = Safe(h) and true or false
+		-- Recorded while rendering so an appearing/vanishing tab rebuilds the page.
+		OC:WatchHidden(opt, nil, hidden)
+		return hidden
+	end
 	return h and true or false
 end
 
@@ -257,14 +262,18 @@ end
 -----------------------------------------------------------------------
 -- Content render (section + optional tabs)
 -----------------------------------------------------------------------
-function OC:RenderCurrentContent()
+function OC:_RenderContent()
 	local id = self._currentId
 	local sec = id and self._sections[id]
-	if not sec then return end
+	if not sec then
+		return
+	end
 
 	local OW = SUI.OptionsWindow
 	local R = SUI.OptionsRenderer
-	if not OW or not R then return end
+	if not OW or not R then
+		return
+	end
 
 	local t0 = PerfStart()
 	OC._perf.created = 0
@@ -285,8 +294,12 @@ function OC:RenderCurrentContent()
 
 	OW:ClearContent()
 	local child = OW.contentChild
-	if child and OW.contentScroll then
-		child:SetWidth(math.max(200, (OW.contentScroll:GetWidth() or 600) - 4))
+	if child then
+		local sw = OW.contentScroll and OW.contentScroll:GetWidth()
+		if not sw or sw < 80 then
+			sw = (OW.GetScrollPixelWidth and OW:GetScrollPixelWidth()) or 680
+		end
+		child:SetWidth(math.max(200, sw - 4))
 	end
 
 	local opt = sec.opt
@@ -329,6 +342,9 @@ function OC:RenderCurrentContent()
 		local effectiveTabBarExtra = activeTabExtra or tabBarExtra
 
 		OW:SetTabs(tabs, activeKey, function(tabKey)
+			if OC._currentTabKey == tabKey then
+				return
+			end
 			OC._currentTabKey = tabKey
 			OC._tabState[id] = tabKey
 			OC._currentSubTabKey = nil -- resolve from saved subtab state for new tab
@@ -454,6 +470,9 @@ function OC:RenderCurrentContent()
 				end
 			else
 				OW:SetSubTabs(subtabs, subKey, function(subTabKey)
+					if OC._currentSubTabKey == subTabKey then
+						return
+					end
 					OC._currentSubTabKey = subTabKey
 					OC._subTabState[subStateKey] = subTabKey
 					OC:RenderCurrentContent()
@@ -533,6 +552,137 @@ function OC:RenderCurrentContent()
 	))
 end
 
+function OC:RenderCurrentContent()
+	if self._rendering then
+		return
+	end
+	self._rendering = true
+	-- Destroying the page must drop the typing guard; otherwise later refreshes
+	-- stay deferred forever and leftover FlushPending can rebuild the new page.
+	SUI._optionsTextEditing = nil
+	SUI._pendingOptionsRefresh = nil
+	self._pendingSmartRefresh = nil
+	-- Everything the page asks about hidden() while drawing lands in this snapshot.
+	self._hiddenWatch = {}
+	self._hiddenDetailSnapshot = nil
+	local ok, err = pcall(self._RenderContent, self)
+	self._hiddenSnapshot = self._hiddenWatch
+	self._hiddenWatch = nil
+	self._rendering = false
+	if not ok then
+		geterrorhandler()(err)
+	end
+end
+
+-----------------------------------------------------------------------
+-- Shared dependency mechanism
+--
+-- Every set() funnels into OnSettingChanged, so no module has to refresh the
+-- window by hand. One coalesced pass per frame decides between:
+--   * rebuild — the set of visible controls changed (hidden() flipped somewhere)
+--   * sync    — same controls, only values / disabled / dynamic labels moved
+-----------------------------------------------------------------------
+function OC:WatchHidden(opt, info, hidden)
+	local watch = self._hiddenWatch
+	if not watch then return end
+	watch[#watch + 1] = { opt = opt, info = info, hidden = hidden and true or false }
+end
+
+-- Panels that redraw independently (two-pane detail, its nested tabs) capture
+-- their own snapshot. Nested captures join the one already recording.
+function OC:BeginHiddenCapture()
+	if self._hiddenWatch then
+		return nil
+	end
+	self._hiddenWatch = {}
+	return true
+end
+
+function OC:EndHiddenCapture(token)
+	if not token then return end
+	self._hiddenDetailSnapshot = self._hiddenWatch
+	self._hiddenWatch = nil
+end
+
+local function WatchChanged(watch)
+	if not watch then return false end
+	local R = SUI.OptionsRenderer
+	if not R or not R.EvalHidden then return false end
+	for i = 1, #watch do
+		local entry = watch[i]
+		if R.EvalHidden(entry.opt, entry.info) ~= entry.hidden then
+			return true
+		end
+	end
+	return false
+end
+
+function OC:HiddenStateChanged()
+	return WatchChanged(self._hiddenSnapshot) or WatchChanged(self._hiddenDetailSnapshot)
+end
+
+-- True while the user is mid-gesture: rebuilding now would eat the interaction.
+local function InteractionBusy()
+	if SUI._optionsTextEditing or SUI._optionsSliderDragging then
+		return true
+	end
+	local W = SUI.OptionsWidgets
+	if W and W.IsDropdownOpen and W:IsDropdownOpen() then
+		return true
+	end
+	return false
+end
+
+function OC:SmartRefresh()
+	self._pendingSmartRefresh = nil
+	if self._rendering or not self:IsOpen() then
+		return
+	end
+	if SUI.IsPlayerInCombat and SUI:IsPlayerInCombat() then
+		SUI._pendingOptionsRefresh = true
+		return
+	end
+	if InteractionBusy() then
+		-- Retried from the text-edit / slider / dropdown release paths.
+		SUI._pendingOptionsRefresh = true
+		return
+	end
+	SUI._pendingOptionsRefresh = nil
+	if self._forceSmartRebuild or self._structureDirty or not self._navBuilt
+		or self:HiddenStateChanged() then
+		self._forceSmartRebuild = nil
+		self:EnsureStructure()
+		-- Refresh (not RenderCurrentContent) keeps the scroll position, so revealing
+		-- sub-options never throws the page back to the top.
+		self:Refresh()
+		return
+	end
+	if SUI.SyncOpenOptionsValues then
+		SUI:SyncOpenOptionsValues()
+	end
+end
+
+function OC:ScheduleSmartRefresh(force)
+	if force then
+		self._forceSmartRebuild = true
+	end
+	if self._rendering or self._pendingSmartRefresh or not self:IsOpen() then
+		return
+	end
+	self._pendingSmartRefresh = true
+	local driver = self._refreshDriver
+	if not driver then
+		driver = CreateFrame("Frame")
+		self._refreshDriver = driver
+	end
+	-- Next frame: lets a set() finish writing every key it owns before we look.
+	driver:SetScript("OnUpdate", function(frame)
+		frame:SetScript("OnUpdate", nil)
+		OC:SmartRefresh()
+	end)
+	driver:Show()
+end
+
 function OC:SelectSection(id)
 	local sec = self._sections[id]
 	if not sec then return end
@@ -549,6 +699,14 @@ function OC:SelectSection(id)
 	end
 	if not sec then return end
 
+	if self._open and self._renderedId == id then
+		local OW = SUI.OptionsWindow
+		if OW and OW.SetActiveNav then
+			OW:SetActiveNav(id)
+		end
+		return
+	end
+
 	self._currentId = id
 	self._currentTabKey = self._tabState[id]
 	self._currentSubTabKey = nil -- restored from _subTabState after main tab resolves
@@ -560,11 +718,15 @@ function OC:SelectSection(id)
 		OW:SetSectionTitleVisible(false)
 	end
 	self:RenderCurrentContent()
+	self._renderedId = id
 end
 
 -- Switch content tab inside the current section (e.g. Сумки → Стандартные сумки).
 function OC:SelectTab(tabKey)
 	if not tabKey or not self._currentId then
+		return
+	end
+	if self._currentTabKey == tabKey then
 		return
 	end
 	self._currentTabKey = tabKey
@@ -573,12 +735,11 @@ function OC:SelectTab(tabKey)
 	self:RenderCurrentContent()
 end
 
--- CRITICAL: do NOT full-rebuild UI on every set (was the main lag source).
+-- Never full-rebuild on every set (was the main lag source) — SmartRefresh picks
+-- the cheapest pass that still keeps dependent controls truthful.
 function OC:OnSettingChanged()
-	-- Intentionally empty for value commits.
-	-- Widgets already show the new value; hidden/disabled edge cases
-	-- can call InvalidateStructure + Refresh manually if needed.
 	OC._perf.refresh = OC._perf.refresh + 1
+	self:ScheduleSmartRefresh()
 end
 
 function OC:Refresh()
@@ -593,6 +754,7 @@ function OC:Refresh()
 		self._refreshAfterDropdown = true
 		return
 	end
+	SUI._pendingOptionsRefresh = nil
 	local OW = SUI.OptionsWindow
 	if OW and self._currentId and OW.SetActiveNav then
 		OW:SetActiveNav(self._currentId)
@@ -710,6 +872,7 @@ end
 
 function OC:Close()
 	self._open = false
+	self._renderedId = nil
 	if SUI.OptionsWindow then
 		SUI.OptionsWindow:Hide()
 	end

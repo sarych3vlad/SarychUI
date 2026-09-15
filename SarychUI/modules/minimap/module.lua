@@ -561,6 +561,21 @@ function module:ScheduleWorldMapButtonReapply(reason)
 end
 
 -- Надёжная проверка «курсор над миникартой»
+local function FrameIsMinimapRelated(f)
+	local guard = 0
+	while f and f ~= UIParent and guard < 12 do
+		guard = guard + 1
+		if f == Minimap or f == _G.MinimapBackdrop or f == _G.MinimapCluster then
+			return true
+		end
+		if f.__SarychUIAutoHidePrepared or f.__SarychUIMouseHooked then
+			return true
+		end
+		f = f.GetParent and f:GetParent()
+	end
+	return false
+end
+
 local function IsCursorOverFrame(f)
 	if not f or not f.IsVisible or not f:IsVisible() then return false end
 	if f.IsMouseOver then
@@ -578,6 +593,14 @@ local function IsCursorOverFrame(f)
 end
 
 local function IsOverMinimap()
+	-- A settings window sitting over the minimap still geometrically "hits"
+	-- MinimapCluster. Use mouse focus so hide plays when the cursor left us.
+	local focus = GetMouseFocus and GetMouseFocus()
+	if focus and focus ~= WorldFrame and focus ~= UIParent then
+		if not FrameIsMinimapRelated(focus) then
+			return false
+		end
+	end
 	return IsCursorOverFrame(Minimap)
 		or IsCursorOverFrame(_G.MinimapBackdrop)
 		or IsCursorOverFrame(_G.MinimapCluster)
@@ -701,6 +724,11 @@ local function InstallButtonMouseHooks()
 			module:SecureHookScript(button, "OnLeave", function()
 				if areButtonsVisible then armHide() end
 			end)
+			module:SecureHookScript(button, "OnMouseUp", function()
+				-- Opening another addon's config from this button: start hide
+				-- so leaving the cursor does not get stuck in "still over minimap".
+				if areButtonsVisible then armHide() end
+			end)
 		end
 	end
 end
@@ -746,12 +774,18 @@ local function StartMouseWatch()
 		return
 	end
 	mouseWatchTicker = module:ScheduleRepeatingTimer(function()
-		if not areButtonsVisible or isAnimatingShow then return end
+		if not areButtonsVisible then return end
 		if IsOverMinimap() or IsOverAddonButtons() then
 			cancelPending()
-		else
-			if not pendingHideTimer then armHide() end
+			return
 		end
+		-- Allow hide even during the show fade — otherwise opening a nested
+		-- settings window while buttons are animating in leaves them stuck.
+		if isAnimatingShow then
+			HideMinimapButtons()
+			return
+		end
+		if not pendingHideTimer then armHide() end
 	end, 0.2)
 end
 
@@ -1142,10 +1176,18 @@ local function MoveMinimap()
     if GetSetting('positioningEnabled', 0) == 1 then
         local point = GetSetting('minimapA', "TOPRIGHT")
         local relPoint = GetSetting('minimapR', "TOPRIGHT")
-        local x = GetSetting('minimapX', GetSetting('offsetX', 0))
-        local y = GetSetting('minimapY', GetSetting('offsetY', 0))
+        -- Options sliders write offsetX/Y; drag also writes minimapX/Y.
+        -- Prefer the slider keys so /sui offsets actually move the cluster.
+        local x = GetSetting('offsetX', GetSetting('minimapX', 0))
+        local y = GetSetting('offsetY', GetSetting('minimapY', 0))
+        MinimapCluster.ignoreFramePositionManager = true
+        if MinimapCluster.SetUserPlaced then
+            pcall(MinimapCluster.SetUserPlaced, MinimapCluster, true)
+        end
         MinimapCluster:ClearAllPoints()
-        MinimapCluster:SetPoint(point, UIParent, relPoint, x, y)
+        local data = SarychUI.DragMode and SarychUI.DragMode.GetFrameData and SarychUI.DragMode:GetFrameData("minimap")
+        local setPoint = (data and data.originalSetPoint) or MinimapCluster.SetPoint
+        setPoint(MinimapCluster, point, UIParent, relPoint, x, y)
     else
         -- Restore Blizzard-managed position (real-time)
         MinimapCluster.ignoreFramePositionManager = false
@@ -1616,11 +1658,10 @@ function module:Enable()
         local alreadyRegistered = SarychUI.DragMode.GetFrameData and SarychUI.DragMode:GetFrameData("minimap") ~= nil
         if not alreadyRegistered then
             SarychUI.DragMode:RegisterFrame("minimap", MinimapCluster, {
-            dragPoint = "TOPRIGHT",
+            dragPoint = "CENTER",
 			dragOffsetX = 0,
 			dragOffsetY = 0,
-			dragWidth = 200,
-			dragHeight = 200,
+			overlayFrame = Minimap,
 			dragText = "Миникарта",
 			scaleFrame = MinimapCluster,
 			interceptSetPoint = true,
@@ -1629,8 +1670,8 @@ function module:Enable()
                     GetSetting('minimapA', "TOPRIGHT"),
                     UIParent,
                     GetSetting('minimapR', "TOPRIGHT"),
-                    GetSetting('minimapX', GetSetting('offsetX', 0)),
-                    GetSetting('minimapY', GetSetting('offsetY', 0))
+                    GetSetting('offsetX', GetSetting('minimapX', 0)),
+                    GetSetting('offsetY', GetSetting('minimapY', 0))
                 }
 			end,
 			getScale = function()
@@ -1807,8 +1848,8 @@ function module:ApplySettings()
             SarychUI.DragMode:SetFramePosition("minimap",
                 GetSetting('minimapA', "TOPRIGHT"),
                 GetSetting('minimapR', "TOPRIGHT"),
-                GetSetting('minimapX', GetSetting('offsetX', 0)),
-                GetSetting('minimapY', GetSetting('offsetY', 0)))
+                GetSetting('offsetX', GetSetting('minimapX', 0)),
+                GetSetting('offsetY', GetSetting('minimapY', 0)))
             SarychUI.DragMode:ShowGrid(showGrid)
         else
             -- Disable edit mode; keep registration to avoid lifecycle churn

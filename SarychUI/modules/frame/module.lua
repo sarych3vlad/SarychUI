@@ -55,6 +55,7 @@ local bars = {
     PlayerFrameHealthBar, PlayerFrameManaBar,
     TargetFrameHealthBar, TargetFrameManaBar,
     PetFrameHealthBar, PetFrameManaBar,
+    FocusFrameHealthBar, FocusFrameManaBar,
 }
 
 -- Для надёжности: в некоторых билдах бары также доступны как поля frame.healthbar/manabar
@@ -77,11 +78,18 @@ local function NormalizeBars()
     if not PetFrameManaBar and PetFrame and PetFrame.manabar then
         PetFrameManaBar = PetFrame.manabar
     end
+    if not FocusFrameHealthBar and FocusFrame and FocusFrame.healthbar then
+        FocusFrameHealthBar = FocusFrame.healthbar
+    end
+    if not FocusFrameManaBar and FocusFrame and FocusFrame.manabar then
+        FocusFrameManaBar = FocusFrame.manabar
+    end
     -- Обновляем список баров после нормализации
     bars = {
         PlayerFrameHealthBar, PlayerFrameManaBar,
         TargetFrameHealthBar, TargetFrameManaBar,
         PetFrameHealthBar, PetFrameManaBar,
+        FocusFrameHealthBar, FocusFrameManaBar,
     }
 end
 
@@ -96,6 +104,23 @@ local function GetSetting(key, default)
         return db[key]
     end
     return default
+end
+
+local function SettingOn(key, default)
+    local v = GetSetting(key, default)
+    return v == 1 or v == true
+end
+
+local function GetPVPTimerElement()
+    return _G["PlayerPVPTimerText"] or _G["PVPTimerText"] or _G["PlayerFramePVPTimerText"] or _G["PlayerFrameTextureFramePVPTimerText"]
+end
+
+local function GetPVPIconElements()
+    return {
+        { tex = _G["PlayerPVPIcon"] or _G["PlayerFramePVPIcon"], hideKey = "hidePlayerPVP" },
+        { tex = _G["TargetFrameTextureFramePVPIcon"] or _G["TargetFramePVPIcon"], hideKey = "hideTargetPVP" },
+        { tex = _G["FocusFrameTextureFramePVPIcon"] or _G["FocusFramePVPIcon"], hideKey = "hideFocusPVP" },
+    }
 end
 
 -- Получение текстового элемента из бара
@@ -117,6 +142,10 @@ local function GetBarText(bar)
         return PetFrameHealthBarText
     elseif bar == PetFrameManaBar then
         return PetFrameManaBarText
+    elseif bar == FocusFrameHealthBar then
+        return FocusFrameHealthBarText
+    elseif bar == FocusFrameManaBar then
+        return FocusFrameManaBarText
     end
     return nil
 end
@@ -303,6 +332,8 @@ function module:Enable()
     self:RegisterEvent("UNIT_EXITED_VEHICLE", "OnEvent")
     self:RegisterEvent("PLAYER_TARGET_CHANGED", "OnEvent")
     self:RegisterEvent("PLAYER_FOCUS_CHANGED", "OnEvent")
+    self:RegisterEvent("UNIT_FACTION", "OnEvent")
+    self:RegisterEvent("PLAYER_FLAGS_CHANGED", "OnEvent")
     -- Use bucket events for frequent events to reduce load
     self:RegisterBucketEvent("UNIT_COMBAT", 0.1, "OnCombatUpdate")
     self:RegisterBucketEvent("UNIT_HEALTH", 0.2, "OnHealthUpdate")
@@ -438,6 +469,7 @@ end
 
 -- Disable module
 function module:Disable()
+    self._pvpHooksInstalled = false
     -- Unregister Alt Mode callback
     if SarychUI.AltMode then
         SarychUI.AltMode:UnregisterCallback(moduleName)
@@ -481,7 +513,6 @@ function module:Disable()
         SarychUI.DragMode:ShowGrid(false)
     end
     
-    -- Восстанавливаем дефолтный hover на фреймах
     for _, fr in ipairs({PlayerFrame, TargetFrame, PetFrame, FocusFrame}) do
         if fr and saved and saved[fr] then
             fr:SetScript("OnEnter", saved[fr].OnEnter)
@@ -541,25 +572,28 @@ local function IsAltPressed()
 end
 
 -- Alt state change handler (updates percents and HP/MP text via state machine)
-function module:OnAltStateChanged(pressed)
-    -- Alt показывает все бары: включаем/выключаем флаг alt у каждого
-    for _, bar in ipairs(bars) do
-        set_alt(bar, pressed and true or false)
+function module:SyncBarAltFlags(pressed)
+    if pressed == nil then
+        pressed = IsAltPressed()
     end
-    
-    -- логика процентов и PVP таймера
+    local showOnAlt = SettingOn("showOnAlt", 1)
+    for _, bar in ipairs(bars) do
+        set_alt(bar, showOnAlt and pressed)
+    end
+end
+
+function module:OnAltStateChanged(pressed)
+    self:SyncBarAltFlags(pressed)
     self:UpdateTextIndicators()
     self:HidePVPTimer()
 end
 
 -- Обновление состояния боя для всех баров
 function module:UpdateCombatState()
-    local showInCombat = GetSetting('showTextIndicatorsInCombat', false)
-    if showInCombat ~= true then return end
-    
+    local showInCombat = GetSetting('showTextIndicatorsInCombat', false) == true
     local isInCombat = UnitAffectingCombat("player")
     for _, bar in ipairs(bars) do
-        set_combat(bar, isInCombat)
+        set_combat(bar, showInCombat and isInCombat)
     end
 end
 
@@ -667,6 +701,9 @@ function module:OnEvent(event, ...)
         self:OnTargetChanged()
     elseif event == "PLAYER_FOCUS_CHANGED" then
         self:OnFocusChanged()
+    elseif event == "UNIT_FACTION" or event == "PLAYER_FLAGS_CHANGED" then
+        self:HidePVPIcons()
+        self:HidePVPTimer()
     elseif event == "PLAYER_REGEN_DISABLED" then
         -- Вход в бой - показываем текстовые индикаторы
         self:OnEnterCombat()
@@ -919,6 +956,7 @@ end
 function module:ApplyTextIndicators()
     -- Update fonts if LibSharedMedia is available
     self:UpdateTextIndicatorFonts()
+    self:SyncBarAltFlags()
     self:UpdateTextIndicators()
     -- Update combat state to show/hide text indicators in combat
     self:UpdateCombatState()
@@ -946,21 +984,21 @@ function module:UpdateTextIndicatorFonts()
 end
 
 function module:UpdateTextIndicators()
-    local showOnAlt = GetSetting('showOnAlt', 1) == 1
-    local isAltPressed = SarychUI.AltMode and SarychUI.AltMode:IsAltPressed() or false
-    
-    -- Логика для процентов фокуса
-    if FocusFrameHealthBarPercent then
-        local shouldShowFocusPercent = false
-        if showOnAlt then
-            -- Если настройка Alt включена, показываем проценты только при нажатом Alt
-            shouldShowFocusPercent = isAltPressed and GetSetting('showFocusPercent', 1) == 1
-        else
-            -- Если настройка Alt отключена, показываем проценты всегда (если включена соответствующая настройка)
-            shouldShowFocusPercent = GetSetting('showFocusPercent', 1) == 1
+    local pctOnAlt = SettingOn("showPercentagesOnAlt", 1)
+    local isAltPressed = IsAltPressed()
+
+    local function ShouldShowPercent(enabled)
+        if not enabled then
+            return false
         end
-        
-        if shouldShowFocusPercent then
+        if pctOnAlt then
+            return isAltPressed
+        end
+        return true
+    end
+
+    if FocusFrameHealthBarPercent then
+        if ShouldShowPercent(SettingOn("showFocusPercent", 1)) then
             FocusFrameHealthBarPercent:Show()
             self:UpdateHealthBarPercent(FocusFrameHealthBarPercent, "focus")
         else
@@ -968,16 +1006,8 @@ function module:UpdateTextIndicators()
         end
     end
 
-    -- Логика для процентов цели
     self:ForceUpdateTargetPercentDisplay()
-
-    -- PVP таймер
-    local hidePVPTimer = GetSetting('hidePVPTimer', 1) == 1
-    if hidePVPTimer then
-        self:SetPlayerPVPTimerTextVisibility(showOnAlt and isAltPressed)
-    else
-        self:SetPlayerPVPTimerTextVisibility(true)
-    end
+    self:HidePVPTimer()
 end
 
 function module:HideTextIndicators()
@@ -1026,29 +1056,25 @@ end
 
 -- Функция для принудительного обновления отображения процентов цели
 function module:ForceUpdateTargetPercentDisplay()
-    if TargetFrameHealthBarPercent then
-        local shouldShowTargetPercent = false
-        local showOnAlt = GetSetting('showOnAlt', 1) == 1
-        local classAlwaysShow = self:ShouldClassAlwaysShowPercent()
-        local isAltPressed = SarychUI.AltMode and SarychUI.AltMode:IsAltPressed() or false
-        
-        if classAlwaysShow then
-            -- Для чернокнижника (0.1-порог из настроек): если цель в нужном диапазоне и настройка включена, показываем всегда
-            shouldShowTargetPercent = GetSetting('showTargetPercent', 1) == 1
-        elseif showOnAlt then
-            -- Если настройка Alt включена, показываем проценты только при нажатом Alt
-            shouldShowTargetPercent = isAltPressed and GetSetting('showTargetPercent', 1) == 1
-        else
-            -- Если настройка Alt отключена, показываем проценты всегда (если включена соответствующая настройка)
-            shouldShowTargetPercent = GetSetting('showTargetPercent', 1) == 1
-        end
-        
-        if shouldShowTargetPercent then
-            TargetFrameHealthBarPercent:Show()
-            self:UpdateHealthBarPercent(TargetFrameHealthBarPercent, "target")
-        else
-            TargetFrameHealthBarPercent:Hide()
-        end
+    if not TargetFrameHealthBarPercent then return end
+    local shouldShowTargetPercent = false
+    local classAlwaysShow = self:ShouldClassAlwaysShowPercent()
+    local isAltPressed = IsAltPressed()
+    local pctOnAlt = SettingOn("showPercentagesOnAlt", 1)
+
+    if classAlwaysShow then
+        shouldShowTargetPercent = SettingOn("showTargetPercent", 1)
+    elseif pctOnAlt then
+        shouldShowTargetPercent = isAltPressed and SettingOn("showTargetPercent", 1)
+    else
+        shouldShowTargetPercent = SettingOn("showTargetPercent", 1)
+    end
+
+    if shouldShowTargetPercent then
+        TargetFrameHealthBarPercent:Show()
+        self:UpdateHealthBarPercent(TargetFrameHealthBarPercent, "target")
+    else
+        TargetFrameHealthBarPercent:Hide()
     end
 end
 
@@ -1072,75 +1098,73 @@ end
 
 -- Функция для управления видимостью PVP-таймера
 function module:SetPlayerPVPTimerTextVisibility(enable)
-    -- Проверяем настройку скрытия PVP-таймера
-    local hidePVPTimer = GetSetting('hidePVPTimer', 0) == 1
-    
-    local pvpTimerElement = _G["PlayerPVPTimerText"] or _G["PVPTimerText"] or _G["PlayerFramePVPTimerText"] or _G["PlayerFrameTextureFramePVPTimerText"]
-    if pvpTimerElement then 
-        if hidePVPTimer then
-            -- Если галочка "Скрыть PVP таймер" стоит, показываем только при Alt
-            if enable then
-                pvpTimerElement:SetAlpha(1) -- Показываем
-            else
-                pvpTimerElement:SetAlpha(0) -- Скрываем
-            end
-        else
-            -- Если галочки нет, показываем всегда
-            pvpTimerElement:SetAlpha(1)
-        end
-    end
+    self:HidePVPTimer()
 end
 
--- Visual settings functions
 function module:ApplyVisualSettings()
+    self:EnsurePVPHooks()
     self:HidePVPIcons()
     self:HidePVPTimer()
     self:DisableHitIndicators()
 end
 
 function module:HidePVPIcons()
-    if GetSetting('hidePlayerPVP', 0) == 1 and PlayerPVPIcon then
-        PlayerPVPIcon:SetAlpha(0)
-    elseif PlayerPVPIcon then
-        PlayerPVPIcon:SetAlpha(1)
-    end
-
-    if GetSetting('hideTargetPVP', 0) == 1 and TargetFrameTextureFramePVPIcon then
-        TargetFrameTextureFramePVPIcon:SetAlpha(0)
-    elseif TargetFrameTextureFramePVPIcon then
-        TargetFrameTextureFramePVPIcon:SetAlpha(1)
-    end
-
-    if GetSetting('hideFocusPVP', 0) == 1 and FocusFrameTextureFramePVPIcon then
-        FocusFrameTextureFramePVPIcon:SetAlpha(0)
-    elseif FocusFrameTextureFramePVPIcon then
-        FocusFrameTextureFramePVPIcon:SetAlpha(1)
+    local icons = GetPVPIconElements()
+    for i = 1, #icons do
+        local entry = icons[i]
+        local tex = entry.tex
+        if tex then
+            if SettingOn(entry.hideKey, 0) then
+                tex:SetAlpha(0)
+            else
+                tex:SetAlpha(1)
+            end
+        end
     end
 end
 
 function module:HidePVPTimer()
-    local hidePVPTimer = GetSetting('hidePVPTimer', 1) == 1
-    local showOnAlt = GetSetting('showOnAlt', 1) == 1
-    local isAltPressed = SarychUI.AltMode and SarychUI.AltMode:IsAltPressed() or false
-    
-    local pvpTimerElement = _G["PlayerPVPTimerText"] or _G["PVPTimerText"] or _G["PlayerFramePVPTimerText"] or _G["PlayerFrameTextureFramePVPTimerText"]
-    if pvpTimerElement then 
-        if hidePVPTimer then
-            -- Если галочка "Скрыть PVP таймер" стоит, показываем только при Alt
-            if showOnAlt then
-                if isAltPressed then
-                    pvpTimerElement:SetAlpha(1)
-                else
-                    pvpTimerElement:SetAlpha(0)
-                end
-            else
-                -- Если настройка Alt отключена, но галочка стоит, скрываем
-                pvpTimerElement:SetAlpha(0)
-            end
-        else
-            -- Если галочки нет, показываем всегда
-            pvpTimerElement:SetAlpha(1)
-        end
+    local pvpTimerElement = GetPVPTimerElement()
+    if not pvpTimerElement then return end
+    if not SettingOn("hidePVPTimer", 1) then
+        pvpTimerElement:SetAlpha(1)
+        return
+    end
+    if SettingOn("pvpTimerOnAlt", 1) and IsAltPressed() then
+        pvpTimerElement:SetAlpha(1)
+    else
+        pvpTimerElement:SetAlpha(0)
+    end
+end
+
+function module:EnsurePVPHooks()
+    if self._pvpHooksInstalled then return end
+    self._pvpHooksInstalled = true
+    local function reapply()
+        if not self.db or not self.db.enabled then return end
+        self:HidePVPIcons()
+        self:HidePVPTimer()
+    end
+    local function hookShow(tex)
+        if not tex or self:IsHooked(tex, "Show") then return end
+        self:SecureHook(tex, "Show", reapply)
+    end
+    local icons = GetPVPIconElements()
+    for i = 1, #icons do
+        hookShow(icons[i].tex)
+    end
+    hookShow(GetPVPTimerElement())
+    if _G.PlayerFrame_UpdatePvPStatus then
+        self:SecureHook("PlayerFrame_UpdatePvPStatus", reapply)
+    end
+    if _G.PlayerFrame_UpdatePvP then
+        self:SecureHook("PlayerFrame_UpdatePvP", reapply)
+    end
+    if _G.TargetFrame_CheckFaction then
+        self:SecureHook("TargetFrame_CheckFaction", reapply)
+    end
+    if _G.FocusFrame_CheckFaction then
+        self:SecureHook("FocusFrame_CheckFaction", reapply)
     end
 end
 
@@ -1478,6 +1502,8 @@ function module:OnTargetChanged()
     if TargetFrameManaBar then
         set_hover(TargetFrameManaBar, false)
     end
+    self:HidePVPIcons()
+    self:HidePVPTimer()
 end
 
 -- Focus changed handler
@@ -1493,6 +1519,8 @@ function module:OnFocusChanged()
     if self.Update3DPortraits then
         self:Update3DPortraits(true, "focus")
     end
+    self:HidePVPIcons()
+    self:HidePVPTimer()
 end
 
 -- Force reset all elements to ensure complete restoration

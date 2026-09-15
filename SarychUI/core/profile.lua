@@ -26,6 +26,130 @@ local function cloneProfileTable(src)
 	return dest
 end
 
+-- Overlay wins on conflicts. Used so Sarych (2K) stays a 2K layout on top of current product defaults.
+local function overlayProfileTable(base, overlay)
+	if type(overlay) ~= "table" then
+		return cloneProfileTable(base)
+	end
+	if type(base) ~= "table" then
+		return cloneProfileTable(overlay)
+	end
+	local dest = cloneProfileTable(base)
+	for k, v in pairs(overlay) do
+		if type(v) == "table" and type(dest[k]) == "table" then
+			dest[k] = overlayProfileTable(dest[k], v)
+		else
+			dest[k] = cloneProfileTable(v)
+		end
+	end
+	return dest
+end
+
+local SARYCH_2K_PRODUCT_DEFAULTS_REV = 2
+
+local function resolveBuiltinProfile(name, overlay)
+	overlay = overlay or (SarychUI.BuiltinProfiles and SarychUI.BuiltinProfiles[name])
+	local defaults = SarychUI.defaults and SarychUI.defaults.profile
+	if type(defaults) == "table" then
+		return overlayProfileTable(defaults, overlay)
+	end
+	return cloneProfileTable(overlay)
+end
+
+function SarychUI:ApplySarych2KProductDefaults(profile)
+	if type(profile) ~= "table" then
+		return false
+	end
+	if profile._suiSarychProductDefaultsRev == SARYCH_2K_PRODUCT_DEFAULTS_REV then
+		return false
+	end
+
+	profile.modules = profile.modules or {}
+	local modules = profile.modules
+
+	modules.map = modules.map or {}
+	modules.map.mapType = "mapster"
+
+	modules.mainmenubar = modules.mainmenubar or {}
+	modules.mainmenubar.microMenuStyle = "dragonflight"
+	modules.mainmenubar.microMenuHideGreenLatency = true
+
+	modules.floating_text = modules.floating_text or {}
+	modules.floating_text.raidBossEmoteOffsetY = -600
+	modules.floating_text.healShiftPlus = 1
+	modules.floating_text.healPlusX = -467
+	modules.floating_text.healPlusY = -45
+	modules.floating_text.healShiftMinus = 1
+	modules.floating_text.healMinusX = 0
+	modules.floating_text.healMinusY = -50
+
+	modules.chat = modules.chat or {}
+	modules.chat.lfgAbbrev = "[Поиск]"
+
+	modules.bags = modules.bags or {}
+	modules.bags.mode = "elvui"
+	modules.bags.elvui = modules.bags.elvui or {}
+	modules.bags.elvui.splitMode = "adibags"
+	modules.bags.elvui.dragonflightHeader = false
+
+	modules.health_indicators = modules.health_indicators or {}
+	if modules.health_indicators.nameplateMode == nil then
+		modules.health_indicators.nameplateMode = "elvui"
+	end
+
+	modules.frame = modules.frame or {}
+	modules.frame.changeScale = 0
+
+	profile.addons = profile.addons or {}
+	profile.addons.Mapster = profile.addons.Mapster or {}
+	profile.addons.Mapster.enabled = true
+	profile.addons.Carbonite = profile.addons.Carbonite or {}
+	profile.addons.Carbonite.enabled = false
+	profile.addons.SarychUI_Bags = profile.addons.SarychUI_Bags or {}
+	profile.addons.SarychUI_Bags.enabled = true
+	profile.addons.autolos = profile.addons.autolos or {}
+	profile.addons.autolos.profiles = profile.addons.autolos.profiles or {}
+	profile.addons.autolos.profiles.elvui = profile.addons.autolos.profiles.elvui or {}
+	profile.addons.autolos.profiles.elvui.anchorToName = true
+
+	profile._suiSarychProductDefaultsRev = SARYCH_2K_PRODUCT_DEFAULTS_REV
+	return true
+end
+
+local function IsSarych2KStoredProfileName(name)
+	if name == "Sarych" then
+		return true
+	end
+	local map = SarychUIDB and SarychUIDB.global and SarychUIDB.global.profileBuiltinSource
+	return type(map) == "table" and map[name] == "Sarych"
+end
+
+function SarychUI:ApplySarych2KProductDefaultsToStoredProfiles()
+	if type(SarychUIDB) ~= "table" or type(SarychUIDB.profiles) ~= "table" then
+		return
+	end
+	for name, profile in pairs(SarychUIDB.profiles) do
+		if IsSarych2KStoredProfileName(name) then
+			self:ApplySarych2KProductDefaults(profile)
+		end
+	end
+	local liveProfiles = self.db and self.db.profiles
+	if type(liveProfiles) == "table" then
+		for name, profile in pairs(liveProfiles) do
+			if IsSarych2KStoredProfileName(name) then
+				self:ApplySarych2KProductDefaults(profile)
+			end
+		end
+	end
+end
+
+function SarychUI:ApplySarych2KLinkedAddonDefaults(force)
+	local enp = _G.SarychUI_ElvUI_NamePlates and _G.SarychUI_ElvUI_NamePlates[1]
+	if enp and enp.ApplySarych2KNameplateDefaults then
+		enp:ApplySarych2KNameplateDefaults(force)
+	end
+end
+
 function SarychUI:GetActiveProfile()
 	if self.db and self.db.profile then
 		return self.db.profile
@@ -71,8 +195,11 @@ function SarychUI:NotifyProfileOptionsChanged()
 	end
 	-- Custom /sui window: refresh it directly. Do NOT NotifyChange Ace —
 	-- that revalidates the whole options tree via AceConfigDialog and freezes.
+	-- A profile swap moves every value, so this one asks for a real rebuild.
 	if self.OptionsCore and self.OptionsCore._open then
-		if self.OptionsCore.Refresh then
+		if self.OptionsCore.ScheduleSmartRefresh then
+			self.OptionsCore:ScheduleSmartRefresh(true)
+		elseif self.OptionsCore.Refresh then
 			self.OptionsCore:Refresh()
 		end
 		return
@@ -84,11 +211,6 @@ function SarychUI:NotifyProfileOptionsChanged()
 end
 
 local function RefreshProfileUI()
-	-- Prefer custom options refresh; NotifyProfileOptionsChanged already covers it.
-	if SarychUI.OptionsCore and SarychUI.OptionsCore._open and SarychUI.OptionsCore.Refresh then
-		SarychUI.OptionsCore:Refresh()
-		return
-	end
 	SarychUI:NotifyProfileOptionsChanged()
 end
 
@@ -198,14 +320,17 @@ function SarychUI:EnsureBuiltinProfiles()
 			local missing = SarychUIDB.profiles[name] == nil
 			local outdated = type(applied) ~= "number" or applied < rev
 			if missing or outdated then
-				local copy = cloneProfileTable(data)
+				local copy = resolveBuiltinProfile(name, data)
 				SarychUIDB.profiles[name] = copy
 				if type(liveProfiles) == "table" then
-					liveProfiles[name] = cloneProfileTable(data)
+					liveProfiles[name] = resolveBuiltinProfile(name, data)
 				end
 				SarychUIDB.global.builtinProfileRevisions[name] = rev
 			end
 		end
+	end
+	if self.ApplySarych2KProductDefaultsToStoredProfiles then
+		self:ApplySarych2KProductDefaultsToStoredProfiles()
 	end
 end
 
@@ -376,13 +501,13 @@ function SarychUI:ActivateBuiltinProfile(builtinName)
 	end
 
 	-- Keep the template slot clean (revision seed / recover from accidental edits).
-	profiles[builtinName] = cloneProfileTable(template)
+	profiles[builtinName] = resolveBuiltinProfile(builtinName, template)
 
 	-- Shared mode: apply the template into the shared profile, not a new per-char clone.
 	if self:GetAlwaysUseProfileEnabled() then
 		local shared = self:GetAlwaysUseProfileName()
 		if type(shared) == "string" and shared ~= "" and shared ~= builtinName and not self:IsBuiltinProfile(shared) then
-			profiles[shared] = cloneProfileTable(template)
+			profiles[shared] = resolveBuiltinProfile(builtinName, template)
 			self._suppressAlwaysUseSync = true
 			if self.db.SetProfile then
 				self.db:SetProfile(shared)
@@ -390,6 +515,10 @@ function SarychUI:ActivateBuiltinProfile(builtinName)
 			self._suppressAlwaysUseSync = nil
 			self:SyncAlwaysUseProfileKey(shared)
 			self:SetProfileBuiltinSource(shared, builtinName)
+			if builtinName == "Sarych" then
+				self:ApplySarych2KProductDefaults(profiles[shared])
+				self:ApplySarych2KLinkedAddonDefaults(true)
+			end
 			return true
 		end
 	end
@@ -400,10 +529,14 @@ function SarychUI:ActivateBuiltinProfile(builtinName)
 		if self.db.SetProfile then
 			self.db:SetProfile(builtinName)
 		end
+		if builtinName == "Sarych" then
+			self:ApplySarych2KProductDefaults(profiles[builtinName])
+			self:ApplySarych2KLinkedAddonDefaults(true)
+		end
 		return true
 	end
 
-	profiles[charName] = cloneProfileTable(template)
+	profiles[charName] = resolveBuiltinProfile(builtinName, template)
 	self._suppressAlwaysUseSync = true
 	if self.db.SetProfile then
 		self.db:SetProfile(charName)
@@ -411,6 +544,10 @@ function SarychUI:ActivateBuiltinProfile(builtinName)
 	self._suppressAlwaysUseSync = nil
 	self:SyncAlwaysUseProfileKey(charName)
 	self:SetProfileBuiltinSource(charName, builtinName)
+	if builtinName == "Sarych" then
+		self:ApplySarych2KProductDefaults(profiles[charName])
+		self:ApplySarych2KLinkedAddonDefaults(true)
+	end
 	return true
 end
 
@@ -1094,6 +1231,11 @@ function SarychUI:ApplyCurrentProfile(opts)
 
 	self:InvalidateModuleProfileCaches()
 	self:SyncLegacyProfileStorage()
+
+	if self.IsSarych2KProfileContext and self:IsSarych2KProfileContext() then
+		self:ApplySarych2KProductDefaults(self.db and self.db.profile)
+		self:ApplySarych2KLinkedAddonDefaults(false)
+	end
 
 	if self.ApplyFeatureCoordination then
 		self:ApplyFeatureCoordination({

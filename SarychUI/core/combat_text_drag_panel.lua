@@ -21,8 +21,8 @@ local FRAME_MAP = {
 		xKey = "healPlusX",
 		yKey = "healPlusY",
 		dragFlag = "combatTextPlusDrag",
-		defaultX = -200,
-		defaultY = -70,
+		defaultX = -467,
+		defaultY = -45,
 		min = -1000,
 		max = 1000,
 		point = "CENTER",
@@ -60,7 +60,7 @@ local FRAME_MAP = {
 		yKey = "healMinusY",
 		dragFlag = "combatTextMinusDrag",
 		defaultX = 0,
-		defaultY = 0,
+		defaultY = -50,
 		min = -1000,
 		max = 1000,
 		point = "CENTER",
@@ -435,9 +435,24 @@ local function EnsureUI()
 	f:Hide()
 	ApplyTheme(f)
 
+	local close = CreateFrame("Button", nil, f)
+	close:SetSize(22, 22)
+	close:SetPoint("TOPRIGHT", -8, -8)
+	ApplyTheme(close, { 0.16, 0.16, 0.18, 1 }, { 0.24, 0.24, 0.26, 1 })
+	local closeFs = close:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+	closeFs:SetPoint("CENTER", 1, 0)
+	closeFs:SetText("X")
+	close:SetScript("OnEnter", function(self)
+		ApplyTheme(self, { 0.22, 0.22, 0.25, 1 }, { 0.95, 0.78, 0.15, 1 })
+	end)
+	close:SetScript("OnLeave", function(self)
+		ApplyTheme(self, { 0.16, 0.16, 0.18, 1 }, { 0.24, 0.24, 0.26, 1 })
+	end)
+	f.closeBtn = close
+
 	local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	title:SetPoint("TOPLEFT", 10, -10)
-	title:SetPoint("TOPRIGHT", -10, -10)
+	title:SetPoint("RIGHT", close, "LEFT", -6, 0)
 	title:SetJustifyH("LEFT")
 	title:SetText("Позиция")
 	f.title = title
@@ -521,7 +536,7 @@ local function EnsureUI()
 	f.applyBtn = MakeButton("Применить", 12)
 	f.resetBtn = MakeButton("Сброс", 138)
 
-	local kids = { f.xEdit, f.xSlider, f.yEdit, f.ySlider, f.gridBtn, f.applyBtn, f.resetBtn }
+	local kids = { f.xEdit, f.xSlider, f.yEdit, f.ySlider, f.gridBtn, f.applyBtn, f.resetBtn, f.closeBtn }
 	for i = 1, #kids do
 		local k = kids[i]
 		if k and k.SetFrameLevel then
@@ -614,6 +629,19 @@ local function EnsureUI()
 	f.resetBtn:SetScript("OnClick", function()
 		Panel:Reset()
 	end)
+	f.closeBtn:SetScript("OnClick", function()
+		Panel:Cancel()
+	end)
+
+	-- ESC closes without keeping in-progress drag (same as the X).
+	if UISpecialFrames then
+		table.insert(UISpecialFrames, f:GetName())
+	end
+	f:SetScript("OnHide", function()
+		if session and not session._closing then
+			Panel:Cancel()
+		end
+	end)
 
 	root = f
 	return f
@@ -664,6 +692,16 @@ end
 function Panel:Reset()
 	if not session then return end
 	self:SetDraft(session.snapshot.x, session.snapshot.y, false, session.snapshot.point, session.snapshot.relativePoint)
+end
+
+-- Close without keeping drag changes (X / ESC).
+function Panel:Cancel()
+	if not session then
+		if root then root:Hide() end
+		return
+	end
+	self:Reset()
+	self:Close(false)
 end
 
 function Panel:Open(frameId)

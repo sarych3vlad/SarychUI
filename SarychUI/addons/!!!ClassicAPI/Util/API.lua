@@ -2,59 +2,54 @@ local _, Private = ...
 
 local _G = _G
 local Mod = mod
+local Type = type
 local Next = next
 local PCall = pcall
-local Error = error
-local StrLen = strlen
-local Ceil = math.ceil
 local Sub = string.sub
 local GetTime = GetTime
-local GetCVar = GetCVar
-local String = tostring
 local Floor = math.floor
 local GSub = string.gsub
 local SecureCall = securecall
 local GetMapInfo = GetMapInfo
-local Reverse = string.reverse
 local GetRealmName = GetRealmName
-local GetAddOnInfo = GetAddOnInfo
-local IsAddOnLoaded = IsAddOnLoaded
 local GetInstanceInfo = GetInstanceInfo
-local IsAddOnLoadOnDemand = IsAddOnLoadOnDemand
 
 local FIRST_NUMBER_CAP = FIRST_NUMBER_CAP
 local SECOND_NUMBER_CAP = SECOND_NUMBER_CAP
 local LARGE_NUMBER_SEPERATOR = LARGE_NUMBER_SEPERATOR
 
-function AnimateTexCoords(Self, Width, Height, FrameW, FrameH, NumFrames, Elapsed, Throt)
-	local Throt = Throt or Self.throttle or 0.1
+function AnimateTexCoords(Self, Width, Height, FrameW, FrameH, NumFrames, Elapsed, Throttle)
+	-- UIParent.lua#2936
+	-- Optimized, but maintains "quirks" from Blizzard.
+	Throttle = (not Throttle or Throttle < 0.1) and 0.1 or Throttle
 
 	if ( not Self.frame ) then
 		Self.frame = 1
-		Self.Throt = Throt
 		Self.numColumns = Floor(Width / FrameW)
-		Self.numRows = Floor(Height / FrameH)
 		Self.columnWidth = FrameW / Width
 		Self.rowHeight = FrameH / Height
 	end
 
-	if ( not Self.Throt or Self.Throt > Throt ) then
-		local Frame = Self.frame
-		local FramesToAdvance = Floor(Self.Throt / Throt)
-		while Frame + FramesToAdvance > NumFrames do
-			Frame = Frame - NumFrames
-		end
+	local Accumulated = Self.throttle
 
-		Frame = Frame + FramesToAdvance
-		Self.Throt = 0
-		local SetLeft = Mod(Frame - 1, Self.numColumns) * Self.columnWidth
-		local SetRight = SetLeft + Self.columnWidth
-		local SetBottom = Ceil(Frame / Self.numColumns) * Self.rowHeight
-		local SetTop = SetBottom - Self.rowHeight
-		Self:SetTexCoord(SetLeft, SetRight, SetTop, SetBottom)
-		Self.frame = Frame
+	if ( not Accumulated or Accumulated > Throttle ) then
+		local FramesToAdvance = Accumulated and Floor(Accumulated / Throttle) or 0
+
+		Self.frame = ((Self.frame - 1 + FramesToAdvance) % NumFrames) + 1
+		Self.throttle = 0
+
+		local ZeroIndex = Self.frame - 1
+		local Column = ZeroIndex % Self.numColumns
+		local Row = Floor(ZeroIndex / Self.numColumns)
+
+		local Left = Column * Self.columnWidth
+		local Right = Left + Self.columnWidth
+		local Top = Row * Self.rowHeight
+		local Bottom = Top + Self.rowHeight
+
+		Self:SetTexCoord(Left, Right, Top, Bottom)
 	else
-		Self.Throt = Self.Throt + Elapsed
+		Self.throttle = Accumulated + Elapsed
 	end
 end
 
@@ -63,10 +58,8 @@ function GetTexCoordsForRoleSmallCircle(Role)
 		return 0, 19/64, 22/64, 41/64
 	elseif ( Role == "HEALER" ) then
 		return 20/64, 39/64, 1/64, 20/64
-	elseif ( Role == "DAMAGER" ) then
+	else -- DAMAGER
 		return 20/64, 39/64, 22/64, 41/64
-	else
-		Error("Unknown role: "..String(Role))
 	end
 end
 
@@ -89,39 +82,14 @@ function securecallfunction(Func, ...)
 	return SecureCall(Func, ...)
 end
 
-function GetAddOnEnableState(Character, Index)
-	-- Can't get per-char addons, doing what we can.
-	local _, _, _, Enabled, Loadable = GetAddOnInfo(Index)
-	return (Enabled) and 2 or 0
-end
-
-function IsAddonVersionCheckEnabled()
-	return GetCVar("checkAddonVersion") == "1"
-end
-
-function C_GetAddOnInfo(Index)
-	local Name, Title, Notes, Enabled, Loadable, Reason, Security = GetAddOnInfo(Index)
-	local NewVersion = nil
-
-	-- Missing "Reason" values: BANNED", "CORRUPT", "DEMAND_LOADED", "INCOMPATIBLE"
-	if ( Loadable and not IsAddOnLoaded(Index) and IsAddOnLoadOnDemand(Index) ) then
-		Reason = "DEMAND_LOADED"
-		Loadable = nil
-	end
-
-	return Name, Title, Notes, Loadable, Reason, Security, NewVersion
-end
-
 function HasOverrideActionBar()
-	return _G.BonusActionBarFrame:IsShown()
+	-- Move to C_ActionBar
+	return IsPossessBarVisible()
 end
 
 function HasVehicleActionBar()
-	return _G.VehicleMenuBar:IsShown()
-end
-
-function GetDifficultyInfo(ID)
-	--return "Normal", "party", false, false, false, false, nil
+	-- Move to C_ActionBar
+	return UnitHasVehicleUI("player")
 end
 
 function C_GetInstanceInfo()
@@ -146,110 +114,119 @@ function GetServerTime()
 end
 
 function GetNormalizedRealmName()
-	local Name = GSub(GetRealmName(), "[-%s]", "")
-	return Name
+	return (GSub(GetRealmName(), "[-%s]", ""))
 end
 
 function Ambiguate(FullName, Context)
-	-- TODO: Make diff context work properly.
+	if ( Type(FullName) ~= "string" or not FullName:find("-") ) then
+		return FullName
+	end
+
+	if ( Context == "short" or Context == "none" or Context == "guild" ) then
+		return FullName:match("^([^-]+)")
+	end
+
+	local Name, Realm = FullName:match("^([^-]+)-(.*)$")
+	if ( not Name ) then
+		return FullName
+	end
+
+	local CleanRealm = GSub(Realm, "[-%s]", "")
+	if ( CleanRealm == GetNormalizedRealmName() ) then
+		return Name
+	end
+
 	return FullName
 end
 
 function CombatLogGetCurrentEventInfo(Timestamp, SubEvent, SrcGUID, SrcName, SrcFlag, DstGUID, DstName, DstFlag, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12)
-	if ( Timestamp ) then
-		-- Modern payload (Missing)
-		local HideCaster, SrcRaidFlag, DstRaidFlag = false, nil, nil
+	if ( not Timestamp ) then return end
 
-		-- Note: Blizzard could have changed order of payload from 9th onwards.
-		return Timestamp, SubEvent, HideCaster, SrcGUID, SrcName, SrcFlag, SrcRaidFlag, DstGUID, DstName, DstFlag, DstRaidFlag, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12
+	-- Modern payload (Missing)
+	local HideCaster, SrcRaidFlag, DstRaidFlag = false, nil, nil
+
+	-- Note: Blizzard could have changed order of payload from 9th onwards.
+	return Timestamp, SubEvent, HideCaster, SrcGUID, SrcName, SrcFlag, SrcRaidFlag, DstGUID, DstName, DstFlag, DstRaidFlag, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12
+end
+
+function FormatLargeNumber(Amount)
+	if ( Amount < 1000 ) then
+		return Amount
+	end
+
+	local Formatted = Floor(Amount)
+	local K
+	while ( true ) do
+		Formatted, K = GSub(Formatted, "^(-?%d+)(%d%d%d)", "%1" .. LARGE_NUMBER_SEPERATOR .. "%2")
+		if ( K == 0 ) then
+			break
+		end
+	end
+	return Formatted
+end
+
+function BreakUpLargeNumbers(Value, Breakup)
+	if ( Value < 1000 ) then
+		if ( Value % 1 == 0 ) then
+			return Value
+		end
+
+		local Decimal = Floor(Value * 100)
+		return Sub(Decimal, 1, -3) .. DECIMAL_SEPERATOR .. Sub(Decimal, -2)
+	end
+
+	if ( Breakup ) then
+		return FormatLargeNumber(Value)
+	else
+		return Floor(Value)
 	end
 end
 
 function AbbreviateLargeNumbers(Value, Breakup)
-	local StrLen = StrLen(Value)
-	local RetString = Value
-
-	if ( StrLen > 8 ) then
-		RetString = Sub(Value, 1, -7)..SECOND_NUMBER_CAP
-	elseif ( StrLen > 5 ) then
-		RetString = Sub(Value, 1, -4)..FIRST_NUMBER_CAP
-	elseif (StrLen > 3 ) then
-		RetString = BreakUpLargeNumbers(Value, Breakup)
+	if ( Value >= 100000000 ) then
+		return Floor(Value / 1000000) .. SECOND_NUMBER_CAP
+	elseif ( Value >= 100000 ) then
+		return Floor(Value / 1000) .. FIRST_NUMBER_CAP
+	elseif ( Value > 1000 ) then
+		return BreakUpLargeNumbers(Value, Breakup)
 	end
 
-	return RetString
+	return Value
 end
 
-function BreakUpLargeNumbers(Value, Breakup)
-	local RetString = ""
-
-	if ( Value < 1000 ) then
-		if ( (Value - Floor(Value)) == 0) then
-			return Value
-		end
-
-		local Decimal = (Floor(Value*100))
-		RetString = Sub(Decimal, 1, -3)
-		RetString = RetString..DECIMAL_SEPERATOR
-		RetString = RetString..Sub(Decimal, -2)
-
-		return RetString
-	end
-
-	Value = Floor(Value)
-
-	local StrLen = StrLen(Value)
-	if ( Breakup ) then
-		if ( StrLen > 6 ) then
-			RetString = Sub(Value, 1, -7)..LARGE_NUMBER_SEPERATOR
-		end
-		if ( StrLen > 3 ) then
-			RetString = RetString..Sub(Value, -6, -4)..LARGE_NUMBER_SEPERATOR
-		end
-		RetString = RetString..Sub(Value, -3, -1)
-	else
-		RetString = Value
-	end
-
-	return RetString
-end
-
-function FormatLargeNumber(Amount)
-	Amount = GSub(Reverse(GSub(Reverse(String(Amount)), "(%d%d%d)", "%1,")), "^,", "")
-	return Amount
-end
-
-local InitalGTPSCall
+local InitialGTPSCall
 function GetTimePreciseSec()
-	local Time = GetTime()
-	if InitalGTPSCall == nil then InitalGTPSCall = Time end
-	return Time - InitalGTPSCall
+	local Time = debugprofilestop() / 1000
+	if ( InitialGTPSCall == nil ) then
+		InitialGTPSCall = Time
+	end
+	return Time - InitialGTPSCall
 end
 
 function BankFrame_Open()
-	_G.BankFrame_OnEvent(_G["BankFrame"], "BANKFRAME_OPENED")
+	BankFrame_OnEvent(_G["BankFrame"], "BANKFRAME_OPENED")
 end
 
 function MerchantFrame_MerchantShow()
-	_G.MerchantFrame_OnEvent(_G["MerchantFrame"], "MERCHANT_SHOW")
+	MerchantFrame_OnEvent(_G["MerchantFrame"], "MERCHANT_SHOW")
 end
 
 function MerchantFrame_MerchantClosed()
-	_G.MerchantFrame_OnEvent(_G["MerchantFrame"], "MERCHANT_CLOSED")
+	MerchantFrame_OnEvent(_G["MerchantFrame"], "MERCHANT_CLOSED")
 end
 
 function TabardFrame_Open()
-	_G.TabardFrame_OnEvent(_G["TabardFrame"], "OPEN_TABARD_FRAME")
+	TabardFrame_OnEvent(_G["TabardFrame"], "OPEN_TABARD_FRAME")
 end
 
 function MailFrame_Show()
-	_G.MailFrame_OnEvent(_G["MailFrame"], "MAIL_SHOW")
+	MailFrame_OnEvent(_G["MailFrame"], "MAIL_SHOW")
 end
 
 function MailFrame_Hide()
-	_G.MailFrame_OnEvent(_G["MailFrame"], "MAIL_CLOSED")
+	MailFrame_OnEvent(_G["MailFrame"], "MAIL_CLOSED")
 end
 
-_G.PostAuction = _G.StartAuction
-_G.InGlue = Private.False
-_G.PassClickToParent = Private.Void
+InGlue = Private.False
+PassClickToParent = Private.Void
+GetDifficultyInfo = Private.Void -- "Normal", "party", false, false, false, false, nil

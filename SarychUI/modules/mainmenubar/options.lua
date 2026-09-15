@@ -1050,11 +1050,11 @@ local function GetOptions()
                                                 dragonflight = "Dragonflight",
                                             },
                                             get = function()
-                                                return SarychUI.db.profile.modules.mainmenubar.microMenuStyle or "classic"
+                                                return SarychUI.db.profile.modules.mainmenubar.microMenuStyle or "dragonflight"
                                             end,
                                             set = function(_, value)
                                                 local db = SarychUI.db.profile.modules.mainmenubar
-                                                local previous = db.microMenuStyle or "classic"
+                                                local previous = db.microMenuStyle or "dragonflight"
                                                 if previous == value then return end
                                                 db.microMenuStyle = value
                                                 if SarychUI.modules and SarychUI.modules.mainmenubar then
@@ -1090,7 +1090,7 @@ local function GetOptions()
                                             width = "full",
                                             hidden = function()
                                                 local db = SarychUI.db.profile.modules.mainmenubar
-                                                return (db.microMenuStyle or "classic") ~= "dragonflight"
+                                                return (db.microMenuStyle or "dragonflight") ~= "dragonflight"
                                             end,
                                             get = function()
                                                 local db = SarychUI.db.profile.modules.mainmenubar

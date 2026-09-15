@@ -18,6 +18,12 @@ local function isOn(key)
 	return v == 1 or v == true
 end
 
+-- SarychUI сумка already has vendor greys; this block is only for classic / Baud Bag.
+local function IsSarychUIBagsMode()
+	local bags = SarychUI and SarychUI.modules and SarychUI.modules.bags
+	return bags and bags.IsElvUIMode and bags:IsElvUIMode() and true or false
+end
+
 local function toggleGetter(info)
 	local db = DB(); if not db then return false end
 	local key = info[#info]
@@ -63,6 +69,7 @@ function module:GetOptions()
 					name = "Автопродажа серых предметов",
 					order = 10,
 					inline = true,
+					hidden = IsSarychUIBagsMode,
 					args = {
 						enableAutoSellGrey = {
 							type = "toggle",

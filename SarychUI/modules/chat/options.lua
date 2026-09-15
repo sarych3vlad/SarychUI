@@ -233,76 +233,6 @@ local function BuildChatWheelPhraseOptionEntries()
     }
 end
 
-local function BuildChatWheelPhrasePositionEntries()
-    local posArgs = {
-        desc = {
-            type = "description",
-            name = "Дополнительное смещение поверх базовой позиции по кругу (phraseDistance + угол).",
-            order = 1,
-            fontSize = "medium",
-        },
-    }
-    for i = 1, 8 do
-        local xKey = "phrase" .. i .. "X"
-        local yKey = "phrase" .. i .. "Y"
-        posArgs["chat_wheel_phrase_" .. i .. "_x"] = {
-            type = "range",
-            name = "Фраза " .. i .. " — X",
-            order = 2 + (i - 1) * 2,
-            min = -400,
-            max = 400,
-            step = 1,
-            get = function()
-                local cw = SarychUI.db.profile.modules[moduleName].chatWheel
-                return cw and cw[xKey] or 0
-            end,
-            set = function(_, value)
-                local db = SarychUI.db.profile.modules[moduleName]
-                EnsureChatWheelDb(db)
-                db.chatWheel[xKey] = value
-                if _G.SarychUI_ChatWheel and _G.SarychUI_ChatWheel.ApplyPhrases then
-                    _G.SarychUI_ChatWheel.ApplyPhrases()
-                end
-            end,
-            disabled = function()
-                return not ChatWheelModuleEnabled()
-            end,
-        }
-        posArgs["chat_wheel_phrase_" .. i .. "_y"] = {
-            type = "range",
-            name = "Фраза " .. i .. " — Y",
-            order = 3 + (i - 1) * 2,
-            min = -400,
-            max = 400,
-            step = 1,
-            get = function()
-                local cw = SarychUI.db.profile.modules[moduleName].chatWheel
-                return cw and cw[yKey] or 0
-            end,
-            set = function(_, value)
-                local db = SarychUI.db.profile.modules[moduleName]
-                EnsureChatWheelDb(db)
-                db.chatWheel[yKey] = value
-                if _G.SarychUI_ChatWheel and _G.SarychUI_ChatWheel.ApplyPhrases then
-                    _G.SarychUI_ChatWheel.ApplyPhrases()
-                end
-            end,
-            disabled = function()
-                return not ChatWheelModuleEnabled()
-            end,
-        }
-    end
-    return {
-        phrasePositionsBox = {
-            type = "group",
-            name = "Позиции фраз",
-            inline = true,
-            order = 40,
-            args = posArgs,
-        },
-    }
-end
-
 -- Get options
 function module:GetOptions()
     local baseOptions = {
@@ -463,6 +393,8 @@ function module:GetOptions()
                                         desc = "Когда этот текст есть в строке ввода, открывается окно выбора эмодзи. При выборе эмодзи триггер заменяется на его код.",
                                         order = 5,
                                         width = "full",
+                                        suiSaveButton = "OK",
+                                        suiKeepInput = true,
                                         get = function() return GetSetting("emotionPickerTrigger", "//") end,
                                         set = function(info, value)
                                             SarychUI.db.profile.modules[moduleName].emotionPickerTrigger = value or "//"
@@ -635,7 +567,7 @@ function module:GetOptions()
                                         suiSaveButton = "OK",
                                         suiKeepInput = true,
                                         get = function()
-                                            return GetSetting("lfgAbbrev", "")
+                                            return GetSetting("lfgAbbrev", "[Поиск]")
                                         end,
                                         set = function(info, value)
                                             if type(value) == "string" then
@@ -1559,6 +1491,7 @@ function module:GetOptions()
                                 desc = "Колесо остаётся на экране постоянно. Удобно для разметки и настройки.",
                                 order = 3,
                                 width = "full",
+                                hidden = true,
                                 get = function()
                                     local cw = SarychUI.db.profile.modules[moduleName].chatWheel
                                     return cw and (cw.alwaysShow == 1 or cw.alwaysShow == true)
@@ -1589,7 +1522,7 @@ function module:GetOptions()
                     },
                     displayBox = {
                         type = "group",
-                        name = "Отображение фраз",
+                        name = "Канал отправки",
                         order = 2,
                         inline = true,
                         args = {
@@ -1624,279 +1557,6 @@ function module:GetOptions()
                                     return not ChatWheelModuleEnabled()
                                 end,
                             },
-                            chat_wheel_phrase_offset = {
-                                type = "range",
-                                name = "Смещение фраз",
-                                desc = "Расстояние фраз от края центрального круга.",
-                                order = 2,
-                                min = 0,
-                                max = 300,
-                                step = 1,
-                                get = function()
-                                    local cw = SarychUI.db.profile.modules[moduleName].chatWheel
-                                    return cw and cw.phraseOffset or 55
-                                end,
-                                set = function(_, value)
-                                    local db = SarychUI.db.profile.modules[moduleName]
-                                    if type(db.chatWheel) ~= "table" then
-                                        local def = SarychUI.defaults.profile.modules.chat.chatWheel
-                                        db.chatWheel = def and CopyTable(def) or {}
-                                    end
-                                    db.chatWheel.phraseOffset = value
-                                    if _G.SarychUI_ChatWheel and _G.SarychUI_ChatWheel.ApplyPhrases then
-                                        _G.SarychUI_ChatWheel.ApplyPhrases()
-                                    end
-                                end,
-                                disabled = function()
-                                    return not ChatWheelModuleEnabled()
-                                end,
-                            },
-                            chat_wheel_phrase_font_size = {
-                                type = "range",
-                                name = "Размер шрифта фраз",
-                                order = 3,
-                                min = 8,
-                                max = 40,
-                                step = 1,
-                                get = function()
-                                    local cw = SarychUI.db.profile.modules[moduleName].chatWheel
-                                    return cw and cw.phraseFontSize or 20
-                                end,
-                                set = function(_, value)
-                                    local db = SarychUI.db.profile.modules[moduleName]
-                                    if type(db.chatWheel) ~= "table" then
-                                        local def = SarychUI.defaults.profile.modules.chat.chatWheel
-                                        db.chatWheel = def and CopyTable(def) or {}
-                                    end
-                                    db.chatWheel.phraseFontSize = value
-                                    if _G.SarychUI_ChatWheel and _G.SarychUI_ChatWheel.ApplyPhrases then
-                                        _G.SarychUI_ChatWheel.ApplyPhrases()
-                                    end
-                                end,
-                                disabled = function()
-                                    return not ChatWheelModuleEnabled()
-                                end,
-                            },
-                            chat_wheel_phrase_max_width = {
-                                type = "range",
-                                name = "Макс. ширина фразы",
-                                order = 4,
-                                min = 40,
-                                max = 600,
-                                step = 1,
-                                get = function()
-                                    local cw = SarychUI.db.profile.modules[moduleName].chatWheel
-                                    return cw and cw.phraseMaxWidth or 260
-                                end,
-                                set = function(_, value)
-                                    local db = SarychUI.db.profile.modules[moduleName]
-                                    if type(db.chatWheel) ~= "table" then
-                                        local def = SarychUI.defaults.profile.modules.chat.chatWheel
-                                        db.chatWheel = def and CopyTable(def) or {}
-                                    end
-                                    db.chatWheel.phraseMaxWidth = value
-                                    if _G.SarychUI_ChatWheel and _G.SarychUI_ChatWheel.ApplyPhrases then
-                                        _G.SarychUI_ChatWheel.ApplyPhrases()
-                                    end
-                                end,
-                                disabled = function()
-                                    return not ChatWheelModuleEnabled()
-                                end,
-                            },
-                            chat_wheel_selected_phrase_scale = {
-                                type = "range",
-                                name = "Масштаб выбранной фразы",
-                                desc = "Масштаб выбранной фразы (1.0 = без увеличения).",
-                                order = 5,
-                                min = 1.0,
-                                max = 2.5,
-                                step = 0.05,
-                                get = function()
-                                    local cw = SarychUI.db.profile.modules[moduleName].chatWheel
-                                    if cw and cw.selectedPhraseScale ~= nil then
-                                        return cw.selectedPhraseScale
-                                    end
-                                    if cw and cw.selectedPhraseFontSize and cw.phraseFontSize then
-                                        local base = tonumber(cw.phraseFontSize) or 20
-                                        if base > 0 then
-                                            return math.max(1.0, math.min(2.5, (tonumber(cw.selectedPhraseFontSize) or base) / base))
-                                        end
-                                    end
-                                    return 1.15
-                                end,
-                                set = function(_, value)
-                                    local db = SarychUI.db.profile.modules[moduleName]
-                                    EnsureChatWheelDb(db)
-                                    db.chatWheel.selectedPhraseScale = value
-                                    if _G.SarychUI_ChatWheel and _G.SarychUI_ChatWheel.ApplyPhrases then
-                                        _G.SarychUI_ChatWheel.ApplyPhrases()
-                                    end
-                                end,
-                                disabled = function()
-                                    return not ChatWheelModuleEnabled()
-                                end,
-                            },
-                            chat_wheel_phrase_anim_speed = {
-                                type = "range",
-                                name = "Скорость анимации фразы",
-                                desc = "Скорость плавного увеличения выбранной фразы.",
-                                order = 6,
-                                min = 4,
-                                max = 100,
-                                step = 1,
-                                get = function()
-                                    local cw = SarychUI.db.profile.modules[moduleName].chatWheel
-                                    local speed = cw and cw.phraseAnimSpeed or 30
-                                    if speed <= 1.0 then
-                                        speed = 30
-                                    end
-                                    return speed
-                                end,
-                                set = function(_, value)
-                                    local db = SarychUI.db.profile.modules[moduleName]
-                                    EnsureChatWheelDb(db)
-                                    db.chatWheel.phraseAnimSpeed = value
-                                end,
-                                disabled = function()
-                                    return not ChatWheelModuleEnabled()
-                                end,
-                            },
-                        },
-                    },
-                    cursorBox = {
-                        type = "group",
-                        name = "Внешний курсор",
-                        order = 3,
-                        inline = true,
-                        args = {
-                            chat_wheel_outer_cursor_enabled = {
-                                type = "toggle",
-                                name = "Внешний курсор",
-                                desc = "Показывать курсор при выборе секторов (вне центрального круга).",
-                                order = 1,
-                                get = function()
-                                    local cw = SarychUI.db.profile.modules[moduleName].chatWheel
-                                    if not cw or cw.outerCursorEnabled == nil then return true end
-                                    return cw.outerCursorEnabled == 1 or cw.outerCursorEnabled == true
-                                end,
-                                set = function(_, value)
-                                    local db = SarychUI.db.profile.modules[moduleName]
-                                    EnsureChatWheelDb(db)
-                                    db.chatWheel.outerCursorEnabled = value and 1 or 0
-                                    if _G.SarychUI_ChatWheel and _G.SarychUI_ChatWheel.ApplyOuterCursor then
-                                        _G.SarychUI_ChatWheel.ApplyOuterCursor()
-                                    end
-                                end,
-                                disabled = function()
-                                    return not ChatWheelModuleEnabled()
-                                end,
-                            },
-                            chat_wheel_outer_cursor_size = {
-                                type = "range",
-                                name = "Размер внешнего курсора",
-                                desc = "Размер текстуры внешнего курсора.",
-                                order = 2,
-                                min = 8,
-                                max = 128,
-                                step = 1,
-                                get = function()
-                                    local cw = SarychUI.db.profile.modules[moduleName].chatWheel
-                                    return cw and cw.outerCursorSize or 32
-                                end,
-                                set = function(_, value)
-                                    local db = SarychUI.db.profile.modules[moduleName]
-                                    EnsureChatWheelDb(db)
-                                    db.chatWheel.outerCursorSize = value
-                                    if _G.SarychUI_ChatWheel and _G.SarychUI_ChatWheel.ApplyOuterCursor then
-                                        _G.SarychUI_ChatWheel.ApplyOuterCursor()
-                                    end
-                                end,
-                                disabled = function()
-                                    return not ChatWheelModuleEnabled()
-                                end,
-                            },
-                            chat_wheel_outer_cursor_edge_padding = {
-                                type = "range",
-                                name = "Отступ от края слайсов",
-                                desc = "Отступ курсора от края слайсов (по умолчанию — половина размера иконки).",
-                                order = 3,
-                                min = 0,
-                                max = 200,
-                                step = 1,
-                                get = function()
-                                    local cw = SarychUI.db.profile.modules[moduleName].chatWheel
-                                    if cw and cw.outerCursorEdgePadding ~= nil then
-                                        return cw.outerCursorEdgePadding
-                                    end
-                                    local size = cw and cw.outerCursorSize or 32
-                                    return size * 0.5
-                                end,
-                                set = function(_, value)
-                                    local db = SarychUI.db.profile.modules[moduleName]
-                                    EnsureChatWheelDb(db)
-                                    local size = db.chatWheel.outerCursorSize or 32
-                                    if math.abs(value - (size * 0.5)) < 0.01 then
-                                        db.chatWheel.outerCursorEdgePadding = nil
-                                    else
-                                        db.chatWheel.outerCursorEdgePadding = value
-                                    end
-                                end,
-                                disabled = function()
-                                    return not ChatWheelModuleEnabled()
-                                end,
-                            },
-                            chat_wheel_outer_cursor_max_radius = {
-                                type = "range",
-                                name = "Макс. радиус курсора",
-                                desc = "Максимальное расстояние курсора от центра (0 = автоматически).",
-                                order = 4,
-                                min = 0,
-                                max = 400,
-                                step = 1,
-                                get = function()
-                                    local cw = SarychUI.db.profile.modules[moduleName].chatWheel
-                                    if cw and cw.outerCursorMaxRadius ~= nil then
-                                        return cw.outerCursorMaxRadius
-                                    end
-                                    return 0
-                                end,
-                                set = function(_, value)
-                                    local db = SarychUI.db.profile.modules[moduleName]
-                                    EnsureChatWheelDb(db)
-                                    if value == 0 then
-                                        db.chatWheel.outerCursorMaxRadius = nil
-                                    else
-                                        db.chatWheel.outerCursorMaxRadius = value
-                                    end
-                                end,
-                                disabled = function()
-                                    return not ChatWheelModuleEnabled()
-                                end,
-                            },
-                            chat_wheel_outer_cursor_safe_padding = {
-                                type = "range",
-                                name = "Запасной отступ курсора",
-                                desc = "Дополнительный отступ курсора от края слайсов, чтобы не терять фокус сектора.",
-                                order = 5,
-                                min = 0,
-                                max = 40,
-                                step = 1,
-                                get = function()
-                                    local cw = SarychUI.db.profile.modules[moduleName].chatWheel
-                                    if cw and cw.outerCursorSafePadding ~= nil then
-                                        return cw.outerCursorSafePadding
-                                    end
-                                    return 14
-                                end,
-                                set = function(_, value)
-                                    local db = SarychUI.db.profile.modules[moduleName]
-                                    EnsureChatWheelDb(db)
-                                    db.chatWheel.outerCursorSafePadding = value
-                                end,
-                                disabled = function()
-                                    return not ChatWheelModuleEnabled()
-                                end,
-                            },
                         },
                     },
                 },
@@ -1907,12 +1567,8 @@ function module:GetOptions()
     baseOptions.args.spam_filter.args.listBox.args = BuildSpamFilterListArgs()
 
     local phraseOpts = BuildChatWheelPhraseOptionEntries()
-    local phrasePosOpts = BuildChatWheelPhrasePositionEntries()
     local cwArgs = baseOptions.args.chat_wheel.args
     for key, option in pairs(phraseOpts) do
-        cwArgs[key] = option
-    end
-    for key, option in pairs(phrasePosOpts) do
         cwArgs[key] = option
     end
 

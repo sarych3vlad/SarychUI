@@ -437,6 +437,7 @@ function E:RefreshConfig()
 	local NP = self:GetModule("NamePlates", true)
 	if NP and NP.Initialized then
 		NP.db = self.db.nameplates
+		self:ApplySarychUINameplateProductDefaults(false)
 		NP:ConfigureAll()
 	end
 
@@ -495,6 +496,7 @@ function E:Initialize()
 
 	self.initialized = true
 	self:InitializeModules()
+	self:ApplySarychUINameplateProductDefaults(false)
 
 	if self.RegisterOptions then
 		self:RegisterOptions()
@@ -520,6 +522,82 @@ function E:SyncNamePlatesRuntimeFromSarychUI()
 		self.private.nameplates = self.private.nameplates or {}
 		self.private.nameplates.enable = enabled
 	end
+end
+
+function E:ApplySarych2KNameplateDefaults(force)
+	return self:ApplySarychUINameplateProductDefaults(force)
+end
+
+local NAMEPLATE_PRODUCT_DEFAULTS_REV = 1
+
+local function ApplyNameplateProductDefaultsToTable(np, force)
+	if type(np) ~= "table" then
+		return false
+	end
+	if not force and np._suiProductDefaultsRev == NAMEPLATE_PRODUCT_DEFAULTS_REV then
+		return false
+	end
+
+	local plateSize = np.plateSize
+	if type(plateSize) == "table" then
+		plateSize.friendlyIncludeName = true
+		plateSize.enemyIncludeName = true
+	end
+
+	local units = np.units
+	if type(units) == "table" then
+		local function setCastIconLeft(unit)
+			local unitDb = units[unit]
+			local castbar = unitDb and unitDb.castbar
+			if type(castbar) == "table" then
+				castbar.iconPosition = "LEFT"
+			end
+		end
+		setCastIconLeft("ENEMY_PLAYER")
+		setCastIconLeft("ENEMY_NPC")
+	end
+
+	np._suiProductDefaultsRev = NAMEPLATE_PRODUCT_DEFAULTS_REV
+	return true
+end
+
+function E:ApplySarychUINameplateProductDefaults(force)
+	local changed = false
+	if self.db and type(self.db.nameplates) == "table" then
+		if ApplyNameplateProductDefaultsToTable(self.db.nameplates, force) then
+			changed = true
+		end
+	end
+
+	local profiles = self.data and self.data.profiles
+	if type(profiles) == "table" then
+		for _, profile in pairs(profiles) do
+			if type(profile) == "table" and type(profile.nameplates) == "table" then
+				if ApplyNameplateProductDefaultsToTable(profile.nameplates, force) then
+					changed = true
+				end
+			end
+		end
+	end
+
+	local sv = _G.SarychUIElvNamePlatesDB
+	if type(sv) == "table" and type(sv.profiles) == "table" then
+		for _, profile in pairs(sv.profiles) do
+			if type(profile) == "table" and type(profile.nameplates) == "table" then
+				if ApplyNameplateProductDefaultsToTable(profile.nameplates, force) then
+					changed = true
+				end
+			end
+		end
+	end
+
+	if changed and self.initialized then
+		local NP = self:GetModule("NamePlates", true)
+		if NP and NP.Initialized and NP.ConfigureAll then
+			NP:ConfigureAll()
+		end
+	end
+	return changed
 end
 
 function E:IsNamePlatesRuntimeEnabled()

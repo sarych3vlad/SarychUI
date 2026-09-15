@@ -37,6 +37,10 @@ local function RefreshConfig()
 end
 
 local function ApplyFrameSettings()
+    if SarychUI.ApplyLiveModule then
+        SarychUI.ApplyLiveModule(module)
+        return
+    end
     if module.ApplySettings then
         module:ApplySettings()
     end
@@ -682,7 +686,7 @@ function module:GetOptions()
                                 width = "full",
                                 suiHelpIcon = SarychUI.DOTA_ALT_HELP_ICON,
                                 get = function() return SarychUI.db.profile.modules.frame.showOnAlt == 1 end,
-                                set = function(_, v) SarychUI.db.profile.modules.frame.showOnAlt = v and 1 or 0; if module.ApplySettings then module:ApplySettings() end end,
+                                set = function(_, v) SarychUI.db.profile.modules.frame.showOnAlt = v and 1 or 0; ApplyFrameSettings() end,
                             },
                             show_in_combat = {
                                 type = "toggle",
@@ -692,11 +696,11 @@ function module:GetOptions()
                                 width = "full",
                                 get = function() return SarychUI.db.profile.modules.frame.showTextIndicatorsInCombat == true end,
                                 set = function(_, v)
-                                    SarychUI.db.profile.modules.frame.showTextIndicatorsInCombat = v
+                                    SarychUI.db.profile.modules.frame.showTextIndicatorsInCombat = v and true or false
                                     if module.UpdateCombatState then
                                         module:UpdateCombatState()
                                     end
-                                    if module.ApplySettings then module:ApplySettings() end
+                                    ApplyFrameSettings()
                                 end,
                             },
                             fade_after_combat = {
@@ -708,8 +712,8 @@ function module:GetOptions()
                                 disabled = function() return SarychUI.db.profile.modules.frame.showTextIndicatorsInCombat ~= true end,
                                 get = function() return SarychUI.db.profile.modules.frame.textIndicatorsFadeAfterCombat == true end,
                                 set = function(_, v)
-                                    SarychUI.db.profile.modules.frame.textIndicatorsFadeAfterCombat = v
-                                    if module.ApplySettings then module:ApplySettings() end
+                                    SarychUI.db.profile.modules.frame.textIndicatorsFadeAfterCombat = v and true or false
+                                    ApplyFrameSettings()
                                 end,
                             },
                             fade_time = {
@@ -725,7 +729,7 @@ function module:GetOptions()
                                 get = function() return SarychUI.db.profile.modules.frame.textIndicatorsFadeTime or 0.4 end,
                                 set = function(_, v)
                                     SarychUI.db.profile.modules.frame.textIndicatorsFadeTime = v
-                                    if module.ApplySettings then module:ApplySettings() end
+                                    ApplyFrameSettings()
                                 end,
                             },
                         },
@@ -743,7 +747,7 @@ function module:GetOptions()
                                 order = 1,
                                 width = "full",
                                 get = function() return SarychUI.db.profile.modules.frame.showTargetPercent == 1 end,
-                                set = function(_, v) SarychUI.db.profile.modules.frame.showTargetPercent = v and 1 or 0; if module.ApplySettings then module:ApplySettings() end end,
+                                set = function(_, v) SarychUI.db.profile.modules.frame.showTargetPercent = v and 1 or 0; ApplyFrameSettings() end,
                             },
                             focus_percent = {
                                 type = "toggle",
@@ -752,7 +756,7 @@ function module:GetOptions()
                                 order = 2,
                                 width = "full",
                                 get = function() return SarychUI.db.profile.modules.frame.showFocusPercent == 1 end,
-                                set = function(_, v) SarychUI.db.profile.modules.frame.showFocusPercent = v and 1 or 0; if module.ApplySettings then module:ApplySettings() end end,
+                                set = function(_, v) SarychUI.db.profile.modules.frame.showFocusPercent = v and 1 or 0; ApplyFrameSettings() end,
                             },
                             show_percentages_on_alt = {
                                 type = "toggle",
@@ -762,7 +766,7 @@ function module:GetOptions()
                                 width = "full",
                                 suiHelpIcon = SarychUI.DOTA_ALT_HELP_ICON,
                                 get = function() return SarychUI.db.profile.modules.frame.showPercentagesOnAlt == 1 end,
-                                set = function(_, v) SarychUI.db.profile.modules.frame.showPercentagesOnAlt = v and 1 or 0; if module.ApplySettings then module:ApplySettings() end end,
+                                set = function(_, v) SarychUI.db.profile.modules.frame.showPercentagesOnAlt = v and 1 or 0; ApplyFrameSettings() end,
                             },
                         },
                     },
@@ -779,7 +783,7 @@ function module:GetOptions()
                                 order = 1,
                                 width = "full",
                                 get = function() return SarychUI.db.profile.modules.frame.warlockAlways == 1 end,
-                                set = function(_, v) SarychUI.db.profile.modules.frame.warlockAlways = v and 1 or 0; if module.ApplySettings then module:ApplySettings() end end,
+                                set = function(_, v) SarychUI.db.profile.modules.frame.warlockAlways = v and 1 or 0; ApplyFrameSettings() end,
                             },
                             warlock_threshold = {
                                 type = "range",
@@ -792,7 +796,7 @@ function module:GetOptions()
                                 width = "full",
                                 disabled = function() return SarychUI.db.profile.modules.frame.warlockAlways ~= 1 end,
                                 get = function() return SarychUI.db.profile.modules.frame.warlockThreshold or 25 end,
-                                set = function(_, v) SarychUI.db.profile.modules.frame.warlockThreshold = v; if module.ApplySettings then module:ApplySettings() end end,
+                                set = function(_, v) SarychUI.db.profile.modules.frame.warlockThreshold = v; ApplyFrameSettings() end,
                             },
                         },
                     },
@@ -834,7 +838,7 @@ function module:GetOptions()
                                         width = "full",
                                         suiPreviewKey = "hidePlayerPVP",
                                         get = function() return SarychUI.db.profile.modules.frame.hidePlayerPVP == 1 end,
-                                        set = function(_, v) SarychUI.db.profile.modules.frame.hidePlayerPVP = v and 1 or 0; if module.ApplySettings then module:ApplySettings() end end,
+                                        set = function(_, v) SarychUI.db.profile.modules.frame.hidePlayerPVP = v and 1 or 0; ApplyFrameSettings() end,
                                     },
                                     hide_target_pvp = {
                                         type = "toggle",
@@ -844,7 +848,7 @@ function module:GetOptions()
                                         width = "full",
                                         suiPreviewKey = "hideTargetPVP",
                                         get = function() return SarychUI.db.profile.modules.frame.hideTargetPVP == 1 end,
-                                        set = function(_, v) SarychUI.db.profile.modules.frame.hideTargetPVP = v and 1 or 0; if module.ApplySettings then module:ApplySettings() end end,
+                                        set = function(_, v) SarychUI.db.profile.modules.frame.hideTargetPVP = v and 1 or 0; ApplyFrameSettings() end,
                                     },
                                     hide_focus_pvp = {
                                         type = "toggle",
@@ -854,7 +858,7 @@ function module:GetOptions()
                                         width = "full",
                                         suiPreviewKey = "hideFocusPVP",
                                         get = function() return SarychUI.db.profile.modules.frame.hideFocusPVP == 1 end,
-                                        set = function(_, v) SarychUI.db.profile.modules.frame.hideFocusPVP = v and 1 or 0; if module.ApplySettings then module:ApplySettings() end end,
+                                        set = function(_, v) SarychUI.db.profile.modules.frame.hideFocusPVP = v and 1 or 0; ApplyFrameSettings() end,
                                     },
                                 },
                             },
@@ -872,7 +876,7 @@ function module:GetOptions()
                                         width = "full",
                                         suiPreviewKey = "hidePVPTimer",
                                         get = function() return SarychUI.db.profile.modules.frame.hidePVPTimer == 1 end,
-                                        set = function(_, v) SarychUI.db.profile.modules.frame.hidePVPTimer = v and 1 or 0; if module.ApplySettings then module:ApplySettings() end end,
+                                        set = function(_, v) SarychUI.db.profile.modules.frame.hidePVPTimer = v and 1 or 0; ApplyFrameSettings() end,
                                     },
                                     pvp_timer_on_alt = {
                                         type = "toggle",
@@ -884,7 +888,7 @@ function module:GetOptions()
                                         suiPreviewKey = "pvpTimerOnAlt",
                                         disabled = function() return SarychUI.db.profile.modules.frame.hidePVPTimer ~= 1 end,
                                         get = function() return SarychUI.db.profile.modules.frame.pvpTimerOnAlt == 1 end,
-                                        set = function(_, v) SarychUI.db.profile.modules.frame.pvpTimerOnAlt = v and 1 or 0; if module.ApplySettings then module:ApplySettings() end end,
+                                        set = function(_, v) SarychUI.db.profile.modules.frame.pvpTimerOnAlt = v and 1 or 0; ApplyFrameSettings() end,
                                     },
                                 },
                             },
@@ -904,7 +908,7 @@ function module:GetOptions()
                                         get = function() return SarychUI.db.profile.modules.frame.classIconPortraits == 1 end,
                                         set = function(_, v)
                                             SarychUI.db.profile.modules.frame.classIconPortraits = v and 1 or 0
-                                            if module.ApplySettings then module:ApplySettings() end
+                                            ApplyFrameSettings()
                                             -- Rebuild so the player sub-toggle picks up disabled state.
                                             RefreshConfig()
                                         end,
@@ -920,7 +924,7 @@ function module:GetOptions()
                                         get = function() return SarychUI.db.profile.modules.frame.classIconPortraitsPlayer == 1 end,
                                         set = function(_, v)
                                             SarychUI.db.profile.modules.frame.classIconPortraitsPlayer = v and 1 or 0
-                                            if module.ApplySettings then module:ApplySettings() end
+                                            ApplyFrameSettings()
                                         end,
                                     },
                                 },

@@ -1323,6 +1323,9 @@ _G.SB_ApplyScrollButtonsSetting = SB_ApplyAll
 -- ФУНКЦИИ ДЛЯ МОДУЛЯ (согласно правилам)
 -- ========================================
 
+-- Объявлены ниже, но используются функциями включения/отключения
+local ApplyBottomButtonMod, ApplyScrollButtonsMod
+
 -- Функция включения скрытия стрелки перемещения в конец
 local function EnableBottomButtonHiding()
     ApplyBottomButtonMod(true)
@@ -1355,7 +1358,7 @@ local function DisableBottomButtonHiding()
 end
 
 -- Функция применения модификации стрелки перемещения в конец (как у кнопки друзей)
-local function ApplyBottomButtonMod(forceEnabled)
+function ApplyBottomButtonMod(forceEnabled)
     if forceEnabled ~= nil then
         -- Принудительно включаем или отключаем
         if forceEnabled then
@@ -1441,7 +1444,7 @@ local function DisableScrollButtonsHiding()
 end
 
 -- Функция применения модификации стрелок вверх и вниз (как у кнопки друзей)
-local function ApplyScrollButtonsMod(forceEnabled)
+function ApplyScrollButtonsMod(forceEnabled)
     if forceEnabled ~= nil then
         -- Принудительно включаем или отключаем
         if forceEnabled then

@@ -1,17 +1,17 @@
 local _, Private = ...
 
 local _G = _G
-local pairs = pairs
+local Pairs = pairs
 local ChatTypeInfo = ChatTypeInfo
+local SendChatMessage = SendChatMessage
 local GetNumLanguages = GetNumLanguages
 local SendAddonMessage = SendAddonMessage
 local GetLanguageByIndex = GetLanguageByIndex
-local GetNumDisplayChannels = GetNumDisplayChannels
 
 local C_ChatInfo = C_ChatInfo or {}
 local LanguageIDList
 
-function C_ChatInfo.CanPlayerSpeakLanguage(languageId)
+function C_ChatInfo.CanPlayerSpeakLanguage(LanguageID)
 	if ( not LanguageIDList ) then
 		LanguageIDList = { -- https://warcraft.wiki.gg/wiki/LanguageID
 			[1] = "Orcish",
@@ -34,32 +34,35 @@ function C_ChatInfo.CanPlayerSpeakLanguage(languageId)
 		}
 	end
 
-	local languageId = LanguageIDList[languageId]
-
+	local Index = LanguageIDList[LanguageID]
 	for i=1, GetNumLanguages() do
-		if ( languageId == GetLanguageByIndex(i) ) then
+		if ( Index == GetLanguageByIndex(i) ) then
 			return true
 		end
 	end
 end
 
-function C_ChatInfo.SendAddonMessage(...)
-	local _, _, Type = ...
-	if ( Type ~= "PARTY" and Type ~= "RAID" and Type ~= "GUILD" and Type ~= "BATTLEGROUND" and Type ~= "WHISPER" ) then
-		return
+function C_ChatInfo.SendAddonMessage(Prefix, Message, ChatType, Target)
+	if ( ChatType == "PARTY" or ChatType == "RAID" or ChatType == "GUILD" or ChatType == "BATTLEGROUND" or ChatType == "WHISPER" ) then
+		return SendAddonMessage(Prefix, Message, ChatType, Target)
 	end
-	return SendAddonMessage(...)
 end
 
-function C_ChatInfo.GetColorForChatType(chatType)
-	local ChatInfo = ChatTypeInfo[chatType]
+function C_ChatInfo.SendChatMessage(Message, ChatType, LanguageID, Target)
+	if ( ChatType == "PARTY" or ChatType == "RAID" or ChatType == "GUILD" or ChatType == "BATTLEGROUND" or ChatType == "WHISPER" ) then
+		return SendChatMessage(Message, ChatType, LanguageID, Target)
+	end
+end
+
+function C_ChatInfo.GetColorForChatType(ChatType)
+	local ChatInfo = ChatTypeInfo[ChatType]
 	return CreateColor(ChatInfo.r, ChatInfo.g, ChatInfo.b, 1)
 end
 
-function C_ChatInfo.GetChatTypeName(typeID)
+function C_ChatInfo.GetChatTypeName(TypeID)
 	local Index = 1
-	for Name, Data in pairs(ChatTypeInfo) do
-		if ( typeID == Index ) then
+	for Name, Data in Pairs(ChatTypeInfo) do
+		if ( TypeID == Index ) then
 			return Name
 		end
 		Index = Index + 1
@@ -68,9 +71,9 @@ end
 
 C_ChatInfo.GetChannelRosterInfo = GetChannelRosterInfo
 C_ChatInfo.GetNumActiveChannels = GetNumDisplayChannels
-C_ChatInfo.IsAddonMessagePrefixRegistered = Private.True
 
-C_ChatInfo.RegisterAddonMessagePrefix = Private.Void
+C_ChatInfo.IsAddonMessagePrefixRegistered = Private.True
+C_ChatInfo.RegisterAddonMessagePrefix = Private.True
 C_ChatInfo.GetRegisteredAddonMessagePrefixes = Private.Void
 
 -- INCOMPLETE
@@ -101,14 +104,24 @@ C_ChatInfo.UncensorChatLine
 -- Global
 _G.C_ChatInfo = C_ChatInfo
 
---[[ CHATTHROTTLELIB ]]
-local CTL = _G.ChatThrottleLib
-local CTL_SendAddonMessage = CTL.SendAddonMessage
-CTL.version = 50 -- Force ClassicAPI CTL.
-CTL.SendAddonMessage = function(...)
-	local _, _, _, _, Type = ...
-	if ( Type ~= "PARTY" and Type ~= "RAID" and Type ~= "GUILD" and Type ~= "BATTLEGROUND" and Type ~= "WHISPER" ) then
-		return
+--[[
+	CHATTHROTTLELIB PATCH
+]]
+
+local SendAddonMessagePatch = function(Self, Prio, Prefix, Text, ChatType, ...)
+	if ( ChatType == "PARTY" or ChatType == "RAID" or ChatType == "GUILD" or ChatType == "BATTLEGROUND" or ChatType == "WHISPER" ) then
+		return Self.SendAddonMessageOrig(Self, Prio, Prefix, Text, ChatType, ...)
 	end
-	return CTL_SendAddonMessage(...)
 end
+
+local Frame = CreateFrame("Frame")
+Frame:RegisterEvent("ADDON_LOADED")
+Frame:SetScript("OnEvent", function()
+	local CTL = _G.ChatThrottleLib
+	if ( not CTL ) then return end
+
+	if ( CTL.SendAddonMessage ~= SendAddonMessagePatch ) then
+		CTL.SendAddonMessageOrig = CTL.SendAddonMessage
+		CTL.SendAddonMessage = SendAddonMessagePatch
+	end
+end)

@@ -64,7 +64,7 @@ function module:GetMode()
 
 	local db = DB()
 
-	return (db and db.mode) or "default"
+	return (db and db.mode) or "elvui"
 
 end
 

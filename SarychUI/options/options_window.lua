@@ -69,6 +69,9 @@ function OW:CreateRoot()
 
 	local window = self
 	root:SetScript("OnHide", function()
+		if PlaySound then
+			PlaySound("UChatScrollButton")
+		end
 		local core = window.GetBoundCore and window:GetBoundCore()
 		if core then
 			core._open = false
@@ -193,12 +196,42 @@ function OW:CreateNav()
 	self.navButtons = {}
 end
 
+-- Pixel sizes from the theme so first open does not wait a frame for GetWidth().
+function OW:GetContentPixelWidth()
+	local sz = T.sizes
+	local winW = sz.windowW or 900
+	if self.root then
+		local rw = self.root:GetWidth()
+		if rw and rw > 200 then
+			winW = rw
+		end
+	end
+	return math.max(200, winW - (sz.navW or 200) - 3)
+end
+
+function OW:GetTabBarPixelWidth()
+	local bar = self.tabBar
+	if bar then
+		local w = bar:GetWidth()
+		if w and w > 80 then
+			return w
+		end
+	end
+	return math.max(80, self:GetContentPixelWidth() - 16)
+end
+
+function OW:GetScrollPixelWidth()
+	return math.max(80, self:GetContentPixelWidth() - 16)
+end
+
 function OW:CreateContent()
 	local root = self.root
 	local sz = T.sizes
 	local content = CreateFrame("Frame", nil, root)
 	content:SetPoint("TOPLEFT", root, "TOPLEFT", sz.navW + 2, -(sz.headerH + 1))
 	content:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", -1, sz.footerH + 1)
+	local contentW = self:GetContentPixelWidth()
+	content:SetWidth(contentW)
 	T:ApplyFlat(content, T.colors.contentBg, T.colors.borderSoft)
 
 	-- Section title removed globally (nav already shows the section name).
@@ -208,10 +241,14 @@ function OW:CreateContent()
 	self._titleVisible = false
 
 	-- Tab bar at top of content (hidden when no tabs).
+	-- Frame level above the scroll so wrapped tabs are clickable, not eaten by content.
 	local tabBar = CreateFrame("Frame", nil, content)
 	tabBar:SetPoint("TOPLEFT", 8, -8)
 	tabBar:SetPoint("TOPRIGHT", -8, -8)
+	tabBar:SetWidth(math.max(80, contentW - 16))
 	tabBar:SetHeight(sz.tabH)
+	tabBar:SetFrameLevel((content:GetFrameLevel() or 1) + 12)
+	tabBar:EnableMouse(false)
 	tabBar:Hide()
 	self.tabBar = tabBar
 	self.tabButtons = {}
@@ -220,7 +257,10 @@ function OW:CreateContent()
 	local subTabBar = CreateFrame("Frame", nil, content)
 	subTabBar:SetPoint("TOPLEFT", 8, -(8 + sz.tabH + 2))
 	subTabBar:SetPoint("TOPRIGHT", -8, -(8 + sz.tabH + 2))
+	subTabBar:SetWidth(math.max(80, contentW - 16))
 	subTabBar:SetHeight(sz.tabH)
+	subTabBar:SetFrameLevel((content:GetFrameLevel() or 1) + 12)
+	subTabBar:EnableMouse(false)
 	subTabBar:Hide()
 	self.subTabBar = subTabBar
 	self.subTabButtons = {}
@@ -228,6 +268,7 @@ function OW:CreateContent()
 	local scroll = CreateFrame("ScrollFrame", nil, content)
 	scroll:SetPoint("TOPLEFT", 8, -8)
 	scroll:SetPoint("BOTTOMRIGHT", -8, 6)
+	scroll:SetFrameLevel((content:GetFrameLevel() or 1) + 1)
 	self._scrollTopWithTabs = -(8 + sz.tabH + 4)
 	self._scrollTopWithSubTabs = -(8 + sz.tabH + 2 + sz.tabH + 4)
 	self._scrollTopNoTabs = -8
@@ -237,7 +278,7 @@ function OW:CreateContent()
 	self._subTabBarH = sz.tabH
 
 	local child = CreateFrame("Frame", nil, scroll)
-	child:SetWidth(1)
+	child:SetWidth(math.max(80, contentW - 20))
 	child:SetHeight(1)
 	scroll:SetScrollChild(child)
 
@@ -256,9 +297,12 @@ function OW:CreateContent()
 
 	scroll:SetScript("OnSizeChanged", function(self, width)
 		local c = OW.contentChild
-		if c then
-			c:SetWidth(math.max(100, (width or 400) - 4))
+		if not c then return end
+		local w = width
+		if not w or w < 80 then
+			w = OW:GetScrollPixelWidth()
 		end
+		c:SetWidth(math.max(100, w - 4))
 	end)
 
 	self.content = content
@@ -300,10 +344,10 @@ local function StyleTabButton(btn, active, isSub)
 end
 
 local function FillTabBar(bar, buttons, tabs, activeKey, onSelect, isSub, rightReserve)
-	for _, b in pairs(buttons) do
-		b:Hide()
-	end
 	if not tabs or #tabs == 0 then
+		for _, b in pairs(buttons) do
+			b:Hide()
+		end
 		bar:Hide()
 		return 0, 1
 	end
@@ -312,18 +356,26 @@ local function FillTabBar(bar, buttons, tabs, activeKey, onSelect, isSub, rightR
 	local row = 0
 	local h = T.sizes.tabH or 24
 	local gap = 2
-	local barW = bar:GetWidth() or 400
+	local barW = bar:GetWidth() or 0
+	if barW < 80 and OW.GetTabBarPixelWidth then
+		barW = OW:GetTabBarPixelWidth()
+		bar:SetWidth(barW)
+	end
 	if barW < 80 then
-		barW = 400
+		barW = (OW.GetContentPixelWidth and OW:GetContentPixelWidth() or 680) - 16
+		bar:SetWidth(barW)
 	end
 	rightReserve = rightReserve or 0
 	local maxW = math.max(80, barW - rightReserve)
+	local used = {}
 
 	for i, tab in ipairs(tabs) do
+		local tabKey = tab.key
 		local btn = buttons[i]
 		if not btn then
 			btn = CreateFrame("Button", nil, bar)
 			btn:SetHeight(h)
+			btn:RegisterForClicks("LeftButtonDown")
 			local fs = btn:CreateFontString(nil, "OVERLAY", T.fonts.small)
 			fs:SetPoint("LEFT", 8, 0)
 			fs:SetPoint("RIGHT", -8, 0)
@@ -331,17 +383,18 @@ local function FillTabBar(bar, buttons, tabs, activeKey, onSelect, isSub, rightR
 			btn.label = fs
 			buttons[i] = btn
 		end
-		btn:Show()
+		used[btn] = true
 		btn:SetParent(bar)
+		btn:Show()
 		local label = tab.label
 		if not label and tab.opt then
 			label = tab.opt.name
 			if type(label) == "function" then
 				local ok, v = pcall(label)
-				label = ok and v or tab.key
+				label = ok and v or tabKey
 			end
 		end
-		label = tostring(label or tab.key)
+		label = tostring(label or tabKey)
 		if SarychUI and SarychUI.T then
 			label = SarychUI:T(label)
 		end
@@ -358,8 +411,8 @@ local function FillTabBar(bar, buttons, tabs, activeKey, onSelect, isSub, rightR
 		end
 		btn:ClearAllPoints()
 		btn:SetPoint("TOPLEFT", bar, "TOPLEFT", x, -(row * (h + gap)))
-		btn.tabKey = tab.key
-		StyleTabButton(btn, tab.key == activeKey, isSub)
+		btn.tabKey = tabKey
+		StyleTabButton(btn, tabKey == activeKey, isSub)
 		btn:SetScript("OnEnter", function(self)
 			if self._active then return end
 			T:ApplyFlat(self, T.colors.navHover, T.colors.borderSoft)
@@ -367,10 +420,21 @@ local function FillTabBar(bar, buttons, tabs, activeKey, onSelect, isSub, rightR
 		btn:SetScript("OnLeave", function(self)
 			StyleTabButton(self, self._active, isSub)
 		end)
-		btn:SetScript("OnClick", function()
-			if onSelect then onSelect(tab.key) end
+		-- LeftButtonDown + self.tabKey: Lua 5.1 loop closures all saw the last tab,
+		-- and MouseUp clicks were lost when layout hid/moved the button mid-press.
+		btn:SetScript("OnClick", function(self)
+			local key = self.tabKey
+			if onSelect and key then
+				onSelect(key)
+			end
 		end)
 		x = x + w + gap
+	end
+	for _, b in pairs(buttons) do
+		if not used[b] then
+			b:Hide()
+			b.tabKey = nil
+		end
 	end
 	local rows = row + 1
 	bar:SetHeight(rows * h + math.max(0, rows - 1) * gap)
@@ -609,10 +673,14 @@ function OW:ApplyContentScrollTop(hasTabs, hasSubTabs)
 	local tabH = T.sizes.tabH or 24
 	local top
 	if hasSubTabs then
+		local mainH = (self.tabBar and self.tabBar:IsShown() and self.tabBar:GetHeight()) or tabH
+		if mainH < tabH then mainH = tabH end
 		local subH = self._subTabBarH or tabH
-		top = -(8 + tabH + 2 + subH + 4)
+		top = -(8 + mainH + 2 + subH + 4)
 	elseif hasTabs then
-		top = -(8 + tabH + 4)
+		local mainH = (self.tabBar and self.tabBar:IsShown() and self.tabBar:GetHeight()) or tabH
+		if mainH < tabH then mainH = tabH end
+		top = -(8 + mainH + 4)
 	else
 		top = self._scrollTopNoTabs or -8
 	end
@@ -647,36 +715,61 @@ function OW:SetTabs(tabs, activeKey, onSelect, tabBarExtraOpt)
 
 	local reserve = self:SetTabBarExtra(tabBarExtraOpt)
 	local function LayoutMainTabs()
+		if self._tabLayoutLock then
+			return
+		end
+		self._tabLayoutLock = true
 		if self._lastTabs and #self._lastTabs > 0 then
 			self._tabBarNoticeText = nil
 			self:ClearTabBarNotice()
-			FillTabBar(bar, self.tabButtons, self._lastTabs, self._lastTabActiveKey, self._lastTabOnSelect, false, reserve or self._tabBarExtraW or 0)
+			local _, rows = FillTabBar(bar, self.tabButtons, self._lastTabs, self._lastTabActiveKey, self._lastTabOnSelect, false, reserve or self._tabBarExtraW or 0)
+			self._tabBarRows = rows or 1
 		else
 			-- Module disabled: keep the bar for enable/test toggles only.
 			for _, b in pairs(self.tabButtons) do
 				b:Hide()
 			end
 			bar:Show()
+			self._tabBarRows = 1
+			bar:SetHeight(T.sizes.tabH or 24)
 			if self._tabBarNoticeText then
 				self:SetTabBarNotice(self._tabBarNoticeText)
 			end
 		end
-		self._tabBarRows = 1
-		bar:SetHeight(T.sizes.tabH or 24)
+		self._tabLayoutLock = nil
 	end
 
 	LayoutMainTabs()
-	bar:SetScript("OnSizeChanged", function()
+	if self._tabBarExtraWidgets then
+		local extraLevel = (bar:GetFrameLevel() or 1) + 30
+		for i = 1, #self._tabBarExtraWidgets do
+			local extra = self._tabBarExtraWidgets[i]
+			if extra and extra.SetFrameLevel then
+				extra:SetFrameLevel(extraLevel)
+			end
+		end
+	end
+	bar:SetScript("OnSizeChanged", function(selfBar, w)
+		if not w or w < 1 then
+			w = selfBar:GetWidth()
+		end
+		if selfBar._lastLayoutW and w and math.abs(selfBar._lastLayoutW - w) < 1 then
+			return
+		end
+		selfBar._lastLayoutW = w
 		LayoutMainTabs()
+		if OW.ApplyContentScrollTop then
+			OW:ApplyContentScrollTop(true, OW.subTabBar and OW.subTabBar:IsShown())
+		end
 	end)
 
-	-- Subtabs may still be shown by SetSubTabs; default to one-row layout.
+	-- Subtabs may still be shown by SetSubTabs; anchor under the real main tab height.
 	self:HideSubTabs()
-	-- Keep subtab bar anchored under the (single-row) main tab bar.
 	if self.subTabBar then
+		local mainH = bar:GetHeight() or (T.sizes.tabH or 24)
 		self.subTabBar:ClearAllPoints()
-		self.subTabBar:SetPoint("TOPLEFT", 8, -(8 + (T.sizes.tabH or 24) + 2))
-		self.subTabBar:SetPoint("TOPRIGHT", -8, -(8 + (T.sizes.tabH or 24) + 2))
+		self.subTabBar:SetPoint("TOPLEFT", 8, -(8 + mainH + 2))
+		self.subTabBar:SetPoint("TOPRIGHT", -8, -(8 + mainH + 2))
 	end
 	self:ApplyContentScrollTop(true, false)
 end
@@ -697,17 +790,30 @@ function OW:SetSubTabs(tabs, activeKey, onSelect)
 	end
 
 	local function LayoutSubTabs()
+		if self._subTabLayoutLock then
+			return
+		end
+		self._subTabLayoutLock = true
 		local _, rows = FillTabBar(bar, self.subTabButtons, self._lastSubTabs, self._lastSubTabActiveKey, self._lastSubTabOnSelect, true, 0)
 		self._subTabBarRows = rows or 1
 		self._subTabBarH = bar:GetHeight() or (T.sizes.tabH or 24)
 		self:ApplyContentScrollTop(true, true)
+		self._subTabLayoutLock = nil
 	end
 
 	LayoutSubTabs()
-	bar:SetScript("OnSizeChanged", function()
-		if self._lastSubTabs and #self._lastSubTabs > 0 then
-			LayoutSubTabs()
+	bar:SetScript("OnSizeChanged", function(selfBar, w)
+		if not self._lastSubTabs or #self._lastSubTabs == 0 then
+			return
 		end
+		if not w or w < 1 then
+			w = selfBar:GetWidth()
+		end
+		if selfBar._lastLayoutW and w and math.abs(selfBar._lastLayoutW - w) < 1 then
+			return
+		end
+		selfBar._lastLayoutW = w
+		LayoutSubTabs()
 	end)
 end
 
@@ -721,31 +827,25 @@ function OW:RenderInlineSubTabs(parent, y, tabs, activeKey, onSelect)
 	bar:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
 	bar:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, y)
 	local pw = parent:GetWidth()
-	if pw and pw > 40 then
-		bar:SetWidth(pw)
+	if not pw or pw < 40 then
+		pw = (OW.GetScrollPixelWidth and OW:GetScrollPixelWidth()) or 680
+		parent:SetWidth(pw)
 	end
+	bar:SetWidth(pw)
 	local buttons = {}
-	-- Guard rapid clicks: ignore same key and coalesce switches to next frame.
+	-- Inline tabs live inside the scroll child, so ClearContent destroys them.
+	-- Capture the key on click, then switch next frame. Do not coalesce via a
+	-- shared pending slot — that swallowed clicks when ClearContent raced OnUpdate.
 	local wrappedSelect = onSelect
 	if type(onSelect) == "function" then
 		wrappedSelect = function(tabKey)
-			if tabKey == activeKey then
+			if not tabKey or tabKey == activeKey then
 				return
 			end
-			if OW._inlineSubTabPending then
-				OW._inlineSubTabPending = tabKey
-				return
-			end
-			OW._inlineSubTabPending = tabKey
-			-- Defer full re-render so the click finishes before ClearContent.
 			local f = CreateFrame("Frame")
 			f:SetScript("OnUpdate", function(self)
 				self:SetScript("OnUpdate", nil)
-				local key = OW._inlineSubTabPending
-				OW._inlineSubTabPending = nil
-				if key then
-					onSelect(key)
-				end
+				onSelect(tabKey)
 			end)
 		end
 	end
@@ -864,6 +964,7 @@ function OW:AddNavItem(id, label, depth, onClick)
 	btn.label = fs
 	btn.sectionId = id
 	btn.depth = depth
+	btn:RegisterForClicks("LeftButtonDown")
 
 	btn:SetScript("OnEnter", function(self)
 		if self._active then return end
@@ -876,8 +977,11 @@ function OW:AddNavItem(id, label, depth, onClick)
 			T:SetTextColor(self.label, (self.depth or 0) > 0 and "textDim" or "text")
 		end
 	end)
-	btn:SetScript("OnClick", function()
-		if onClick then onClick(id) end
+	btn:SetScript("OnClick", function(self)
+		local sid = self.sectionId
+		if onClick and sid then
+			onClick(sid)
+		end
 	end)
 
 	tinsert(self.navButtons, btn)
@@ -902,6 +1006,11 @@ end
 function OW:ClearContent()
 	local scroll = self.contentScroll
 	if not scroll then return end
+	SUI._optionsTextEditing = nil
+	-- The hovered widget dies without OnLeave, so its tooltip would linger.
+	if SUI.OptionsWidgets and SUI.OptionsWidgets.HideCooltip then
+		SUI.OptionsWidgets.HideCooltip()
+	end
 
 	self._inlineSubTabPending = nil
 	if self.SetContentScrollLocked then
@@ -955,7 +1064,10 @@ function OW:ClearContent()
 	end
 
 	local child = CreateFrame("Frame", nil, scroll)
-	local width = scroll:GetWidth() or 600
+	local width = scroll:GetWidth()
+	if not width or width < 80 then
+		width = self:GetScrollPixelWidth()
+	end
 	child:SetWidth(math.max(200, width - 4))
 	child:SetHeight(1)
 	scroll:SetScrollChild(child)
@@ -1045,8 +1157,12 @@ end
 
 function OW:Show()
 	self:CreateRoot()
+	local wasShown = self.root:IsShown()
 	self.root:Show()
 	self.root:Raise()
+	if not wasShown and PlaySound then
+		PlaySound("UChatScrollButton")
+	end
 end
 
 function OW:Hide()

@@ -127,6 +127,56 @@ local function SaveDefaultPosition(frameId, frame)
     end
 end
 
+-- Overlay can cover a different widget than the moved frame (minimap tiles
+-- punch through UIParent overlays; the highlight must be a Minimap child).
+local function OverlayCoverFrame(settings, frame)
+    if settings and settings.overlayFrame then
+        return settings.overlayFrame
+    end
+    return frame
+end
+
+local function OverlayParentFrame(settings, frame)
+    if settings and settings.overlayParent then
+        return settings.overlayParent
+    end
+    if settings and settings.overlayFrame then
+        return settings.overlayFrame
+    end
+    return nil
+end
+
+local function SizeDragOverlay(data)
+    local df = data and data.dragFrame
+    local settings = data and data.settings
+    if not df or (settings and settings.overlayFrame) then
+        return
+    end
+    local gscale = 1
+    if GetCVar("useuiscale") == "1" then
+        gscale = tonumber(GetCVar("uiscale")) or 1
+    end
+    df:SetWidth((settings.dragWidth or 280) * gscale)
+    df:SetHeight((settings.dragHeight or 225) * gscale)
+end
+
+local function AnchorDragOverlay(data)
+    local df = data and data.dragFrame
+    local settings = data and data.settings
+    local frame = data and data.frame
+    if not df or not frame then
+        return
+    end
+    df:ClearAllPoints()
+    local cover = OverlayCoverFrame(settings, frame)
+    if settings and settings.overlayFrame and cover then
+        df:SetAllPoints(cover)
+        return
+    end
+    local dragPoint = (settings and settings.dragPoint) or "CENTER"
+    df:SetPoint(dragPoint, frame, dragPoint, (settings and settings.dragOffsetX) or 0, (settings and settings.dragOffsetY) or 2.5)
+end
+
 -- Создание drag frame для фрейма
 local function CreateDragFrame(frameId, frame, settings)
     local data = registeredFrames[frameId]
@@ -135,30 +185,40 @@ local function CreateDragFrame(frameId, frame, settings)
     -- Инициализируем флаг для предотвращения перезаписи позиции после drag
     data.justDragged = false
     
-    local dragframe = CreateFrame("FRAME", nil, nil)
-    dragframe:SetPoint(settings.dragPoint or "TOPRIGHT", frame, settings.dragPoint or "TOPRIGHT", settings.dragOffsetX or 0, settings.dragOffsetY or 2.5)
+    local parent = OverlayParentFrame(settings, frame)
+    local dragframe = CreateFrame("FRAME", nil, parent)
     dragframe:SetBackdropColor(0.0, 0.5, 1.0)
     dragframe:SetBackdrop({ edgeFile = "Interface/Tooltips/UI-Tooltip-Border", tile = false, tileSize = 0, edgeSize = 16, insets = { left = 0, right = 0, top = 0, bottom = 0 } })
-    dragframe:SetFrameStrata("TOOLTIP")
-    dragframe:SetFrameLevel(150)
-    dragframe:SetToplevel(true)
+    local cover = OverlayCoverFrame(settings, frame)
+    -- Keep Minimap children on the map's draw pass: do not raise strata/toplevel.
+    if parent then
+        local coverLevel = (cover and cover.GetFrameLevel and cover:GetFrameLevel()) or 0
+        dragframe:SetFrameLevel(coverLevel + 50)
+    else
+        dragframe:SetFrameStrata("TOOLTIP")
+        dragframe:SetFrameLevel(150)
+        dragframe:SetToplevel(true)
+    end
     dragframe:Hide()
     dragframe:EnableMouse(true)
+    data.dragFrame = dragframe
+    SizeDragOverlay(data)
+    AnchorDragOverlay(data)
     
-    -- Устанавливаем размер drag frame с учетом UI scale
-    local gscale = 1
-    if GetCVar("useuiscale") == "1" then
-        gscale = tonumber(GetCVar("uiscale")) or 1
-    end
-    dragframe:SetWidth((settings.dragWidth or 280) * gscale)
-    dragframe:SetHeight((settings.dragHeight or 225) * gscale)
-    
-    dragframe.t = dragframe:CreateTexture()
+    local texLayer = parent and "OVERLAY" or "ARTWORK"
+    dragframe.t = dragframe:CreateTexture(nil, texLayer)
     dragframe.t:SetAllPoints()
-    dragframe.t:SetTexture(0.0, 1.0, 0.0, 0.5)
-    dragframe.t:SetAlpha(0.5)
+    if parent then
+        -- Solid-color SetTexture is drawn under minimap tiles; WHITE8X8 is not.
+        dragframe.t:SetTexture("Interface\\Buttons\\WHITE8X8")
+        dragframe.t:SetVertexColor(0.0, 1.0, 0.0, 0.45)
+        dragframe.t:SetAlpha(0.45)
+    else
+        dragframe.t:SetTexture(0.0, 1.0, 0.0, 0.5)
+        dragframe.t:SetAlpha(0.5)
+    end
     
-    dragframe.f = dragframe:CreateFontString(nil, 'ARTWORK', 'GameFontNormalLarge')
+    dragframe.f = dragframe:CreateFontString(nil, 'OVERLAY', 'GameFontNormalLarge')
     dragframe.f:SetPoint('CENTER', 0, 0)
     dragframe.f:SetText(settings.dragText or "Frame")
     
@@ -261,9 +321,7 @@ local function CreateDragFrame(frameId, frame, settings)
                 end
                 
                 if data.dragFrame and frame then
-                    local dragPoint = settings.dragPoint or "CENTER"
-                    data.dragFrame:ClearAllPoints()
-                    data.dragFrame:SetPoint(dragPoint, frame, dragPoint, settings.dragOffsetX or 0, settings.dragOffsetY or 2.5)
+                    AnchorDragOverlay(data)
                 end
             end)
         end
@@ -277,10 +335,7 @@ local function CreateDragFrame(frameId, frame, settings)
         -- Сразу обновляем позицию drag frame после остановки перемещения
         -- Это предотвращает "залипание" drag frame на старом месте
         if data.dragFrame then
-            local dragPoint = settings.dragPoint or "CENTER"
-            data.dragFrame:ClearAllPoints()
-            data.dragFrame:SetPoint(dragPoint, frame, dragPoint, settings.dragOffsetX or 0, settings.dragOffsetY or 2.5)
-            
+            AnchorDragOverlay(data)
             -- Скрываем drag frame, если он не должен быть видимым
             if not data.showDragFrame then
                 data.dragFrame:Hide()
@@ -334,9 +389,7 @@ local function CreateDragFrame(frameId, frame, settings)
                         data.justDragged = false
                         
                         if data.dragFrame then
-                            local dragPoint = settings.dragPoint or "CENTER"
-                            data.dragFrame:ClearAllPoints()
-                            data.dragFrame:SetPoint(dragPoint, frame, dragPoint, settings.dragOffsetX or 0, settings.dragOffsetY or 2.5)
+                            AnchorDragOverlay(data)
                             if not data.showDragFrame then
                                 data.dragFrame:Hide()
                             end
@@ -382,7 +435,7 @@ end
 -- Регистрация фрейма для редактирования
 -- frameId: уникальный идентификатор фрейма (string)
 -- frame: фрейм для редактирования
--- settings: настройки {dragPoint, dragOffsetX, dragOffsetY, dragWidth, dragHeight, dragText, scaleFrame, onPositionChanged}
+-- settings: {dragPoint, dragOffsetX, dragOffsetY, dragWidth, dragHeight, dragText, overlayFrame, overlayParent, scaleFrame, onPositionChanged}
 function DragMode:RegisterFrame(frameId, frame, settings)
     if not frameId or not frame then return end
     
@@ -536,11 +589,10 @@ function DragMode:EnableEditMode(frameId, enabled, showDragFrame, showGrid)
     if settings.interceptSetPoint then
         -- Перехватываем SetPoint чтобы предотвратить автоматическое перемещение Blizzard
         frame.SetPoint = function(self, ...)
-            -- Блокируем SetPoint вызовы только во время активного drag
-            -- После завершения drag разрешаем все вызовы, чтобы Blizzard мог обновлять позиции аур
+            -- StartMoving() continuously SetPoint's the frame. Blocking that
+            -- freezes the minimap in place (the old "offset does nothing" bug).
             if data.isMoving then
-                -- Во время активного drag - блокируем все SetPoint вызовы
-                return
+                return data.originalSetPoint(self, ...)
             end
             
             -- Если не в процессе drag - применяем перехват
@@ -577,37 +629,32 @@ function DragMode:EnableEditMode(frameId, enabled, showDragFrame, showGrid)
         end
         frame:SetScale(scale)
         
-        if data.dragFrame then
+        if data.dragFrame and not settings.overlayFrame then
             data.dragFrame:SetScale(scale)
         end
     end
     
-    -- Обновляем размер drag frame
-    if data.dragFrame then
-        local gscale = 1
-        if GetCVar("useuiscale") == "1" then
-            gscale = tonumber(GetCVar("uiscale")) or 1
-        end
-        data.dragFrame:SetWidth((settings.dragWidth or 280) * gscale)
-        data.dragFrame:SetHeight((settings.dragHeight or 225) * gscale)
-    end
+    SizeDragOverlay(data)
     
     -- Сохраняем флаг видимости drag frame
     data.showDragFrame = showDragFrame
     
     -- Показываем или скрываем drag frame
     if data.dragFrame then
-        -- Обновляем позицию drag frame относительно фрейма
-        local dragPoint = settings.dragPoint or "CENTER"
-        data.dragFrame:ClearAllPoints()
-        data.dragFrame:SetPoint(dragPoint, frame, dragPoint, settings.dragOffsetX or 0, settings.dragOffsetY or 2.5)
+        AnchorDragOverlay(data)
         
         if showDragFrame then
+            if settings.overlayFrame then
+                local cover = settings.overlayFrame
+                data.dragFrame:SetParent(settings.overlayParent or cover)
+                local coverLevel = (cover.GetFrameLevel and cover:GetFrameLevel()) or 0
+                data.dragFrame:SetFrameLevel(coverLevel + 50)
+            end
             data.dragFrame:Show()
             -- Показываем текстуру и устанавливаем alpha
             if data.dragFrame.t then
                 data.dragFrame.t:Show()
-                data.dragFrame.t:SetAlpha(0.5)
+                data.dragFrame.t:SetAlpha(settings.overlayFrame and 0.45 or 0.5)
             end
         else
             -- Скрываем drag frame и его текстуру
@@ -682,7 +729,10 @@ function DragMode:SetFramePosition(frameId, point, relativePoint, xOfs, yOfs)
     
     local frame = data.frame
     frame:ClearAllPoints()
-    frame:SetPoint(point, UIParent, relativePoint, xOfs, yOfs)
+    -- Use the raw setter: the intercept wrapper ignores passed offsets and
+    -- re-applies getPoint(), so sliders would appear to do nothing.
+    local setPoint = data.originalSetPoint or frame.SetPoint
+    setPoint(frame, point, UIParent, relativePoint, xOfs, yOfs)
 end
 
 -- Применить масштаб к фрейму

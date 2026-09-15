@@ -957,10 +957,22 @@ function module:EnableEscToOk()
         end)
         return
     end
-    
-    -- Save original OnKeyDown script before hooking (only once)
+
+    -- SetScript replaces the handler. A second Enable captured our own OnKeyDown
+    -- (original was nil, so origOnKeyDown stayed nil) and recursed until overflow.
+    if S.escToOkHooked then
+        return
+    end
+
+    local function CallOrig(fn, ...)
+        if type(fn) == "function" then
+            return fn(...)
+        end
+    end
+
+    -- false = captured "no original script"; nil = not captured yet
     if S.origOnKeyDown == nil then
-        S.origOnKeyDown = InterfaceOptionsFrame:GetScript("OnKeyDown")
+        S.origOnKeyDown = InterfaceOptionsFrame:GetScript("OnKeyDown") or false
     end
     
     -- Enable keyboard for InterfaceOptionsFrame
@@ -971,11 +983,7 @@ function module:EnableEscToOk()
         -- ПРОВЕРЯЕМ, ВКЛЮЧЕН ЛИ МОДУЛЬ
         local checkDb = SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules and SarychUI.db.profile.modules[moduleName]
         if not checkDb or not checkDb.enabled or checkDb.enableEscToOk ~= 1 then
-            if S.origOnKeyDown then
-                return S.origOnKeyDown(self, key)
-            else
-                return
-            end
+            return CallOrig(S.origOnKeyDown, self, key)
         end
         
         if key == "ESCAPE" then
@@ -985,9 +993,7 @@ function module:EnableEscToOk()
                 self:Hide()
             end
         else
-            if S.origOnKeyDown then
-                S.origOnKeyDown(self, key)
-            end
+            CallOrig(S.origOnKeyDown, self, key)
         end
     end)
     
@@ -995,18 +1001,14 @@ function module:EnableEscToOk()
     if InterfaceOptionsFrameCancel then
         -- Save original Cancel OnClick script before hooking (only once)
         if S.origCancelOnClick == nil then
-            S.origCancelOnClick = InterfaceOptionsFrameCancel:GetScript("OnClick")
+            S.origCancelOnClick = InterfaceOptionsFrameCancel:GetScript("OnClick") or false
         end
         
         InterfaceOptionsFrameCancel:SetScript("OnClick", function(self, button, ...)
             -- ПРОВЕРЯЕМ, ВКЛЮЧЕН ЛИ МОДУЛЬ
             local checkDb = SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules and SarychUI.db.profile.modules[moduleName]
             if not checkDb or not checkDb.enabled or checkDb.enableEscToOk ~= 1 then
-                if S.origCancelOnClick then
-                    return S.origCancelOnClick(self, button, ...)
-                else
-                    return
-                end
+                return CallOrig(S.origCancelOnClick, self, button, ...)
             end
             
             if InterfaceOptionsFrameOkay then
@@ -1023,16 +1025,14 @@ end
 -- Disable EscToOK
 function module:DisableEscToOk()
     if not InterfaceOptionsFrame then return end
-    
-    -- Always restore original OnKeyDown script (even if it was nil)
-    if S.escToOkHooked then
-        InterfaceOptionsFrame:SetScript("OnKeyDown", S.origOnKeyDown)
+
+    local function RestoreScript(frame, handler, orig)
+        if not frame or not S.escToOkHooked then return end
+        frame:SetScript(handler, type(orig) == "function" and orig or nil)
     end
     
-    -- Always restore original Cancel OnClick script (even if it was nil)
-    if InterfaceOptionsFrameCancel and S.escToOkHooked then
-        InterfaceOptionsFrameCancel:SetScript("OnClick", S.origCancelOnClick)
-    end
+    RestoreScript(InterfaceOptionsFrame, "OnKeyDown", S.origOnKeyDown)
+    RestoreScript(InterfaceOptionsFrameCancel, "OnClick", S.origCancelOnClick)
     
     -- Reset flag
     S.escToOkHooked = false
@@ -1223,6 +1223,9 @@ local function InstallTargetFrameAuraGuard()
     S.targetFrameAuraGuardInstalled = true
 end
 
+-- Defined below, but ScheduleDispelMark closes over it.
+local MarkDispellablesOnFrame
+
 local function ScheduleDispelMark(frame, unit)
     if not frame or not unit then
         return
@@ -1255,7 +1258,7 @@ end
 -- Runs on a repeating tick, so the per-index work is kept to a single UnitBuff call:
 -- the dispel type comes from the same query that provides the name, and the frame
 -- name and border lookups are resolved once instead of rebuilt per index.
-local function MarkDispellablesOnFrame(frame, unit)
+function MarkDispellablesOnFrame(frame, unit)
     if not IsDispelHighlightEnabled() then return end
     if not unit then return end
     if not frame then return end
@@ -3213,6 +3216,24 @@ S.speedyLoadEventsAggressiveExtra = {
 -- Active event table (rebuilt when mode changes)
 S.speedyLoadEvents = {}
 
+function S.SpeedyLoad_IsEnabled()
+    local sys = SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.system
+    return sys and (sys.enableSpeedyLoad == 1 or sys.enableSpeedyLoad == true) or false
+end
+
+function S.SpeedyLoad_RestoreTrackedFrames()
+    for e, frames in pairs(S.speedyLoadEvents) do
+        if type(frames) == "table" then
+            for frame in pairs(frames) do
+                if frame and frame.RegisterEvent then
+                    pcall(frame.RegisterEvent, frame, e)
+                end
+                frames[frame] = nil
+            end
+        end
+    end
+end
+
 local function SpeedyLoad_RebuildEventTable()
     local sys = SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.system
     local mode = (sys and sys.speedyLoadMode) or "safe"
@@ -3344,8 +3365,12 @@ end
 
 -- SpeedyLoad event handler
 local function SpeedyLoad_EventHandler(self, event, ...)
-    local sys = SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.system
-    if not sys or (sys.enableSpeedyLoad ~= 1 and sys.enableSpeedyLoad ~= true) then
+    if not S.SpeedyLoad_IsEnabled() then
+        -- Flag can flip mid-load; tear the driver down instead of no-op'ing
+        -- while other frames still have events stripped.
+        if S.speedyLoadInitialized or S.speedyLoadFrame then
+            module:DisableSpeedyLoad()
+        end
         return
     end
     
@@ -3470,10 +3495,9 @@ end
 
 -- Apply speedy load settings
 function module:ApplySpeedyLoad()
-    local sys = SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.system
-    local enabled = sys and (sys.enableSpeedyLoad == 1 or sys.enableSpeedyLoad == true)
-    SpeedyLoad_RebuildEventTable()
+    local enabled = S.SpeedyLoad_IsEnabled()
     if enabled then
+        SpeedyLoad_RebuildEventTable()
         if S.speedyLoadInitialized then
             -- Mode change while active: rebuild tables for next leave/enter cycle.
             for e in pairs(S.speedyLoadEvents) do
@@ -3483,16 +3507,15 @@ function module:ApplySpeedyLoad()
             self:EnableSpeedyLoad()
         end
     else
-        if S.speedyLoadInitialized then
-            self:DisableSpeedyLoad()
-        end
+        -- Restore tracked frames BEFORE wiping the event table.
+        self:DisableSpeedyLoad()
+        SpeedyLoad_RebuildEventTable()
     end
 end
 
 -- Enable speedy load
 function module:EnableSpeedyLoad()
-    local sys = SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.system
-    if not sys or (sys.enableSpeedyLoad ~= 1 and sys.enableSpeedyLoad ~= true) then return end
+    if not S.SpeedyLoad_IsEnabled() then return end
     
     if S.speedyLoadInitialized then return end -- Already enabled
     
@@ -3555,39 +3578,31 @@ end
 
 -- Disable speedy load
 function module:DisableSpeedyLoad()
-    if not S.speedyLoadInitialized then return end
-    
-    -- Re-register all events that were unregistered
-    for e, frames in pairs(S.speedyLoadEvents) do
-        for frame in pairs(frames) do
-            if frame and frame.RegisterEvent then
-                frame:RegisterEvent(e)
-            end
-            frames[frame] = nil
-        end
-    end
-    
+    if not S.speedyLoadInitialized and not S.speedyLoadFrame then return end
+
+    S.speedyLoadListenForUnreg = false
+    S.SpeedyLoad_RestoreTrackedFrames()
+
     -- Unregister all events and clear script
     if S.speedyLoadFrame then
         S.speedyLoadFrame:UnregisterAllEvents()
         S.speedyLoadFrame:SetScript("OnEvent", nil)
         S.speedyLoadFrame = nil
     end
-    
+
     -- Reset state
     S.speedyLoadEnteredOnce = false
-    
+
     -- Reset tracking variables
     S.speedyLoadOccured = {}
-    S.speedyLoadListenForUnreg = false
     S.speedyLoadList = nil
     S.validUnregisterFuncs = nil
-    
+
     -- Reset events tables
     for e in pairs(S.speedyLoadEvents) do
         S.speedyLoadEvents[e] = {}
     end
-    
+
     S.speedyLoadInitialized = false
 end
 
@@ -5694,8 +5709,8 @@ function module:EnableCombatTextAdjust()
                         if first == '+' then
                             -- Shift "+" lines (incoming heal)
                             if hookDb.healShiftPlus == 1 then
-                                local plusX = hookDb.healPlusX or -200
-                                local plusY = hookDb.healPlusY or -70
+                                local plusX = hookDb.healPlusX or -467
+                                local plusY = hookDb.healPlusY or -45
                                 s:SetPoint(a, b, c, d + plusX, e + plusY)
                             else
                                 S.combatTextFlag = false
@@ -5704,7 +5719,8 @@ function module:EnableCombatTextAdjust()
                             -- Shift "-" lines (incoming damage)
                             if hookDb.healShiftMinus == 1 then
                                 local minusX = hookDb.healMinusX or 0
-                                local minusY = hookDb.healMinusY or 0
+                                local minusY = hookDb.healMinusY
+                                if minusY == nil then minusY = -50 end
                                 s:SetPoint(a, b, c, d + minusX, e + minusY)
                             else
                                 S.combatTextFlag = false
@@ -5838,7 +5854,7 @@ function module:RepositionRaidBossEmoteFrame()
             end
         end
         
-        local currentOffset = db.raidBossEmoteOffsetY or -430
+        local currentOffset = db.raidBossEmoteOffsetY or -600
         
         -- If frame not repositioned yet or offset changed
         if not S.raidBossRepositioned or S.lastAppliedOffset ~= currentOffset then
@@ -7646,8 +7662,8 @@ function module:RegisterCombatTextDragFrames()
                 local dx, dy = panel:GetDraft()
                 if dx ~= nil then return {"CENTER", UIParent, "CENTER", dx, dy} end
             end
-            local x = db and db.healPlusX or -200
-            local y = db and db.healPlusY or -70
+            local x = db and db.healPlusX or -467
+            local y = db and db.healPlusY or -45
             return {"CENTER", UIParent, "CENTER", x, y}
         end,
         getScale = function() return 1.0 end,
@@ -7664,7 +7680,8 @@ function module:RegisterCombatTextDragFrames()
                 if dx ~= nil then return {"CENTER", UIParent, "CENTER", dx, dy} end
             end
             local x = db and db.healMinusX or 0
-            local y = db and db.healMinusY or 0
+            local y = db and db.healMinusY
+            if y == nil then y = -50 end
             return {"CENTER", UIParent, "CENTER", x, y}
         end,
         getScale = function() return 1.0 end,
@@ -7692,13 +7709,14 @@ function module:RegisterCombatTextDragFrames()
 
     -- Убедимся, что начальная позиция применена для всех якорей
     do
-        local x = db and db.healPlusX or -200
-        local y = db and db.healPlusY or -70
+        local x = db and db.healPlusX or -467
+        local y = db and db.healPlusY or -45
         SarychUI.DragMode:SetFramePosition("combatTextPlus", "CENTER", "CENTER", x, y)
     end
     do
         local x = db and db.healMinusX or 0
-        local y = db and db.healMinusY or 0
+        local y = db and db.healMinusY
+        if y == nil then y = -50 end
         SarychUI.DragMode:SetFramePosition("combatTextMinus", "CENTER", "CENTER", x, y)
     end
     do
@@ -7728,12 +7746,13 @@ function module:ToggleCombatTextDrag(frameId, enabled)
 
         local db = FloatingTextDB() or {}
         if frameId == "combatTextPlus" then
-            local x = db.healPlusX or -200
-            local y = db.healPlusY or -70
+            local x = db.healPlusX or -467
+            local y = db.healPlusY or -45
             SarychUI.DragMode:SetFramePosition("combatTextPlus", "CENTER", "CENTER", x, y)
         elseif frameId == "combatTextMinus" then
             local x = db.healMinusX or 0
-            local y = db.healMinusY or 0
+            local y = db.healMinusY
+            if y == nil then y = -50 end
             SarychUI.DragMode:SetFramePosition("combatTextMinus", "CENTER", "CENTER", x, y)
         elseif frameId == "combatTextLess" then
             local x = db.healLessX or -250

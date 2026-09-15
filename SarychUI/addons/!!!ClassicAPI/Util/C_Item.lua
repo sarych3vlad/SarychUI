@@ -1,10 +1,10 @@
 local _, Private = ...
 
 local _G = _G
-local Enum = Enum
 local Type = type
 local Number = tonumber
 local Match = string.match
+local GetItemInfo = GetItemInfo
 local ITEM_SOULBOUND = ITEM_SOULBOUND
 local GetInventoryItemID = GetInventoryItemID
 local GetContainerItemID = GetContainerItemID
@@ -12,8 +12,10 @@ local GetContainerItemInfo = GetContainerItemInfo
 local GetInventoryItemLink = GetInventoryItemLink
 local GetContainerItemLink = GetContainerItemLink
 local IsInventoryItemLocked = IsInventoryItemLocked
+local GetAuctionItemClasses = GetAuctionItemClasses
 local GetInventoryItemTexture = GetInventoryItemTexture
 local GetInventoryItemQuality = GetInventoryItemQuality
+local GetAuctionItemSubClasses = GetAuctionItemSubClasses
 
 local Tooltip = Private.Tooltip
 
@@ -29,42 +31,56 @@ function C_Item.DoesItemExistByID(ItemID)
 end
 
 function C_Item.GetItemNameByID(ItemInfo)
-	local Name = C_Item.GetItemInfo(ItemInfo)
-	return Name
+	return (C_Item.GetItemInfo(ItemInfo))
 end
 
 function C_Item.RequestLoadItemDataByID(ItemID)
-	local Item = Item:CreateFromItemID(ItemID)
-	if ( Item ) then
-		Item:ContinueOnItemLoad(C_Item.DoesItemExistByID)
-	end
+	local _, Cached = C_Item.GetItemInfo(ItemID)
+	if ( Cached ) then return end
+	ItemEventListener:AddCallback(ItemID, Private.Void)
+end
+
+function C_Item.GetItemInfo(ItemInfo)
+	local Name, Link, Quality, Level, MinLevel, ItemType, ItemSubType, Count, EquipLoc, Texture, Price = GetItemInfo(ItemInfo)
+	if ( not Name ) then return end
+
+	local Class = Private.EnumItemClassInfo[ItemType]
+	local ClassID = Class and Class[0] or 0
+	local SubClassID = Class and Class[ItemSubType] or 0
+
+	return Name, Link, Quality, Level, MinLevel, ItemType, ItemSubType, Count, EquipLoc, Texture, Price, ClassID, SubClassID
 end
 
 function C_Item.GetItemInfoInstant(ItemInfo)
-	local _, Link, _, _, _, ItemType, ItemSubType, _, EquipLoc, Texture = C_Item.GetItemInfo(ItemInfo)
-	local ID = ItemInfo
+	local Name, Link, _, _, _, ItemType, ItemSubType, _, EquipLoc, Texture, _, ClassID, SubClassID = C_Item.GetItemInfo(ItemInfo)
 
+	local ID = ItemInfo
 	if ( Link and Type(ID) == "string" ) then
 		ID = Number(Match(Link, "item:(%d+):"))
 	end
 
-	return ID, ItemType, ItemSubType, EquipLoc, Texture
+	return ID, ItemType, ItemSubType, EquipLoc, Texture, ClassID, SubClassID
 end
 
-function C_Item.GetItemSubClassInfo(classID, subClassID)
-	local ItemSubType = Enum.__ItemClassInfo[classID]
-	ItemSubType = ItemSubType and ItemSubType[subClassID]
+function C_Item.GetItemClassInfo(ClassID)
+	local Class = Private.EnumItemClassInfo[ClassID]
+	return Class and Class[-1]
+end
 
-	return ItemSubType, (classID == 4 and subClassID >= 0 and subClassID <= 4)
+function C_Item.GetItemSubClassInfo(ClassID, SubClassID)
+	local Class = Private.EnumItemClassInfo[ClassID]
+	if ( Class ) then
+		return Class[SubClassID], ClassID == 2
+	end
 end
 
 function C_Item.GetItemInventorySlotInfo(InventorySlot)
-	return Enum.__InventoryTypeInfo[InventorySlot]
+	return Private.EnumInventoryType[InventorySlot]
 end
 
 function C_Item.GetItemInventoryTypeByID(ItemInfo)
 	local _, _, _, _, _, _, _, _, EquipLoc = C_Item.GetItemInfo(ItemInfo)
-	return Enum.__InventoryTypeIndex[EquipLoc or "INVTYPE_NON_EQUIP"]
+	return Private.EnumInventoryType[EquipLoc or "INVTYPE_NON_EQUIP"]
 end
 
 function C_Item.GetItemQualityByID(ItemInfo)
@@ -72,8 +88,43 @@ function C_Item.GetItemQualityByID(ItemInfo)
 	return Quality
 end
 
-C_Item.GetItemInfo = GetItemInfo
+function C_Item.GetItemMaxStackSizeByID(ItemInfo)
+	local _, _, _, _, _, _, _, Max = C_Item.GetItemInfo(ItemInfo)
+	return Max
+end
+
+function C_Item.GetDetailedItemLevelInfo(ItemInfo)
+	local _, _, _, Level = C_Item.GetItemInfo(ItemInfo)
+	return Level, false, Level
+end
+
+function C_Item.GetItemGemID(ItemInfo, Index)
+	local _, Link = C_Item.GetItemGem(ItemInfo, Index)
+	if ( Link ) then
+		return Number(Match(Link, "item:(%d+):"))
+	end
+end
+
+C_Item.GetItemGem = GetItemGem
 C_Item.GetItemIconByID = GetItemIcon
+C_Item.GetItemCount = GetItemCount
+C_Item.GetItemStats = GetItemStats
+C_Item.GetItemCooldown = GetItemCooldown
+C_Item.GetItemSpell = GetItemSpell
+C_Item.GetItemFamily = GetItemFamily
+C_Item.GetItemStatDelta = GetItemStatDelta
+C_Item.GetItemUniqueness = GetItemUniqueness
+C_Item.IsConsumableItem = IsConsumableItem
+C_Item.IsCurrentItem = IsCurrentItem
+C_Item.IsDressableItem = IsDressableItem
+C_Item.IsEquippableItem = IsEquippableItem
+C_Item.IsEquippedItem = IsEquippedItem
+C_Item.IsEquippedItemType = IsEquippedItemType
+C_Item.IsHarmfulItem = IsHarmfulItem
+C_Item.IsHelpfulItem = IsHelpfulItem
+C_Item.IsItemInRange = IsItemInRange
+C_Item.IsUsableItem = IsUsableItem
+C_Item.ItemHasRange = ItemHasRange
 
 -- ITEMLOCATIONMIXIN RELIANT
 function C_Item.GetItemName(ItemLocation)
@@ -121,18 +172,18 @@ function C_Item.GetItemLink(ItemLocation)
 end
 
 function C_Item.GetItemQuality(ItemLocation)
-	local _, _, Quality = C_Item.GetItemInfo(C_Item.GetItemLink(ItemLocation))
+	local _, _, Quality = C_Item.GetItemInfo(C_Item.GetItemID(ItemLocation))
 	return Quality
 end
 
 function C_Item.GetItemInventoryType(ItemLocation)
 	local EquipmentSlotIndex = ItemLocation.equipmentSlotIndex
-	return EquipmentSlotIndex and Enum.__InventoryTypeInfo[EquipmentSlotIndex or 0]
+	return EquipmentSlotIndex and Private.EnumInventoryType[EquipmentSlotIndex or 0]
 end
 
 function C_Item.GetCurrentItemLevel(ItemLocation)
-	local _, _, _, ItemLevel = C_Item.GetItemInfo(C_Item.GetItemID(ItemLocation))
-	return ItemLevel
+	local _, _, _, Level = C_Item.GetItemInfo(C_Item.GetItemID(ItemLocation))
+	return Level
 end
 
 function C_Item.IsItemDataCached(ItemLocation)
@@ -150,10 +201,15 @@ function C_Item.IsBound(ItemLocation)
 		Tooltip:SetBagItem(ItemLocation.bagID, ItemLocation.slotIndex)
 	end
 
-	local Line = _G["__CAPIScanTooltipTextLeft2"]
+	local Line = _G["CAPI_ScanTooltipTextLeft2"]
 	if ( Line ) then
 		return Line:GetText() == ITEM_SOULBOUND
 	end
+end
+
+function C_Item.GetItemMaxStackSize(ItemLocation)
+	local _, _, _, _, _, _, _, Max = C_Item.GetItemInfo(C_Item.GetItemID(ItemLocation))
+	return Max
 end
 
 C_Item.DoesItemExist = C_Item.GetItemID
@@ -166,6 +222,3 @@ C_Item.UnlockItemByGUID = Private.Void
 
 -- Global
 _G.C_Item = C_Item
-_G.GetItemInfoInstant = C_Item.GetItemInfoInstant
-_G.GetItemSubClassInfo = C_Item.GetItemSubClassInfo
-_G.GetItemInventorySlotInfo = C_Item.GetItemInventorySlotInfo

@@ -775,7 +775,7 @@ function TransparencyPreview:Create(parent)
 			border:SetAlpha(1)
 		end
 
-		local useDf = GetSetting("microMenuStyle", "classic") == "dragonflight"
+		local useDf = GetSetting("microMenuStyle", "dragonflight") == "dragonflight"
 		for _, btn in ipairs(microButtons) do
 			local info = btn._info
 			local tex = btn._tex

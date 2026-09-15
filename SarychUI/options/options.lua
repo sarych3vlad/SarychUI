@@ -1272,7 +1272,8 @@ local options = {
 								SarychUI.db.profile.system = {}
 							end
 							SarychUI.db.profile.system.enableSpeedyLoad = val and 1 or 0
-							local tools = SarychUI.modules and SarychUI.modules.tools
+							local tools = (SarychUI.GetModule and SarychUI:GetModule("tools"))
+								or (SarychUI.modules and SarychUI.modules.tools)
 							if tools and tools.ApplySpeedyLoad then
 								tools:ApplySpeedyLoad()
 							end
@@ -1409,7 +1410,7 @@ local options = {
 						controls = {
 							type = "group",
 							name = L["Runtime_Settings"] or "Режим работы",
-							order = 2,
+							order = 5,
 							inline = true,
 							hidden = function()
 								local runtime = SarychUI.Runtime
@@ -1468,42 +1469,35 @@ local options = {
 								},
 							},
 						},
-					},
-				},
-				compatibility = {
-					type = "group",
-					name = "wow_optimized",
-					order = 2,
-					args = {
-						status = {
+						compatStatus = {
 							type = "description",
 							name = function()
 								local compat = SarychUI.Compatibility
 								if not compat then
-									return "Статус: |cff808080не загружен|r"
+									return (L["WowOptimize_Compat"] or "wow_optimize.dll") .. ": |cff808080не загружен|r"
 								end
 								local active = compat:IsWowOptimizeActive()
 								if not active then
-									return "Статус: |cffff8800Неактивен|r"
+									return (L["WowOptimize_Compat"] or "wow_optimize.dll") .. ": |cffff8800Неактивен|r"
 								end
 								local mode = compat.GetMode and compat:GetMode() or "auto"
 								if mode == "auto" then
-									return "Статус: |cff00ff00Активен (авто)|r"
+									return (L["WowOptimize_Compat"] or "wow_optimize.dll") .. ": |cff00ff00Активен (авто)|r"
 								end
-								return "Статус: |cff00ff00Активен|r"
+								return (L["WowOptimize_Compat"] or "wow_optimize.dll") .. ": |cff00ff00Активен|r"
 							end,
-							order = 1,
+							order = 2,
 							width = "full",
 						},
 						compatBox = {
 							type = "group",
-							name = "Режим совместимости",
-							order = 2,
+							name = L["WowOptimize_Mode"] or "Режим совместимости",
+							order = 3,
 							inline = true,
 							args = {
 								wowOptimize = {
 									type = "select",
-									name = "",
+									name = L["WowOptimize_Compat"] or "wow_optimize.dll",
 									desc = L["WowOptimize_Mode_Desc"] or "Авто — обнаружение по глобалам DLL (LUABOOST_DLL_*). Включено — принудительно. Выключено — обычный SarychUI.",
 									order = 1,
 									width = "full",
@@ -1524,6 +1518,12 @@ local options = {
 										if SarychUI.Compatibility then
 											SarychUI.Compatibility:Refresh(true)
 										end
+										if SarychUI.Runtime and SarychUI.Runtime.Refresh then
+											SarychUI.Runtime:Refresh()
+										end
+										if SarychUI.NotifySarychUIOptionsChange then
+											SarychUI:NotifySarychUIOptionsChange()
+										end
 									end,
 								},
 							},
@@ -1531,7 +1531,7 @@ local options = {
 						compatNote = {
 							type = "description",
 							name = "|cFFFFD700Пометка:|r " .. (L["WowOptimize_Compat_Desc"] or "Необязательный режим совместимости с wow_optimize.dll. При активном режиме SarychUI не дублирует GC/combat log fix и смягчает тяжёлые Lua-сканы nameplates и chat bubbles."),
-							order = 3,
+							order = 4,
 							width = "full",
 						},
 					},
@@ -1869,6 +1869,59 @@ function SarychUI:BuildOptionsTable()
 	return options
 end
 
+-- Build the options tree and hidden window after login so the first /sui
+-- is already laid out. Not a delayed show — Open() still works if this
+-- has not finished yet.
+function SarychUI:WarmupOptionsUI()
+	if self._optionsWarmed then
+		return
+	end
+	if self.IsPlayerInCombat and self:IsPlayerInCombat() then
+		self._optionsWarmupPending = true
+		return
+	end
+	self._optionsWarmed = true
+	self._optionsWarmupPending = nil
+	if self.InitializeOptions and not self._optionsTableRegistered then
+		self:InitializeOptions()
+	end
+	if self.BuildOptionsTable then
+		self:BuildOptionsTable()
+	end
+	if self.EnsureAddOnOptions then
+		self:EnsureAddOnOptions()
+	end
+	local OW = self.OptionsWindow
+	if OW and OW.CreateRoot then
+		OW:CreateRoot()
+	end
+	local OC = self.OptionsCore
+	if OC and OC.EnsureStructure then
+		OC:EnsureStructure()
+	end
+end
+
+local function ScheduleOptionsWarmup()
+	if SarychUI._optionsWarmupScheduled then
+		return
+	end
+	SarychUI._optionsWarmupScheduled = true
+	local f = CreateFrame("Frame")
+	local elapsed = 0
+	f:SetScript("OnUpdate", function(self, dt)
+		elapsed = elapsed + (dt or 0)
+		-- Wait until the world is up so login hitch is gone, then build once.
+		if elapsed < 1.2 then
+			return
+		end
+		self:SetScript("OnUpdate", nil)
+		self:Hide()
+		if SarychUI.WarmupOptionsUI then
+			SarychUI:WarmupOptionsUI()
+		end
+	end)
+end
+
 -- Add module options to the options table
 function SarychUI:AddModuleOptions()
 	if SarychUI_ProfileOptionsStage then
@@ -1937,14 +1990,16 @@ function SarychUI:NotifySarychUIOptionsChange()
 		self._pendingOptionsRefresh = true
 		return
 	end
-	-- Custom /sui window: refresh only when callers need visibility/structure updates
-	-- (toggles with hidden args). Value-only range commits must NOT call this —
-	-- a full RenderCurrentContent orphans cooltip backdrops as on-screen ghosts.
+	if self.OptionsCore and self.OptionsCore._rendering then
+		self._pendingOptionsRefresh = true
+		return
+	end
+	-- Custom /sui window: one coalesced pass decides rebuild vs value sync, so a
+	-- value-only commit never orphans cooltip backdrops as on-screen ghosts.
 	if self.OptionsCore and self.OptionsCore._open then
-		if self.OptionsCore.EnsureStructure then
-			self.OptionsCore:EnsureStructure()
-		end
-		if self.OptionsCore.Refresh then
+		if self.OptionsCore.ScheduleSmartRefresh then
+			self.OptionsCore:ScheduleSmartRefresh()
+		elseif self.OptionsCore.Refresh then
 			self.OptionsCore:Refresh()
 		end
 		return
@@ -1993,6 +2048,11 @@ function SarychUI:RefreshAddOnOptions(reason)
 	end
 	self:MarkAddOnOptionsDirty(reason or "manual")
 	self:AddAddOnOptions()
+	-- The addon option tables were just replaced, so the page must be redrawn
+	-- rather than value-synced against dead tables.
+	if self.OptionsCore and self.OptionsCore.InvalidateStructure then
+		self.OptionsCore:InvalidateStructure()
+	end
 	self:NotifySarychUIOptionsChange()
 	if self.IsOptionsPerfEnabled and self:IsOptionsPerfEnabled() and self.PrintOptionsPerfSummary then
 		self:PrintOptionsPerfSummary()
@@ -2045,8 +2105,25 @@ function SarychUI:_AddAddOnOptionsImpl()
 		options.args.addons.args.ported.args = {}
 	end
 
-	-- Add ported addons to "Список" tab (sorted by visible name A→Я)
+	-- Add ported addons to "Список" tab (sorted by visible name A→Я,
+	-- except grouped addons which the two-pane list pins under a header).
 	local addonEntries = {}
+	local ADDON_LIST_HIDDEN = {
+		BaudBag = true,
+		GladiusEx = true,
+		SarychUI_Bags = true,
+	}
+	local ADDON_LIST_GROUPS = {
+		Mapster = { group = "Карты", rank = 1, order = 1 },
+		["!Astrolabe"] = { group = "Карты", rank = 1, order = 2 },
+		WDM = { group = "Карты", rank = 1, order = 3 },
+		Cromulent = { group = "Карты", rank = 1, order = 4 },
+		["!!!ClassicAPI"] = { group = "Системные", rank = 2, order = 1 },
+		AddonList = { group = "Системные", rank = 2, order = 2 },
+		autolos = { group = "Системные", rank = 2, order = 3 },
+		CL_Fix = { group = "Системные", rank = 2, order = 4 },
+		FlashWindow = { group = "Системные", rank = 2, order = 5 },
+	}
 
 	local function GetAddOnDisplayName(optionGroup, key)
 		if type(optionGroup) == "table" and type(optionGroup.name) == "string" and optionGroup.name ~= "" then
@@ -2057,6 +2134,8 @@ function SarychUI:_AddAddOnOptionsImpl()
 
 	if self.addons then
 		for name, addon in pairs(self.addons) do
+			-- Bags/arena engines stay in Сумки / Арена, not in Аддоны → Список.
+			if not ADDON_LIST_HIDDEN[name] then
 			addonCount = addonCount + 1
 			local optionGroup
 
@@ -2137,6 +2216,13 @@ function SarychUI:_AddAddOnOptionsImpl()
 				displayName = GetAddOnDisplayName(optionGroup, name),
 				optionGroup = optionGroup,
 			})
+			local groupInfo = ADDON_LIST_GROUPS[name]
+			if groupInfo and type(optionGroup) == "table" then
+				optionGroup.suiListGroup = groupInfo.group
+				optionGroup.suiListGroupRank = groupInfo.rank
+				optionGroup.suiListGroupOrder = groupInfo.order
+			end
+			end
 		end
 	end
 
@@ -2216,7 +2302,6 @@ local function CreateSarychUIButton()
 	end
 
 	SarychUIButton:SetScript("OnClick", function()
-		if PlaySound then PlaySound("igMainMenuOption") end
 		HideUIPanel(GameMenuFrame)
 		if SlashCmdList and SlashCmdList["SARYCHUI"] then
 			SlashCmdList["SARYCHUI"]()
@@ -2347,9 +2432,38 @@ local QUICK_SETTING_CVARS = {
 	{ "Превью талантов", "previewTalents", "1" },
 	{ "Клик по всему окну чата", "wholeChatWindowClickable", "0" },
 	{ "Уровень предмета", "showItemLevel", "1" },
-	{ "Текст боя", "enableCombatText", "1" },
-	{ "FCT: мало маны/здоровья", "fctLowManaHealth", "0" },
+	{ "Автолут", "autoLootDefault", "1" },
+	{ "Скрывать группу в рейде", "hidePartyInRaid", "1" },
+	{ "Подробные подсказки", "UberTooltips", "1" },
+	{ "Обучающие подсказки", "showTutorials", "0" },
+	{ "Режим беседы", "conversationMode", "inline" },
+	{ "Скорость наклона камеры", "cameraPitchMoveSpeed", "55" },
+	{ "Локальное время", "timeMgrUseLocalTime", "1" },
+	{ "Предупреждение об угрозе", "threatWarning", "0" },
+	{ "Угроза в процентах", "threatShowNumeric", "0" },
 	{ "Звуки угрозы", "threatPlaySounds", "0" },
+	{ "Отслеживание заданий", "autoQuestWatch", "1" },
+	{ "Автообновление заданий", "autoQuestProgress", "1" },
+	{ "Цвет сложности заданий", "mapQuestDifficulty", "1" },
+	{ "Текст боя", "enableCombatText", "1" },
+	{ "FCT: урон цели", "CombatDamage", "1" },
+	{ "FCT: периодический урон", "CombatLogPeriodicSpells", "1" },
+	{ "FCT: урон питомца", "PetMeleeDamage", "1" },
+	{ "FCT: лечение", "CombatHealing", "1" },
+	{ "FCT: честь", "fctHonorGains", "1" },
+	{ "FCT: мало маны/здоровья", "fctLowManaHealth", "0" },
+	{ "FCT: уклонение/парирование", "fctDodgeParryMiss", "0" },
+	{ "FCT: снижение урона", "fctDamageReduction", "0" },
+	{ "FCT: репутация", "fctRepChanges", "0" },
+	{ "FCT: проки", "fctReactives", "0" },
+	{ "FCT: ауры", "fctAuras", "0" },
+	{ "FCT: серия приёмов", "fctComboPoints", "0" },
+	{ "FCT: энергия", "fctEnergyGains", "0" },
+	{ "FCT: периодическая энергия", "fctPeriodicEnergyGains", "0" },
+	{ "FCT: лечение союзников", "fctFriendlyHealers", "0" },
+	{ "FCT: вход в бой", "fctCombatState", "0" },
+	{ "FCT: механики заклинаний", "fctSpellMechanics", "0" },
+	{ "FCT: механики на других", "fctSpellMechanicsOther", "0" },
 	{ "PVP-титул у игрока", "UnitNamePlayerPVPTitle", "0" },
 	{ "Имена стражей врага", "UnitNameEnemyGuardianName", "1" },
 	{ "Имена тотемов врага", "UnitNameEnemyTotemName", "1" },
@@ -2639,46 +2753,11 @@ end
 
 -- Apply quick settings (from sarsettings.default)
 function SarychUI:ApplyQuickSettings()
-	-- Core QoL CVars
-	SafeSetCVar("equipmentManager", "1")
-	SafeSetCVar("nameplateShowEnemies", "1")
-	SafeSetCVar("showTargetOfTarget", "1")
-	SafeSetCVar("scriptErrors", "1")
-	SafeSetCVar("screenEdgeFlash", "0")
-	SafeSetCVar("showLootSpam", "1")
-	SafeSetCVar("displayFreeBagSlots", "1")
-	SafeSetCVar("profanityFilter", "0")
-	SafeSetCVar("guildShowOffline", "0")
-	SafeSetCVar("guildRecruitmentChannel", "0")
-	SafeSetCVar("chatStyle", "classic")
-	SafeSetCVar("showNewbieTips", "0")
-	SafeSetCVar("showGameTips", "0")
-	SafeSetCVar("showArenaEnemyFrames", "1")
-	SafeSetCVar("ShowAllSpellRanks", "0")
-	SafeSetCVar("ShowClassColorInNameplate", "1")
-	SafeSetCVar("fullSizeFocusFrame", "1")
-	SafeSetCVar("showRaidRange", "1")
-	SafeSetCVar("maxFPS", "0")
-
-	-- Unit frame status text
-	SafeSetCVar("playerStatusText", "1")
-	SafeSetCVar("targetStatusText", "0")
-	SafeSetCVar("petStatusText", "1")
-
-	-- Optional / may be missing on some 3.3.5 builds
-	SafeSetCVar("previewTalents", "1")
-	SafeSetCVar("wholeChatWindowClickable", "0")
-	SafeSetCVar("showItemLevel", "1")
-	SafeSetCVar("enableCombatText", "1")
-	SafeSetCVar("fctLowManaHealth", "0")
-	SafeSetCVar("threatPlaySounds", "0")
-
-	-- Unit nameplate toggles
-	SafeSetCVar("UnitNamePlayerPVPTitle", "0")
-	SafeSetCVar("UnitNameEnemyGuardianName", "1")
-	SafeSetCVar("UnitNameEnemyTotemName", "1")
-	SafeSetCVar("UnitNameFriendlyGuardianName", "1")
-	SafeSetCVar("UnitNameFriendlyTotemName", "1")
+	for _, entry in ipairs(QUICK_SETTING_CVARS) do
+		SafeSetCVar(entry[2], entry[3])
+	end
+	-- Optional on some 3.3.5 builds; grouped with pet damage if present.
+	SafeSetCVar("PetSpellDamage", "1")
 
 	-- Action bars (persisted toggles on 3.3.5)
 	if SetActionBarToggles then
@@ -2693,13 +2772,7 @@ function SarychUI:ApplyQuickSettings()
 		MultiActionBar_Update()
 	end
 
-	-- Camera & mouse (Sporta @ x1; camera follow speed = max 270)
-	SafeSetCVar("cameraPivot", "0")
-	SafeSetCVar("cameraDistanceMaxFactor", "2")
-	SafeSetCVar("cameraDistanceMax", 50)
-	SafeSetCVar("cameraYawSmoothSpeed", 270)
-	SafeSetCVar("mouseSpeed", "1.1")
-	SafeSetCVar("cameraYawMoveSpeed", 110)
+	-- Camera follow: max zoom-out once (CVars already applied above).
 	if MoveViewOutStart and not InCombatLockdown() then
 		MoveViewOutStart(50000)
 	end
@@ -2803,12 +2876,30 @@ function SarychUI:ApplyQuickChatSettings()
 		end
 	end
 
-	-- Chat windows settings (updated standard from Sporta @ x1)
+	local function LocaleChatString(key, fallback)
+		local value = _G[key]
+		if type(value) == "string" and value ~= "" then
+			return value
+		end
+		return fallback
+	end
+
+	-- Tab titles follow the client locale (Общий / Журнал боя on ruRU).
+	-- Channel names come from ChatBar locale, which matches 3.3.5 zone channels.
+	local generalTabName = LocaleChatString("GENERAL", "Общий")
+	local combatLogTabName = "Журнал"
+	local generalChannel = LocaleChatString("CHATBAR_GENERAL", generalTabName)
+	local tradeChannel = LocaleChatString("CHATBAR_TRADE", "Торговля")
+	local defenseChannel = LocaleChatString("CHATBAR_LOCALDEFENSE", "Оборона")
+	local lfgChannel = LocaleChatString("CHATBAR_LFG", LocaleChatString("LOOKING_FOR_GROUP", "Поиск спутников"))
+
+	-- Geometry from Sporta chat-cache. Tabs: Общий, Журнал, General, /w, Loot.
 	local chatWindowsSettings = {
 		{
-			name = "Main",
+			index = 1,
+			name = generalTabName,
 			size = 13,
-			color = {0, 0, 0, 35},
+			color = {0, 0, 0, 17},
 			locked = true,
 			shown = true,
 			messages = {
@@ -2821,32 +2912,35 @@ function SarychUI:ApplyQuickChatSettings()
 				"TARGETICONS", "BN_WHISPER", "BN_WHISPER_INFORM", "BN_CONVERSATION",
 				"BN_INLINE_TOAST_ALERT", "OPENING"
 			},
-			channels = {},
-			zoneChannels = 33554434,
-			position = {"BOTTOMLEFT", 0.018970, 0.156685},
-			dimensions = {457.020844, 161.743484}
+			channels = { generalChannel, tradeChannel, defenseChannel },
+			position = {"BOTTOMLEFT", 0.018970, 0.160158},
+			dimensions = {389.272827, 124.266113}
 		},
 		{
-			name = "Журнал",
+			index = 2,
+			name = combatLogTabName,
 			size = 13,
 			color = {0, 0, 0, 10},
 			locked = true,
 			shown = false,
-			messages = {},
+			messages = {
+				"OPENING", "TRADESKILLS", "PET_INFO",
+				"COMBAT_XP_GAIN", "COMBAT_HONOR_GAIN", "COMBAT_MISC_INFO"
+			},
 			channels = {},
-			zoneChannels = 0,
 		},
 		{
+			index = 3,
 			name = "General",
 			size = 13,
 			color = {15, 15, 15, 33},
 			locked = true,
 			shown = false,
 			messages = {},
-			channels = {"ПоискСпутников"},
-			zoneChannels = 0,
+			channels = { lfgChannel },
 		},
 		{
+			index = 4,
 			name = "/w",
 			size = 13,
 			color = {0, 0, 0, 12},
@@ -2854,21 +2948,34 @@ function SarychUI:ApplyQuickChatSettings()
 			shown = false,
 			messages = {"WHISPER", "CHANNEL"},
 			channels = {},
-			zoneChannels = 0,
 		},
 		{
+			index = 5,
 			name = "Loot",
 			size = 13,
 			color = {0, 0, 0, 10},
 			locked = true,
 			shown = false,
-			messages = {"SYSTEM", "PARTY_LEADER", "RAID_LEADER", "RAID_WARNING", "LOOT", "MONEY"},
+			messages = {"SYSTEM", "PARTY_LEADER", "RAID_LEADER", "RAID_WARNING", "LOOT", "MONEY", "COMBAT_MISC_INFO"},
 			channels = {},
-			zoneChannels = 0,
 		}
 	}
 
-	-- Ensure we have 5 chat frames
+	local function ClearChatFrameChannels(chatFrame)
+		if not chatFrame or not ChatFrame_RemoveChannel then
+			return
+		end
+		local copy = {}
+		if type(chatFrame.channelList) == "table" then
+			for i = 1, #chatFrame.channelList do
+				copy[#copy + 1] = chatFrame.channelList[i]
+			end
+		end
+		for i = 1, #copy do
+			ChatFrame_RemoveChannel(chatFrame, copy[i])
+		end
+	end
+
 	local function CreateChatWindowIfNeeded(index, name)
 		local chatFrame = _G["ChatFrame" .. index]
 		if not chatFrame then
@@ -2881,15 +2988,12 @@ function SarychUI:ApplyQuickChatSettings()
 					chatFrame = newChatFrame
 				end
 			end
-		else
-			if FCF_SetWindowName then
-				FCF_SetWindowName(chatFrame, name)
-			end
+		elseif name and name ~= "" and FCF_SetWindowName then
+			FCF_SetWindowName(chatFrame, name)
 		end
 		return chatFrame
 	end
 
-	-- Configure chat window
 	local function ConfigureChatWindow(index, settings)
 		local chatFrame = CreateChatWindowIfNeeded(index, settings.name)
 		if not chatFrame then return false end
@@ -2917,26 +3021,25 @@ function SarychUI:ApplyQuickChatSettings()
 		if settings.position and settings.dimensions then
 			local point, nx, ny = settings.position[1], settings.position[2], settings.position[3]
 			local w, h = settings.dimensions[1], settings.dimensions[2]
-			-- Match Blizzard chat-cache coords (screen-relative, like FCF_RestorePositionAndDimensions).
-			local screenW = (GetScreenWidth and GetScreenWidth()) or UIParent:GetWidth()
-			local screenH = (GetScreenHeight and GetScreenHeight()) or UIParent:GetHeight()
-
-			chatFrame:ClearAllPoints()
-			chatFrame:SetPoint(point, UIParent, point, nx * screenW, ny * screenH)
-			chatFrame:SetWidth(w)
-			chatFrame:SetHeight(h)
-
+			-- Same path as Blizzard chat-cache: write saved coords, then restore.
 			if SetChatWindowSavedDimensions then
 				SetChatWindowSavedDimensions(chatFrame:GetID(), w, h)
 			end
 			if SetChatWindowSavedPosition then
 				SetChatWindowSavedPosition(chatFrame:GetID(), point, nx, ny)
 			end
+			if FCF_RestorePositionAndDimensions then
+				FCF_RestorePositionAndDimensions(chatFrame)
+			else
+				local screenW = (GetScreenWidth and GetScreenWidth()) or UIParent:GetWidth()
+				local screenH = (GetScreenHeight and GetScreenHeight()) or UIParent:GetHeight()
+				chatFrame:ClearAllPoints()
+				chatFrame:SetPoint(point, UIParent, point, nx * screenW, ny * screenH)
+				chatFrame:SetWidth(w)
+				chatFrame:SetHeight(h)
+			end
 			if chatFrame.SetUserPlaced then
 				chatFrame:SetUserPlaced(true)
-			end
-			if FCF_SavePositionAndDimensions then
-				FCF_SavePositionAndDimensions(chatFrame)
 			end
 			if FloatingChatFrame_UpdateBackgroundAnchors then
 				FloatingChatFrame_UpdateBackgroundAnchors(chatFrame)
@@ -2959,17 +3062,16 @@ function SarychUI:ApplyQuickChatSettings()
 			end
 		end
 
-		-- Configure channels
-		if chatFrame.channelList and ChatFrame_RemoveChannel then
-			for _, channel in ipairs(chatFrame.channelList) do
-				ChatFrame_RemoveChannel(chatFrame, channel)
-			end
-		end
+		ClearChatFrameChannels(chatFrame)
 		if settings.channels then
 			for _, channel in ipairs(settings.channels) do
-				if JoinPermanentChannel and ChatFrame_AddChannel then
-					JoinPermanentChannel(channel, nil, chatFrame:GetID(), true)
-					ChatFrame_AddChannel(chatFrame, channel)
+				if channel and channel ~= "" then
+					if JoinPermanentChannel then
+						JoinPermanentChannel(channel, nil, chatFrame:GetID(), 1)
+					end
+					if ChatFrame_AddChannel then
+						ChatFrame_AddChannel(chatFrame, channel)
+					end
 				end
 			end
 		end
@@ -2977,7 +3079,6 @@ function SarychUI:ApplyQuickChatSettings()
 		return true
 	end
 
-	-- Ensure 5 chat frames
 	for i = 3, MAX_CHAT_FRAMES do
 		local chatFrame = _G["ChatFrame" .. i]
 		if chatFrame and not chatFrame.isDocked and FCF_DockFrame then
@@ -2988,12 +3089,11 @@ function SarychUI:ApplyQuickChatSettings()
 		end
 	end
 
-	-- Configure all chat windows
-	for index, settings in ipairs(chatWindowsSettings) do
-		ConfigureChatWindow(index, settings)
+	for _, settings in ipairs(chatWindowsSettings) do
+		ConfigureChatWindow(settings.index, settings)
 	end
 
-	-- Undock/restore can fight SetPoint once; pin Main geometry again at the end.
+	-- Undock/restore can fight SetPoint once; pin Общий geometry again at the end.
 	local main = chatWindowsSettings[1]
 	local chatFrame = _G.ChatFrame1 or DEFAULT_CHAT_FRAME
 	if chatFrame and main and main.position and main.dimensions then
@@ -3002,23 +3102,24 @@ function SarychUI:ApplyQuickChatSettings()
 		end
 		local point, nx, ny = main.position[1], main.position[2], main.position[3]
 		local w, h = main.dimensions[1], main.dimensions[2]
-		local screenW = (GetScreenWidth and GetScreenWidth()) or UIParent:GetWidth()
-		local screenH = (GetScreenHeight and GetScreenHeight()) or UIParent:GetHeight()
-		chatFrame:ClearAllPoints()
-		chatFrame:SetPoint(point, UIParent, point, nx * screenW, ny * screenH)
-		chatFrame:SetWidth(w)
-		chatFrame:SetHeight(h)
 		if SetChatWindowSavedDimensions then
 			SetChatWindowSavedDimensions(chatFrame:GetID(), w, h)
 		end
 		if SetChatWindowSavedPosition then
 			SetChatWindowSavedPosition(chatFrame:GetID(), point, nx, ny)
 		end
+		if FCF_RestorePositionAndDimensions then
+			FCF_RestorePositionAndDimensions(chatFrame)
+		else
+			local screenW = (GetScreenWidth and GetScreenWidth()) or UIParent:GetWidth()
+			local screenH = (GetScreenHeight and GetScreenHeight()) or UIParent:GetHeight()
+			chatFrame:ClearAllPoints()
+			chatFrame:SetPoint(point, UIParent, point, nx * screenW, ny * screenH)
+			chatFrame:SetWidth(w)
+			chatFrame:SetHeight(h)
+		end
 		if chatFrame.SetUserPlaced then
 			chatFrame:SetUserPlaced(true)
-		end
-		if FCF_SavePositionAndDimensions then
-			FCF_SavePositionAndDimensions(chatFrame)
 		end
 		if FCF_SetLocked and main.locked then
 			FCF_SetLocked(chatFrame, true)
@@ -3029,11 +3130,17 @@ end
 -- Initialize options when AddOn is ready
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_LOGIN")
+frame:RegisterEvent("PLAYER_REGEN_ENABLED")
 frame:SetScript("OnEvent", function(self, event)
 	if event == "PLAYER_LOGIN" and AceConfig and AceConfigDialog then
 		SarychUI:InitializeOptions()
 		-- Create ESC menu button
 		CreateSarychUIButton()
+		ScheduleOptionsWarmup()
 		self:UnregisterEvent("PLAYER_LOGIN")
+	elseif event == "PLAYER_REGEN_ENABLED" then
+		if SarychUI._optionsWarmupPending and SarychUI.WarmupOptionsUI then
+			SarychUI:WarmupOptionsUI()
+		end
 	end
 end)

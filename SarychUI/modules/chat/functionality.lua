@@ -287,7 +287,7 @@ local channelShorteningCache = {
     staticReplacements = {},
     numberedReplacements = {},
     lfgName = nil,
-    lfgAbbrev = "[LFG]",
+    lfgAbbrev = "[Поиск]",
 }
 
 local function RefreshChannelShorteningCache()
@@ -1538,6 +1538,9 @@ local function ToggleCustomChatMenu(self, button)
 end
 
 
+-- Объявлены ниже, но используются из EnableVipCommands
+local DisableVipCommands, ApplyVipCommands
+
 -- Функция включения/отключения VIP команд
 local function EnableVipCommands(enabled)
     if not enabled then 
@@ -1553,7 +1556,7 @@ local function EnableVipCommands(enabled)
 end
 
 -- Функция отключения VIP команд
-local function DisableVipCommands()
+function DisableVipCommands()
     -- Отключаем глобальный флаг
     _G.SarychUI_VipCommandsEnabled = false
     
@@ -1584,7 +1587,7 @@ local function InitializeChatMenuButton()
 end
 
 -- Функция применения VIP команд (owned by tools module)
-local function ApplyVipCommands()
+function ApplyVipCommands()
     if not IsToolsModuleEnabled() then
         return
     end

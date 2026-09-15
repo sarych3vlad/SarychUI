@@ -292,7 +292,7 @@ local function EnsureElvUISettings(db)
 			db.elvui.showItemLevel = false
 		end
 		if db.elvui.splitMode == nil then
-			db.elvui.splitMode = bagsDefaults.splitMode or "classic"
+			db.elvui.splitMode = bagsDefaults.splitMode or "adibags"
 		elseif db.elvui.splitMode ~= "adibags" then
 			db.elvui.splitMode = "classic"
 		end
@@ -336,7 +336,7 @@ local function EnsureElvUISettings(db)
 			db.elvui.categoriesBackgroundAlpha = bagsDefaults.categoriesBackgroundAlpha or 0.85
 		end
 		if db.elvui.dragonflightHeader == nil then
-			db.elvui.dragonflightHeader = bagsDefaults.dragonflightHeader ~= false
+			db.elvui.dragonflightHeader = bagsDefaults.dragonflightHeader == true
 		end
 		if db.elvui.bagColumns == nil then
 			db.elvui.bagColumns = bagsDefaults.bagColumns or 10
@@ -387,18 +387,18 @@ end
 function module:GetOptions()
 	local function isDefaultMode()
 		local db = DB()
-		local mode = db and db.mode or "default"
+		local mode = db and db.mode or "elvui"
 		return mode ~= "elvui" and mode ~= "baudbag"
 	end
 
 	local function isElvUIMode()
 		local db = DB()
-		return (db and db.mode or "default") == "elvui"
+		return (db and db.mode or "elvui") == "elvui"
 	end
 
 	local function isBaudBagMode()
 		local db = DB()
-		return (db and db.mode or "default") == "baudbag"
+		return (db and db.mode or "elvui") == "baudbag"
 	end
 
 	return {
@@ -441,10 +441,10 @@ function module:GetOptions()
 									baudbag = "Baud Bag",
 								},
 								get = function()
-									return DB().mode or "default"
+									return DB().mode or "elvui"
 								end,
 								set = function(_, val)
-									local previous = DB().mode or "default"
+									local previous = DB().mode or "elvui"
 									if previous == val then return end
 									DB().mode = val
 									if SarychUI.SetBagsMode then
@@ -917,7 +917,7 @@ function module:GetOptions()
 								suiLiveApply = true,
 								get = function()
 									local elv = EnsureElvUISettings(DB())
-									return elv.dragonflightHeader ~= false
+									return elv.dragonflightHeader == true
 								end,
 								set = function(_, val)
 									local elv = EnsureElvUISettings(DB())

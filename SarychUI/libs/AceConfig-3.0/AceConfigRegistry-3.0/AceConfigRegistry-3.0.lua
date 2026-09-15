@@ -99,6 +99,9 @@ local basekeys = {
 	suiAlign = optstring,
 	suiLiveApply = optbool,
 	suiSkipWritableProfile = optbool,
+	suiListGroup = optstring,
+	suiListGroupRank = optnumber,
+	suiListGroupOrder = optnumber,
 	-- Preview hooks used on description (and sometimes other) nodes.
 	suiSpinner = optbool,
 	suiDistancePreview = optbool,
@@ -168,6 +171,9 @@ local typedkeys = {
 		suiHeaderIcon = optstring,
 		suiHelpIcon = optsuiHelpIcon,
 		suiPanelDecorIcon = optstringfunc,
+		suiListGroup = optstring,
+		suiListGroupRank = optnumber,
+		suiListGroupOrder = optnumber,
 		icon = optstringfunc,
 	},
 	execute = {
@@ -190,6 +196,7 @@ local typedkeys = {
 		suiCompact = optbool,
 		suiSaveButton = optstring,
 		suiKeepInput = optbool,
+		suiOnDraft = { ["nil"] = true, ["function"] = true, _ = "funcref" },
 	},
 	toggle = {
 		tristate = optbool,

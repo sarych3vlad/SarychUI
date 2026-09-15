@@ -937,7 +937,7 @@ local function PositionPerformanceBar()
 		module._microPerfBarW = bar:GetWidth() or 8
 	end
 	bar:ClearAllPoints()
-	if GetSetting("microMenuStyle", "classic") == "dragonflight" then
+	if GetSetting("microMenuStyle", "dragonflight") == "dragonflight" then
 		bar:SetWidth(module._microPerfBarW + 3)
 		bar:SetHeight(math.floor(module._microPerfBarH * 0.32 + 0.5))
 		bar:SetPoint("BOTTOM", button, "BOTTOM", 3, 3)
@@ -959,7 +959,7 @@ local function IsLatencyGreen()
 end
 
 local function ShouldHideGreenLatencyBar()
-	return GetSetting("microMenuStyle", "classic") == "dragonflight"
+	return GetSetting("microMenuStyle", "dragonflight") == "dragonflight"
 		and GetSetting("microMenuHideGreenLatency", true) ~= false
 end
 
@@ -987,7 +987,7 @@ local function EnsureMicroMenuStyleHooks()
 	microMenuStyleHooksInstalled = true
 
 	local function HidePortraitIfDf()
-		if GetSetting("microMenuStyle", "classic") ~= "dragonflight" then return end
+		if GetSetting("microMenuStyle", "dragonflight") ~= "dragonflight" then return end
 		if MicroButtonPortrait then
 			MicroButtonPortrait:SetTexCoord(0, 0, 0, 0)
 			MicroButtonPortrait:SetAlpha(0)
@@ -1020,7 +1020,7 @@ end
 
 local function ApplyMicroMenuStyle()
 	EnsureMicroMenuStyleHooks()
-	local useDf = GetSetting("microMenuStyle", "classic") == "dragonflight"
+	local useDf = GetSetting("microMenuStyle", "dragonflight") == "dragonflight"
 
 	for _, entry in ipairs(MICRO_MENU_BUTTONS) do
 		local button = _G[entry.button]

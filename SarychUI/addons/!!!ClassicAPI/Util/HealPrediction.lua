@@ -1,5 +1,6 @@
 local _, Private = ...
 
+local Select = select
 local BitBand = bit.band
 local GetTime = GetTime
 local UnitGUID = UnitGUID
@@ -9,7 +10,7 @@ local GetNumPartyMembers = GetNumPartyMembers
 
 local EventHandler = Private.EventHandler
 local EventHandler_Fire = EventHandler.Fire
-local EventHandler_Register = EventHandler.Register
+local EventHandler_Define = EventHandler.Define
 
 local RESCOMM
 local HEALCOMM
@@ -51,40 +52,39 @@ function UnitGetIncomingHeals(Unit, Healer, GUID)
 	end
 end
 
-function UnitGetTotalAbsorbs(Unit)
-	return 0
-end
+UnitGetTotalAbsorbs = Private.Zero
+UnitGetTotalHealAbsorbs = Private.Zero
 
-function UnitGetTotalHealAbsorbs(Unit)
-	return 0
-end
+local function UNIT_HEAL_PREDICTION(...)
+	local UnitTotal = Select("#", ...)
 
-local function UNIT_HEAL_PREDICTION(Limit, GUID, ...)
-	if ( not Limit ) then
-		local Raid = GetNumRaidMembers()
-		Limit = 4 + (Raid > 0 and 8 + (Raid*2) or (GetNumPartyMembers()*2))
-	end
+	local Raid = GetNumRaidMembers()
+	local Limit = 4 + (Raid > 0 and 8 + (Raid*2) or (GetNumPartyMembers()*2))
 
-	for i=1, Limit do
+	for i = 1, Limit do
 		local UnitID = UNIT_INDEX[i]
-		if ( GUID == UnitGUID(UnitID) ) then
-			EventHandler_Fire(nil, "UNIT_HEAL_PREDICTION", UnitID)
-		end
-	end
 
-	if ( ... ) then
-		UNIT_HEAL_PREDICTION(Limit, ...)
+		if ( UnitID ) then
+			local CurrentUnitGUID = UnitGUID(UnitID)
+
+			for j = 1, UnitTotal do
+				if ( CurrentUnitGUID == Select(j, ...) ) then
+					EventHandler_Fire(nil, "UNIT_HEAL_PREDICTION", UnitID)
+					break
+				end
+			end
+		end
 	end
 end
 
 local function HealComm_HealStarted(_, Event, SrcGUID, SpellID, Type, EndTime, ...)
 	if ( SrcGUID == HEALCOMM_PLAYER_GUID and BitBand(Type, HEALCOMM.CASTED_HEALS) > 0 ) then
-		UNIT_HEAL_PREDICTION(nil, ...)
+		UNIT_HEAL_PREDICTION(...)
 	end
 end
 
 local function HealComm_ModifierChanged(_, _, SrcGUID)
-	UNIT_HEAL_PREDICTION(nil, SrcGUID)
+	UNIT_HEAL_PREDICTION(SrcGUID)
 end
 
 local function UNIT_HEAL_PREDICTION_EH(Trigger)
@@ -119,9 +119,9 @@ local function UNIT_HEAL_PREDICTION_EH(Trigger)
 	end
 end
 
-EventHandler_Register("Event", "UNIT_HEAL_PREDICTION")
-EventHandler_Register("OnRegister", "UNIT_HEAL_PREDICTION", UNIT_HEAL_PREDICTION_EH)
-EventHandler_Register("OnUnregister", "UNIT_HEAL_PREDICTION", UNIT_HEAL_PREDICTION_EH)
+EventHandler_Define("Event", "UNIT_HEAL_PREDICTION")
+EventHandler_Define("OnRegister", "UNIT_HEAL_PREDICTION", UNIT_HEAL_PREDICTION_EH)
+EventHandler_Define("OnUnregister", "UNIT_HEAL_PREDICTION", UNIT_HEAL_PREDICTION_EH)
 
 --[[ EventHandler: INCOMING_RESURRECT_CHANGED (LibResComm-1.0) ]]
 
@@ -171,6 +171,6 @@ local function INCOMING_RESURRECT_CHANGED_EH(Trigger)
 	end
 end
 
-EventHandler_Register("Event", "INCOMING_RESURRECT_CHANGED")
-EventHandler_Register("OnRegister", "INCOMING_RESURRECT_CHANGED", INCOMING_RESURRECT_CHANGED_EH)
-EventHandler_Register("OnUnregister", "INCOMING_RESURRECT_CHANGED", INCOMING_RESURRECT_CHANGED_EH)
+EventHandler_Define("Event", "INCOMING_RESURRECT_CHANGED")
+EventHandler_Define("OnRegister", "INCOMING_RESURRECT_CHANGED", INCOMING_RESURRECT_CHANGED_EH)
+EventHandler_Define("OnUnregister", "INCOMING_RESURRECT_CHANGED", INCOMING_RESURRECT_CHANGED_EH)

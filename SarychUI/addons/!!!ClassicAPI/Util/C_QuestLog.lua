@@ -8,11 +8,5 @@ function C_QuestLog.IsQuestFlaggedCompleted(QuestID)
 	return GetQuestsCompleted()[QuestID] == true
 end
 
---[[local QueryComplete = CreateFrame("Frame")
-QueryComplete:SetScript("OnEvent", function(Self)
-	QueryQuestsCompleted() -- Attempt to keep up-to-date.
-end)
-QueryComplete:RegisterEvent("QUEST_LOG_UPDATE")]]
-
 -- Global
 _G.C_QuestLog = C_QuestLog

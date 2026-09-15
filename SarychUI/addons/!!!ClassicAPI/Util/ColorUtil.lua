@@ -18,7 +18,7 @@ function CreateColorFromHexString(hexColor)
 		local a, r, g, b = ExtractColorValueFromHex(hexColor, 1), ExtractColorValueFromHex(hexColor, 3), ExtractColorValueFromHex(hexColor, 5), ExtractColorValueFromHex(hexColor, 7);
 		return CreateColor(r, g, b, a);
 	else
-		--GMError("CreateColorFromHexString input must be hexadecimal digits in this format: AARRGGBB.");
+		error("CreateColorFromHexString input must be hexadecimal digits in this format: AARRGGBB.", 2);
 	end
 end
 
@@ -42,7 +42,6 @@ function GetClassColor(classFilename)
 end
 
 function GetClassColorObj(classFilename)
-	-- TODO: Remove this, convert everything that's using GetClassColor to use the object instead, then begin using that again
 	return RAID_CLASS_COLORS[classFilename];
 end
 

@@ -11,6 +11,11 @@ local C_NewItems = CreateFrame("Frame")
 
 local INVENTORY, STACK_UI
 local MIN, MAX = 0, 4
+local Query
+
+local STACK = 1
+local ITEM_ID = 2
+local TIMESTAMP = 3
 
 local function GetSlotInfo(ContainerIndex, SlotIndex)
 	local Container = INVENTORY[ContainerIndex]
@@ -20,69 +25,59 @@ end
 local function Bag(Event, ContainerIndex)
 	if ( ContainerIndex >= MIN and ContainerIndex <= MAX ) then
 		if ( Event == "BAG_CLOSED" ) then
-			INVENTORY[ContainerIndex] = false
+			INVENTORY[ContainerIndex] = nil
 		else
 			local Size = GetContainerNumSlots(ContainerIndex)
-			local Container = INVENTORY[ContainerIndex]
-			local Start, End
+			if ( Size > 0 ) then
+				local Container = INVENTORY[ContainerIndex]
 
-			if ( not Container ) then
-				Container = {}
-				INVENTORY[ContainerIndex] = Container
-				Start = 1
-			elseif ( Size ~= Container.Size or not Container[Size] ) then
-				if ( Size > Container.Size ) then
-					Start = Container.Size
-				else
-					Start = Size
-					End = Container.Size
+				if ( not Container ) then
+					-- HACK: The default backpack may not fire.
+					if ( ContainerIndex ~= 0 and not INVENTORY[0] ) then
+						Query(Event, 0)
+					end
+
+					Container = {}
+					INVENTORY[ContainerIndex] = Container
+
+					local Time = GetTime()
+					for i=1,Size do
+						Container[i] = {[TIMESTAMP] = Time}
+					end
 				end
+
+				return Container
 			end
-
-			if ( Start ) then
-				local Time = GetTime()
-				for i=Start,(End or Size) do
-					Container[i] = (Start == 1 or End) and {[3] = Time} or nil
-				end
-			end
-
-			Container.Size = Size
-
-			return Container
 		end
 	end
 end
 
-local function Query(Event, ContainerIndex)
-	local Container = INVENTORY[ContainerIndex]
-
-	if ( Event ) then
-		Container = Bag(Event, ContainerIndex)
-	end
+function Query(Event, ContainerIndex)
+	local Container = Event and Bag(Event, ContainerIndex) or INVENTORY[ContainerIndex]
 
 	if ( Container ) then
 		local Time = Event and GetTime()
 
-		for SlotIndex=1, Container.Size do
+		for SlotIndex=1, #Container do
 			local Slot = Container[SlotIndex]
 
 			if ( Slot ) then
 				if ( Event ) then
 					local _, StackCurrent = GetContainerItemInfo(ContainerIndex, SlotIndex)
-					local Stack = Slot[1]
+					local Stack = Slot[STACK]
 
 					if ( StackCurrent ~= Stack ) then
-						local Buffer = Slot[3]
+						local Buffer = Slot[TIMESTAMP]
 
 						if ( Buffer and (Time - Buffer) > .5 ) then -- Latency?
 							Buffer = nil
-							Slot[3] = nil
+							Slot[TIMESTAMP] = nil
 						end
 
 						if ( Event == "CONSTRUCT" or Buffer or (StackCurrent or -1) < (Stack or 0) ) then
 							if ( not (Buffer and Stack == 9998 and not StackCurrent) ) then
-								Slot[1] = StackCurrent
-								Slot[2] = nil
+								Slot[STACK] = StackCurrent
+								Slot[ITEM_ID] = nil
 
 								if ( not StackCurrent and Slot == STACK_UI.split ) then
 									STACK_UI.split = nil -- Move unknown, clear.
@@ -90,14 +85,14 @@ local function Query(Event, ContainerIndex)
 							end
 						else
 							local CurrentID = GetContainerItemID(ContainerIndex, SlotIndex)
-							local Changed = Slot[2] ~= CurrentID
+							local Changed = Slot[ITEM_ID] ~= CurrentID
 
-							Slot[1] = StackCurrent
-							Slot[2] = (Changed) and nil or CurrentID
+							Slot[STACK] = StackCurrent
+							Slot[ITEM_ID] = (Changed) and nil or CurrentID
 						end
 					end
 				else
-					Slot[2] = nil -- .ClearAll()
+					Slot[ITEM_ID] = nil -- .ClearAll()
 				end
 			end
 		end
@@ -121,13 +116,13 @@ hooksecurefunc("PickupContainerItem", function(ContainerIndex, SlotIndex)
 						if ( Type(Origin) == "number" ) then
 							Stack = 9998
 						else
-							Origin[1] = 9999
-							Origin[3] = Time
+							Origin[STACK] = 9999
+							Origin[TIMESTAMP] = Time
 						end
 					end
 
-					Slot[1] = Stack or 9999
-					Slot[3] = Time
+					Slot[STACK] = Stack or 9999
+					Slot[TIMESTAMP] = Time
 				end
 
 				STACK_UI.split = nil
@@ -140,7 +135,7 @@ end)
 
 local function Processor(Self, Event, ...)
 	if ( Self == "CONSTRUCT" ) then
-		STACK_UI = StackSplitFrame -- Avoid hook to SplitContainerItem()?
+		STACK_UI = StackSplitFrame -- Avoid hook to SplitContainerItem?
 		INVENTORY = {}
 
 		for i=MIN,MAX do
@@ -161,10 +156,7 @@ local function Processor(Self, Event, ...)
 	elseif ( Event == "BAG_CLOSED" ) then
 		Bag(Event, ...)
 	else
-		local ContainerIndex, NewItems = ...
-		if ( not NewItems ) then
-			Query(Event, ContainerIndex)
-		end
+		Query(Event, ...)
 	end
 end
 
@@ -186,7 +178,7 @@ function C_NewItems.IsNewItem(ContainerIndex, SlotIndex)
 	if ( not INVENTORY ) then return Processor("CONSTRUCT") end
 
 	local Slot = GetSlotInfo(ContainerIndex, SlotIndex)
-	return (Slot and Slot[2]) and true
+	return (Slot and Slot[ITEM_ID]) and true
 end
 
 function C_NewItems.RemoveNewItem(ContainerIndex, SlotIndex)
@@ -194,7 +186,7 @@ function C_NewItems.RemoveNewItem(ContainerIndex, SlotIndex)
 
 	local Slot = GetSlotInfo(ContainerIndex, SlotIndex)
 	if ( Slot ) then
-		Slot[2] = nil
+		Slot[ITEM_ID] = nil
 	end
 end
 

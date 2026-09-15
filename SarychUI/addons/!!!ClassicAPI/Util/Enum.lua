@@ -1,398 +1,295 @@
+local _, Private = ...
+
 local Enum = Enum or {}
 
--- "Meta" tables haven't been added (MinValue, NumValues, MaxValue)
--- TODO: Certain tables have outdated information.
+--[[
+	DEFAULT CLIENT (3.3.5) ITEMCLASS
+]]
 
 Enum.ItemClass = {
-	Consumable = 0,
-	Container = 1,
-	Weapon = 2,
-	Gem = 3,
-	Armor = 4,
-	Reagent = 5,
-	Projectile = 6,
-	Tradegoods = 7,
-	ItemEnhancement = 8,
-	Recipe = 9,
-	CurrencyTokenObsolete = 10,
-	Quiver = 11,
+	Quiver = 8,
 	Questitem = 12,
-	Key = 13,
-	PermanentObsolete = 14,
-	Miscellaneous = 15,
-	Glyph = 16,
-	Battlepet = 17,
-	WoWToken = 18,
-	Profession = 19,
+	Projectile = 7,
+	Miscellaneous = 11,
+	Recipe = 9,
+	Consumable = 4,
+	Gem = 10,
+	Tradegoods = 6,
+	Armor = 2,
+	Container = 3,
+	Glyph = 5,
+	Weapon = 1,
 }
 
-Enum.ItemConsumableSubclass = {
-	Fooddrink = 5,
-	Bandage = 7,
-	Scroll = 4,
-	Elixir = 2,
-	Generic = 0,
-	Flasksphials = 3,
-	Potion = 1,
-	Itemenhancement = 6,
-	VantusRune = 9,
-	CombatCurio = 11,
-	UtilityCurio = 10,
-	Other = 8,
-}
-
-Enum.ItemWeaponSubclass = {
-	Mace2H = 5,
-	Thrown = 16,
-	Bearclaw = 11,
-	Catclaw = 12,
-	Mace1H = 4,
-	Polearm = 6,
-	Sword1H = 7,
-	Axe2H = 1,
-	Sword2H = 8,
-	Unarmed = 13,
-	Bows = 2,
-	Crossbow = 18,
-	Staff = 10,
-	Fishingpole = 20,
-	Generic = 14,
-	Guns = 3,
-	Dagger = 15,
-	Warglaive = 9,
-	Obsolete3 = 17,
-	Axe1H = 0,
-	Wand = 19,
+Enum.ItemClassMeta = {
+	MinValue = 1,
+	NumValues = 12,
+	MaxValue = 12,
 }
 
 Enum.ItemGemSubclass = {
-	Simple = 7,
-	Blue = 1,
-	Meta = 6,
-	Prismatic = 8,
-	Purple = 3,
-	Green = 4,
-	Yellow = 2,
-	Orange = 5,
-	Red = 0,
+	Simple = 8,
+	Blue = 2,
+	Meta = 7,
+	Prismatic = 9,
+	Purple = 4,
+	Green = 5,
+	Yellow = 3,
+	Orange = 6,
+	Red = 1,
 }
 
-Enum.ItemArmorSubclass = {
-	Idol = 8,
-	Cosmetic = 5,
-	Totem = 9,
-	Shield = 6,
-	Leather = 2,
-	Libram = 7,
-	Generic = 0,
-	Mail = 3,
-	Cloth = 1,
-	Plate = 4,
-	Relic = 11,
-	Sigil = 10,
-}
-
-Enum.ItemReagentSubclass = {
-	ContextToken = 2,
-	Reagent = 0,
-	Keystone = 1,
+Enum.ItemGemSubclassMeta = {
+	MinValue = 1,
+	NumValues = 9,
+	MaxValue = 9,
 }
 
 Enum.ItemRecipeSubclass = {
-	Tailoring = 2,
-	Blacksmithing = 4,
-	FirstAid = 7,
-	Alchemy = 6,
-	Book = 0,
-	Cooking = 5,
-	Inscription = 11,
-	Fishing = 9,
-	Engineering = 3,
-	Leatherworking = 1,
-	Jewelcrafting = 10,
-	Enchanting = 8,
+	Tailoring = 3,
+	Blacksmithing = 5,
+	FirstAid = 8,
+	Alchemy = 7,
+	Book = 1,
+	Cooking = 6,
+	Inscription = 12,
+	Jewelcrafting = 11,
+	Engineering = 4,
+	Leatherworking = 2,
+	Fishing = 10,
+	Enchanting = 9,
+}
+
+Enum.ItemRecipeSubclassMeta = {
+	MinValue = 1,
+	NumValues = 12,
+	MaxValue = 12,
+}
+
+Enum.ItemConsumableSubclass = {
+	Other = 8,
+	Elixir = 3,
+	Potion = 2,
+	Scroll = 7,
+	Itemenhancement = 6,
+	Fooddrink = 1,
+	Bandage = 5,
+	Flask = 4,
+}
+
+Enum.ItemConsumableSubclassMeta = {
+	MinValue = 1,
+	NumValues = 8,
+	MaxValue = 8,
 }
 
 Enum.ItemMiscellaneousSubclass = {
-	CompanionPet = 2,
-	Reagent = 1,
-	MountEquipment = 6,
-	Mount = 5,
-	Holiday = 3,
-	Junk = 0,
-	Other = 4,
+	Other = 5,
+	Reagent = 2,
+	Mount = 6,
+	Holiday = 4,
+	Pet = 3,
+	Junk = 1,
 }
 
-Enum.BattlePetTypes = {
-	Dragonkin = 1,
-	Humanoid = 0,
-	Elemental = 6,
-	Critter = 4,
-	Magic = 5,
-	Flying = 2,
-	Aquatic = 8,
-	Undead = 3,
-	Mechanical = 9,
-	Beast = 7,
-	NonCombat = 10,
+Enum.ItemMiscellaneousSubclassMeta = {
+	MinValue = 1,
+	NumValues = 6,
+	MaxValue = 6,
 }
 
-Enum.ItemProfessionSubclass = {
-	Tailoring = 6,
-	Blacksmithing = 0,
-	Skinning = 10,
-	Alchemy = 2,
-	Mining = 5,
-	Jewelcrafting = 11,
-	Cooking = 4,
-	Herbalism = 3,
-	Archaeology = 13,
-	Fishing = 9,
-	Engineering = 7,
-	Leatherworking = 1,
-	Inscription = 12,
-	Enchanting = 8,
+Enum.ItemArmorSubclass = {
+	Totem = 9,
+	Shield = 6,
+	Libram = 7,
+	Miscellaneous = 1,
+	Leather = 3,
+	Idol = 8,
+	Mail = 4,
+	Plate = 5,
+	Sigil = 10,
+	Cloth = 2,
+}
+
+Enum.ItemArmorSubclassMeta = {
+	MinValue = 1,
+	NumValues = 10,
+	MaxValue = 10,
+}
+
+Enum.ItemWeaponSubclass = {
+	Axe2H = 2,
+	Axe1H = 1,
+	Staff = 10,
+	Crossbow = 15,
+	Unarmed = 11,
+	Sword1H = 8,
+	Polearm = 7,
+	Mace1H = 5,
+	Bows = 3,
+	Miscellaneous = 12,
+	Fishingpole = 17,
+	Guns = 4,
+	Dagger = 13,
+	Thrown = 14,
+	Wand = 16,
+	Sword2H = 9,
+	Mace2H = 6,
+}
+
+Enum.ItemWeaponSubclassMeta = {
+	MinValue = 1,
+	NumValues = 17,
+	MaxValue = 17,
 }
 
 Enum.ItemQuality = {
-	Artifact = 6,
 	Poor = 0,
 	Common = 1,
 	Uncommon = 2,
 	Rare = 3,
-	Legendary = 5,
 	Epic = 4,
+	Legendary = 5,
+	Artifact = 6,
 	Heirloom = 7,
-	WoWToken = 8,
+}
 
-	--Standard = 1,
-	--Good = 2,
+Enum.ItemQualityMeta = {
+	MinValue = 1,
+	NumValues = 7,
+	MaxValue = 7,
+}
+
+--[[
+	ADDITIONAL ENUM (IMPORTED FROM CLASSIC CLIENT)
+]]
+
+Enum.Profession = {
+	Tailoring = 7,
+	Blacksmithing = 1,
+	FirstAid = 0,
+	Herbalism = 4,
+	Mining = 6,
+	Skinning = 11,
+	Alchemy = 3,
+	Cooking = 5,
+	Jewelcrafting = 12,
+	Fishing = 10,
+	Engineering = 8,
+	Leatherworking = 2,
+	Inscription = 13,
+	Enchanting = 9,
+}
+
+Enum.ProfessionMeta = {
+	MinValue = 0,
+	NumValues = 14,
+	MaxValue = 13,
+}
+
+Enum.BagIndex = {
+	Backpack  = 0,
+	Bag_1     = 1,
+	Bag_2     = 2,
+	Bag_3     = 3,
+	Bag_4     = 4,
+	Keyring   = -2,
+	Bank      = -1,
+	BankBag_1 = 5,
+	BankBag_2 = 6,
+	BankBag_3 = 7,
+	BankBag_4 = 8,
+	BankBag_5 = 9,
+	BankBag_6 = 10,
+	BankBag_7 = 11,
+}
+
+Enum.BagIndexMeta = {
+	MinValue = -2,
+	NumValues = 14,
+	MaxValue = 11,
+}
+
+Enum.BankType = {
+	Character = 0,
+	Guild = 1,
+}
+
+Enum.BankTypeMeta = {
+	MinValue = 0,
+	NumValues = 2,
+	MaxValue = 1,
 }
 
 Enum.InventoryType = {
+	IndexNonEquipType = 0,
+	IndexHeadType = 1,
+	IndexNeckType = 2,
+	IndexShoulderType = 3,
+	IndexBodyType = 4,
+	IndexChestType = 5,
+	IndexWaistType = 6,
+	IndexLegsType = 7,
+	IndexFeetType = 8,
+	IndexWristType = 9,
 	IndexHandType = 10,
 	IndexFingerType = 11,
-	IndexThrownType = 25,
-	IndexTabardType = 19,
-	IndexHoldableType = 23,
-	IndexProfessionGearType = 30,
-	IndexBodyType = 4,
-	IndexHeadType = 1,
-	IndexRobeType = 20,
-	IndexNonEquipType = 0,
-	IndexWaistType = 6,
 	IndexTrinketType = 12,
-	IndexEquipablespellUtilityType = 32,
-	IndexRelicType = 28,
-	IndexRangedrightType = 26,
-	IndexFeetType = 8,
-	IndexShieldType = 14,
-	IndexAmmoType = 24,
-	IndexWeaponoffhandType = 22,
-	IndexWristType = 9,
-	IndexEquipablespellDefensiveType = 33,
-	IndexNeckType = 2,
-	Index2HweaponType = 17,
 	IndexWeaponType = 13,
-	IndexEquipablespellWeaponType = 34,
-	IndexBagType = 18,
+	IndexShieldType = 14,
 	IndexRangedType = 15,
-	IndexLegsType = 7,
-	IndexChestType = 5,
-	IndexShoulderType = 3,
-	IndexQuiverType = 27,
-	IndexEquipablespellOffensiveType = 31,
 	IndexCloakType = 16,
+	Index2HweaponType = 17,
+	IndexBagType = 18,
+	IndexTabardType = 19,
+	IndexRobeType = 20,
 	IndexWeaponmainhandType = 21,
-	IndexProfessionToolType = 29,
+	IndexWeaponoffhandType = 22,
+	IndexHoldableType = 23,
+	IndexAmmoType = 24,
+	IndexThrownType = 25,
+	IndexRangedrightType = 26,
+	IndexQuiverType = 27,
+	IndexRelicType = 28,
 }
 
-Enum.AuctionHouseNotification = {
-	AuctionSold = 4,
-	AuctionOutbid = 3,
-	AuctionWon = 2,
-	AuctionRemoved = 1,
-	BidPlaced = 0,
-	AuctionExpired = 5,
-}
-
-Enum.AuctionHouseSortOrder = {
-	Name = 1,
-	Bid = 3,
-	Price = 0,
-	Level = 2,
-	Buyout = 4,
-	TimeRemaining = 5,
+Enum.InventoryTypeMeta = {
+	MinValue = 0,
+	NumValues = 29,
+	MaxValue = 28,
 }
 
 Enum.PlayerInteractionType = {
-	ItemInteraction = 44,
+	None = 0,
 	TradePartner = 1,
-	GarrMission = 32,
-	AdventureJournal = 54,
-	AlliedRaceDetailsGiver = 9,
-	TraitSystem = 61,
-	GarrArchitect = 30,
-	AdventureMap = 28,
-	CharacterBanker = 67,
-	ForgeMaster = 66,
-	SpiritHealer = 18,
-	Renown = 55,
-	ContributionCollector = 41,
-	Vendor = 12,
-	GarrTalent = 35,
-	AreaSpiritHealer = 19,
-	LFGDungeon = 25,
-	PerksProgramVendor = 57,
-	TalentMaster = 15,
-	MailInfo = 17,
-	Registrar = 11,
-	Soulbind = 50,
-	GarrTradeskill = 31,
-	None = 0,
-	Merchant = 5,
-	AnimaDiversion = 47,
-	QuestGiver = 4,
-	PersonalTabardVendor = 65,
-	AzeriteForge = 56,
-	TaxiNode = 6,
 	Item = 2,
-	Auctioneer = 21,
-	VoidStorageBanker = 26,
-	SpecializationMaster = 16,
-	PlayerChoice = 37,
-	GarrRecruitment = 34,
-	BattleMaster = 23,
-	MajorFactionRenown = 64,
-	GuildBanker = 10,
-	ObliterumForge = 39,
-	ArtifactForge = 38,
-	IslandQueue = 43,
-	BlackMarketAuctioneer = 27,
-	AccountBanker = 68,
-	JailersTowerBuffs = 63,
-	ScrappingMachine = 40,
-	CovenantSanctum = 51,
-	StableMaster = 22,
-	CovenantPreview = 46,
-	WorldMap = 29,
-	GuildTabardVendor = 14,
-	Banker = 8,
-	AzeriteRespec = 42,
-	LegendaryCrafting = 48,
-	WeeklyRewards = 49,
-	Transmogrifier = 24,
-	Trainer = 7,
-	ItemUpgrade = 53,
-	ChromieTime = 45,
-	ShipmentCrafter = 33,
-	Trophy = 36,
-	ProfessionsCraftingOrder = 58,
-	PetitionVendor = 13,
-	ProfessionsCustomerOrder = 60,
-	NewPlayerGuide = 52,
-	Professions = 59,
-	BarbersChoice = 62,
 	Gossip = 3,
+	QuestGiver = 4,
+	Merchant = 5,
+	TaxiNode = 6,
+	Trainer = 7,
+	Banker = 8,
+	GuildBanker = 10,
+	Registrar = 11,
+	Vendor = 12,
+	PetitionVendor = 13,
+	GuildTabardVendor = 14,
+	TalentMaster = 15,
+	SpecializationMaster = 16,
+	MailInfo = 17,
+	SpiritHealer = 18,
+	AreaSpiritHealer = 19,
 	Binder = 20,
+	Auctioneer = 21,
+	StableMaster = 22,
+	BattleMaster = 23,
+	LFGDungeon = 25,
 }
 
-Enum.GossipNpcOption = {
-	ChromieTimeNpc = 40,
-	PersonalTabardVendor = 54,
-	None = 0,
-	Mailbox = 18,
-	GlyphMaster = 24,
-	CovenantPreviewNpc = 41,
-	CemeterySelect = 22,
-	Auctioneer = 10,
-	PetUntrainer = 13,
-	Banker = 6,
-	SpecializationMaster = 23,
-	AdventureMap = 31,
-	QueueScenario = 25,
-	TraitSystem = 51,
-	EnableXPGain = 17,
-	IslandsMissionNpc = 36,
-	Transmogrify = 34,
-	SpiritHealer = 4,
-	GuildBanker = 14,
-	Stablemaster = 12,
-	GarrisonMissionNpc = 27,
-	WorldMap = 38,
-	CharacterBanker = 56,
-	BlackMarketAuctionHouse = 46,
-	ForgeMaster = 55,
-	Spellclick = 15,
-	ProfessionsCustomerOrder = 50,
-	Trainer = 3,
-	GarrisonTradeskillNpc = 29,
-	UIItemInteraction = 37,
-	RuneforgeLegendaryCrafting = 42,
-	ContributionCollector = 33,
-	AccountBanker = 57,
-	PetitionVendor = 7,
-	LFGDungeon = 20,
-	AzeriteRespec = 35,
-	GarrisonArchitect = 26,
-	GarrisonRecruitment = 30,
-	GarrisonTalent = 32,
-	GuildTabardVendor = 8,
-	Battlemaster = 9,
-	CovenantRenownNpc = 45,
-	ProfessionsCraftingOrder = 48,
-	PerksProgramVendor = 47,
-	TalentMaster = 11,
-	MajorFactionRenown = 53,
-	RuneforgeLegendaryUpgrade = 44,
-	Vendor = 1,
-	ShipmentCrafter = 28,
-	ProfessionsOpen = 49,
-	WorldPvPQueue = 19,
-	Soulbind = 39,
-	Taxinode = 2,
-	NewPlayerGuide = 43,
-	DisableXPGain = 16,
-	BarbersChoice = 52,
-	ArtifactRespec = 21,
-	Binder = 5,
-}
-
-Enum.TooltipDataType = {
-	Corpse = 3,
-	PetAction = 11,
-	Mount = 10,
-	Unit = 2,
-	EquipmentSet = 14,
-	Currency = 5,
-	Item = 0,
-	QuestPartyProgress = 24,
-	Totem = 18,
-	Quest = 23,
-	EnhancedConduit = 13,
-	Toy = 19,
-	Spell = 1,
-	Debug = 26,
-	CorruptionCleanser = 20,
-	Macro = 25,
-	PvPBrawl = 16,
-	InstanceLock = 15,
-	CompanionPet = 9,
-	Achievement = 12,
-	BattlePet = 6,
-	Object = 4,
-	RecipeRankInfo = 17,
-	MinimapMouseover = 21,
-	Flyout = 22,
-	UnitAura = 7,
-	AzeriteEssence = 8,
-}
-
-Enum.CraftingReagentType = {
-	Automatic = 3,
-	Finishing = 2,
-	Modifying = 0,
-	Basic = 1,
+Enum.PlayerInteractionTypeMeta = {
+	MinValue = 0,
+	NumValues = 26,
+	MaxValue = 25,
 }
 
 Enum.LFGRole = {
@@ -401,49 +298,112 @@ Enum.LFGRole = {
 	Damage = 2,
 }
 
-Enum.MountType = {
-	RideAlong = 4,
-	Flying = 1,
-	Aquatic = 2,
-	Dragonriding = 3,
-	Ground = 0,
+Enum.LFGRoleMeta = {
+	MinValue = 0,
+	NumValues = 3,
+	MaxValue = 2,
 }
+
+--[[
+	INTERNAL SUPPORT
+]]
+
+Private.EnumInventoryType = {
+	-- Integer -> String (ID to String)
+	[Enum.InventoryType.IndexNonEquipType] = INVTYPE_NON_EQUIP,
+	[Enum.InventoryType.IndexHeadType] = INVTYPE_HEAD,
+	[Enum.InventoryType.IndexNeckType] = INVTYPE_NECK,
+	[Enum.InventoryType.IndexShoulderType] = INVTYPE_SHOULDER,
+	[Enum.InventoryType.IndexBodyType] = INVTYPE_BODY,
+	[Enum.InventoryType.IndexChestType] = INVTYPE_CHEST,
+	[Enum.InventoryType.IndexWaistType] = INVTYPE_WAIST,
+	[Enum.InventoryType.IndexLegsType] = INVTYPE_LEGS,
+	[Enum.InventoryType.IndexFeetType] = INVTYPE_FEET,
+	[Enum.InventoryType.IndexWristType] = INVTYPE_WRIST,
+	[Enum.InventoryType.IndexHandType] = INVTYPE_HAND,
+	[Enum.InventoryType.IndexFingerType] = INVTYPE_FINGER,
+	[Enum.InventoryType.IndexTrinketType] = INVTYPE_TRINKET,
+	[Enum.InventoryType.IndexWeaponType] = INVTYPE_WEAPON,
+	[Enum.InventoryType.IndexShieldType] = INVTYPE_SHIELD,
+	[Enum.InventoryType.IndexRangedType] = INVTYPE_RANGED,
+	[Enum.InventoryType.IndexCloakType] = INVTYPE_CLOAK,
+	[Enum.InventoryType.Index2HweaponType] = INVTYPE_2HWEAPON,
+	[Enum.InventoryType.IndexBagType] = INVTYPE_BAG,
+	[Enum.InventoryType.IndexTabardType] = INVTYPE_TABARD,
+	[Enum.InventoryType.IndexRobeType] = INVTYPE_ROBE,
+	[Enum.InventoryType.IndexWeaponmainhandType] = INVTYPE_WEAPONMAINHAND,
+	[Enum.InventoryType.IndexWeaponoffhandType] = INVTYPE_WEAPONOFFHAND,
+	[Enum.InventoryType.IndexHoldableType] = INVTYPE_HOLDABLE,
+	[Enum.InventoryType.IndexAmmoType] = INVTYPE_AMMO,
+	[Enum.InventoryType.IndexThrownType] = INVTYPE_THROWN,
+	[Enum.InventoryType.IndexRangedrightType] = INVTYPE_RANGEDRIGHT,
+	[Enum.InventoryType.IndexQuiverType] = INVTYPE_QUIVER,
+	[Enum.InventoryType.IndexRelicType] = INVTYPE_RELIC,
+
+	-- String -> Integer (Token to ID)
+	INVTYPE_NON_EQUIP = Enum.InventoryType.IndexNonEquipType,
+	INVTYPE_HEAD = Enum.InventoryType.IndexHeadType,
+	INVTYPE_NECK = Enum.InventoryType.IndexNeckType,
+	INVTYPE_SHOULDER = Enum.InventoryType.IndexShoulderType,
+	INVTYPE_BODY = Enum.InventoryType.IndexBodyType,
+	INVTYPE_CHEST = Enum.InventoryType.IndexChestType,
+	INVTYPE_WAIST = Enum.InventoryType.IndexWaistType,
+	INVTYPE_LEGS = Enum.InventoryType.IndexLegsType,
+	INVTYPE_FEET = Enum.InventoryType.IndexFeetType,
+	INVTYPE_WRIST = Enum.InventoryType.IndexWristType,
+	INVTYPE_HAND = Enum.InventoryType.IndexHandType,
+	INVTYPE_FINGER = Enum.InventoryType.IndexFingerType,
+	INVTYPE_TRINKET = Enum.InventoryType.IndexTrinketType,
+	INVTYPE_WEAPON = Enum.InventoryType.IndexWeaponType,
+	INVTYPE_SHIELD = Enum.InventoryType.IndexShieldType,
+	INVTYPE_RANGED = Enum.InventoryType.IndexRangedType,
+	INVTYPE_CLOAK = Enum.InventoryType.IndexCloakType,
+	INVTYPE_2HWEAPON = Enum.InventoryType.Index2HweaponType,
+	INVTYPE_BAG = Enum.InventoryType.IndexBagType,
+	INVTYPE_TABARD = Enum.InventoryType.IndexTabardType,
+	INVTYPE_ROBE = Enum.InventoryType.IndexRobeType,
+	INVTYPE_WEAPONMAINHAND = Enum.InventoryType.IndexWeaponmainhandType,
+	INVTYPE_WEAPONOFFHAND = Enum.InventoryType.IndexWeaponoffhandType,
+	INVTYPE_HOLDABLE = Enum.InventoryType.IndexHoldableType,
+	INVTYPE_AMMO = Enum.InventoryType.IndexAmmoType,
+	INVTYPE_THROWN = Enum.InventoryType.IndexThrownType,
+	INVTYPE_RANGEDRIGHT = Enum.InventoryType.IndexRangedrightType,
+	INVTYPE_QUIVER = Enum.InventoryType.IndexQuiverType,
+	INVTYPE_RELIC = Enum.InventoryType.IndexRelicType,
+}
+
+local Select = select
+local GetAuctionItemClasses = GetAuctionItemClasses
+local GetAuctionItemSubClasses = GetAuctionItemSubClasses
 
 -- ["ClassName"] = Cache, [ClassID] = Cache
 -- Cache = {[0] = ClassIndex, [-1] = ClassName, ["SubClassName"] = SubClassID, [SubClassID] = SubClassName}
-local _, Private = ...
-Private.EnumItemClassInfo = Private.EnumItemClassInfo or {}
+Private.EnumItemClassInfo = {}
 
-do
-	local Select = select
-	local GetAuctionItemClasses = GetAuctionItemClasses
-	local GetAuctionItemSubClasses = GetAuctionItemSubClasses
-
-	local function ParseSubClasses(Cache, ...)
-		local SubClassIndex = 1
-		while true do
-			local SubClassName = Select(SubClassIndex, ...)
-			if ( not SubClassName ) then break end
-
-			Cache[SubClassName] = SubClassIndex
-			Cache[SubClassIndex] = SubClassName
-
-			SubClassIndex = SubClassIndex + 1
-		end
-	end
-
-	local ClassIndex = 1
+local function ParseSubClasses(Cache, ...)
+	local SubClassIndex = 1
 	while true do
-		local ClassName = Select(ClassIndex, GetAuctionItemClasses())
-		if ( not ClassName ) then break end
+		local SubClassName = Select(SubClassIndex, ...)
+		if ( not SubClassName ) then break end
 
-		local Cache = {[0] = ClassIndex, [-1] = ClassName}
-		Private.EnumItemClassInfo[ClassName] = Cache
-		Private.EnumItemClassInfo[ClassIndex] = Cache
+		Cache[SubClassName] = SubClassIndex
+		Cache[SubClassIndex] = SubClassName
 
-		ParseSubClasses(Cache, GetAuctionItemSubClasses(ClassIndex))
-		ClassIndex = ClassIndex + 1
+		SubClassIndex = SubClassIndex + 1
 	end
+end
+
+local ClassIndex = 1
+while true do
+	local ClassName = Select(ClassIndex, GetAuctionItemClasses())
+	if ( not ClassName ) then break end
+
+	local Cache = {[0] = ClassIndex, [-1] = ClassName}
+	Private.EnumItemClassInfo[ClassName] = Cache
+	Private.EnumItemClassInfo[ClassIndex] = Cache
+
+	ParseSubClasses(Cache, GetAuctionItemSubClasses(ClassIndex))
+	ClassIndex = ClassIndex + 1
 end
 
 -- Global

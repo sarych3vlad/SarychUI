@@ -1,231 +1,280 @@
 local _, Private = ...
 
-local CreateFrame = CreateFrame
-local GetMetaTable = getmetatable
-local HookSecureFunc = hooksecurefunc
+local Type = type
+local Next = next
+local Pairs = pairs
+local PCall = pcall
+local Remove = table.remove
+local CallErrorHandler = CallErrorHandler
 
 local EventHandler = CreateFrame("Frame")
-local ___Register = EventHandler.RegisterEvent
-local ___Unregister = EventHandler.UnregisterEvent
+local NativeRegister = EventHandler.RegisterEvent
+local NativeUnregister = EventHandler.UnregisterEvent
 
-local EVENT_ATLAS = {}
-local EVENT_OBJECT = {}
-local EVENT_ARCHIVE = {}
+local ObjectMap = {} -- Event -> {Frame1, Frame2, ...}
+local FilterMap = {} -- Object -> Event -> {Filter1, Filter2, ...}
+local ParentMap = {} -- Object -> {Object1, Object2, ...}
+local EventRegistry = {} -- Event -> { Native = {Names}, OnEvent, OnRegister, OnUnregister }
+local NativeEventMap = {} -- Native -> Modern
 
-local ON = {}
-local ON_REG = {}
-local ON_UREG = {}
+local function Dispatcher(_, NativeEvent, ...)
+	local Event = NativeEventMap[NativeEvent] or NativeEvent
+	local Objects = ObjectMap[Event]
 
-local function EventHandler_Fire(Self, Listener, ...)
-	local Event = EVENT_ATLAS[Listener] or Listener
-	local Registered = EVENT_OBJECT[Event]
-	if ( Registered ) then
-		local Trigger = ON[Event]
-		if ( Trigger and Trigger("OnEvent", Listener, ...) == false ) then return end
+	if ( Objects ) then
+		local Registry = EventRegistry[Event]
+		if ( Registry and Registry.OnEvent and Registry.OnEvent("OnEvent", NativeEvent, ...) == false ) then return end
 
-		local Shuffle = 1
+		local Arg1 = ...
+		local WriteIndex = 1
 
-		for i=1,#Registered do
-			local Obj = Registered[i]
+		for ReadIndex = 1, #Objects do
+			local Object = Objects[ReadIndex]
 
-			if ( Obj ) then
-				local OnEvent = Obj:GetScript("OnEvent")
-				if ( OnEvent ) then
-					OnEvent(Obj, Event, ...)
-				end
+			if ( Object ) then
+				local Filter = FilterMap[Object] and FilterMap[Object][Event]
 
-				if ( i ~= Shuffle ) then
-					Registered[Shuffle] = Obj
-					Registered[i] = nil
-				end
-
-				Shuffle = Shuffle + 1
-			else
-				Registered[i] = nil
-			end
-		end
-	end
-end
-
-local function EventHandler_Listener(Event, Func)
-	local Archive = EVENT_ARCHIVE[Event]
-	if ( Archive[1] ) then
-		for i=1,#Archive do
-			Func(EventHandler, Archive[i])
-		end
-	else
-		Func(EventHandler, Archive)
-	end
-end
-
---[[
-	EventHandler: Method Hook(s)
-]]
-
-local function Method_RegisterEvent(Self, Event)
-	local Archive = EVENT_ARCHIVE[Event]
-
-	if ( Archive ) then
-		local Registered = EVENT_OBJECT[Event]
-		local RegisteredTotal = 0
-
-		if ( Registered ) then
-			RegisteredTotal = #Registered
-			for i=1,RegisteredTotal do
-				if ( Registered[i] == Self ) then
-					return
-				end
-			end
-		else
-			local Trigger = ON_REG[Event]
-			if ( Trigger and Trigger("OnRegister", Event) == false ) then return end
-
-			Registered = {}
-			EVENT_OBJECT[Event] = Registered
-			EventHandler_Listener(Event, ___Register)
-		end
-
-		Registered[RegisteredTotal+1] = Self
-	end
-end
-
-local function Method_UnregisterEvent(Self, Event)
-	local Registered = EVENT_OBJECT[Event]
-
-	if ( Registered ) then
-		local RegisteredTotal, RegisteredIndex = 0
-
-		for i=1,#Registered do
-			local Obj = Registered[i]
-			if ( Obj ) then
-				RegisteredTotal = RegisteredTotal+1
-
-				if ( Obj == Self ) then
-					RegisteredIndex = i
-					if ( RegisteredTotal > 1 ) then break end
-				end
-			end
-		end
-
-		if ( RegisteredIndex ) then
-			if ( RegisteredTotal == 1 ) then
-				local Trigger = ON_UREG[Event]
-				if ( Trigger and Trigger("OnUnregister", Event) == false ) then return end
-
-				EventHandler_Listener(Event, ___Unregister)
-				EVENT_OBJECT[Event] = nil
-			else
-				Registered[RegisteredIndex] = false
-			end
-		end
-	end
-end
-
-local function Method_RegisterUnitEvent(Self, Event, Unit1, Unit2)
-	local UnitEventFrame = Self.___UnitEventHandler
-
-	if ( not UnitEventFrame ) then
-		UnitEventFrame = CreateFrame("Frame")
-		Self.___UnitEventHandler = UnitEventFrame
-
-		UnitEventFrame:SetScript("OnEvent", function(_, Event, ...)
-			local Units = UnitEventFrame[Event]
-			if ( Units ) then
-				local Unit = ...
-				if ( Units[1] == Unit or Units[2] == Unit ) then
-					local OnEvent = Self:GetScript("OnEvent")
-					if ( OnEvent ) then
-						OnEvent(Self, Event, ...)
+				if ( Filter and Arg1 ~= Filter[1] and Arg1 ~= Filter[2] and Arg1 ~= Filter[3] and Arg1 ~= Filter[4] ) then
+					-- Doesn't match the objects filter, halt.
+				else
+					if ( Type(Object) == "function" ) then
+						local Success, Err = PCall(Object, ...)
+						if ( not Success ) then
+							CallErrorHandler(Err)
+						end
+					else
+						local OnEvent = Object:GetScript("OnEvent")
+						if ( OnEvent ) then
+							local Success, Err = PCall(OnEvent, Object, Event, ...)
+							if ( not Success ) then
+								CallErrorHandler(Err)
+							end
+						end
 					end
 				end
-			end
-		end)
 
-		HookSecureFunc(Self, "UnregisterEvent", function(_, Event)
-			if ( UnitEventFrame[Event] ) then
-				UnitEventFrame[Event] = nil
-				___Unregister(UnitEventFrame, Event) -- Avoid our hook, call directly.
-			end
-		end)
-	end
-
-	local Units = UnitEventFrame[Event]
-	if ( not Units ) then
-		Units = {}
-		UnitEventFrame[Event] = Units
-		UnitEventFrame:RegisterEvent(Event)
-	end
-
-	Units[1] = Unit1
-	if ( Unit2 ) then
-		Units[2] = Unit2
-	end
-end
-
-local function EventHandler_Register(Type, Event, Callback)
-	if ( Type == "OnRegister" ) then
-		ON_REG[Event] = Callback
-	elseif ( Type == "OnUnregister" ) then
-		ON_UREG[Event] = Callback
-	elseif ( Type == "OnEvent" ) then
-		ON[Event] = Callback
-	elseif ( Type == "Event" ) then
-		--[[
-			Register "Event"
-			----------
-			arg2 (String): Modern Event
-			arg3 (String|Table): Authentic Event
-		]]
-		local Modern, Event = Event, Callback
-		EVENT_ARCHIVE[Modern] = (Event) and Event or Modern
-		if ( Event ) then
-			if ( Event[1] ) then
-				for i=1,#Event do
-					EVENT_ATLAS[Event[i]] = Modern
+				-- Lazy shuffle, move objects up to fill gaps left by unregistered frames.
+				if ( ReadIndex ~= WriteIndex ) then
+					Objects[WriteIndex] = Object
+					Objects[ReadIndex] = nil
 				end
+
+				WriteIndex = WriteIndex + 1
 			else
-				EVENT_ATLAS[Event] = Modern
+				Objects[ReadIndex] = nil -- Explicitly clear dead indexes.
 			end
 		end
 	end
 end
 
-local FrameMeta = GetMetaTable(EventHandler).__index
-local ButtonMeta = GetMetaTable(CreateFrame("Button")).__index
-FrameMeta.RegisterUnitEvent = Method_RegisterUnitEvent
-ButtonMeta.RegisterUnitEvent = Method_RegisterUnitEvent
-HookSecureFunc(FrameMeta, "RegisterEvent", Method_RegisterEvent)
-HookSecureFunc(FrameMeta, "UnregisterEvent", Method_UnregisterEvent)
-HookSecureFunc(ButtonMeta, "RegisterEvent", Method_RegisterEvent)
-HookSecureFunc(ButtonMeta, "UnregisterEvent", Method_UnregisterEvent)
-EventHandler:SetScript("OnEvent", EventHandler_Fire)
+local function DispatcherRegister(Object, Event)
+	local Objects = ObjectMap[Event]
+
+	if ( not Objects ) then
+		local Registry = EventRegistry[Event]
+
+		if ( Registry and Registry.OnRegister and Registry.OnRegister("OnRegister", Event) == false ) then return end
+
+		Objects = {}
+		ObjectMap[Event] = Objects
+
+		-- Register native event(s) tied to the modern event, otherwise just register normally.
+		local Native = (Registry and Registry.Native) or Event
+		if ( Type(Native) == "table" ) then
+			for i = 1, #Native do NativeRegister(EventHandler, Native[i]) end
+		else
+			NativeRegister(EventHandler, Native)
+		end
+	else
+		-- Prevent duplicate registrations
+		for i = 1, #Objects do
+			if ( Objects[i] == Object ) then return end
+		end
+	end
+
+	Objects[#Objects + 1] = Object
+end
+
+local function DispatcherUnregister(Object, Event)
+	local Objects = ObjectMap[Event]
+
+	if ( Objects ) then
+		local ObjectsTotal = 0
+		local ObjectIndex
+
+		for i = 1, #Objects do
+			local Registered = Objects[i]
+			if ( Registered ) then
+				if ( Registered == Object ) then ObjectIndex = i end
+				ObjectsTotal = ObjectsTotal + 1
+			end
+		end
+
+		-- Handle child object(s)
+		local ObjectChild = ParentMap[Object]
+		if ( ObjectChild ) then
+			for Child in Pairs(ObjectChild) do
+				DispatcherUnregister(Child, Event)
+			end
+			ParentMap[Object] = nil
+		end
+
+		if ( ObjectIndex ) then
+			-- Handle unregistration(s)
+			if ( ObjectsTotal == 1 ) then
+				local Registry = EventRegistry[Event]
+
+				if ( Registry and Registry.OnUnregister and Registry.OnUnregister("OnUnregister", Event) == false ) then return end
+
+				-- Unregister native event(s) tied to the modern event, otherwise just unregister normally.
+				local Native = (Registry and Registry.Native) or Event
+				if ( Type(Native) == "table" ) then
+					for i = 1, #Native do NativeUnregister(EventHandler, Native[i]) end
+				else
+					NativeUnregister(EventHandler, Native)
+				end
+
+				ObjectMap[Event] = nil
+			else
+				-- Mark false for compression next dispatch.
+				Objects[ObjectIndex] = false
+			end
+
+			-- Handle filter(s)
+			local Filter = FilterMap[Object]
+			if ( Filter ) then
+				Filter[Event] = nil
+				if ( not Next(Filter) ) then FilterMap[Object] = nil end
+			end
+		end
+	end
+end
+
+local function Define(Action, Event, Value)
+	EventRegistry[Event] = EventRegistry[Event] or {}
+
+	if ( Action == "Event" ) then
+		EventRegistry[Event].Native = Value
+
+		if ( Value ) then
+			if ( Type(Value) == "table" ) then
+				for i = 1, #Value do NativeEventMap[Value[i]] = Event end
+			else
+				NativeEventMap[Value] = Event
+			end
+		end
+	else
+		EventRegistry[Event][Action] = Value
+	end
+end
+
+-- Wrappers
+
+local function RegisterEvent(Object, Event)
+	if ( EventRegistry[Event] ) then
+		DispatcherRegister(Object, Event)
+	end
+end
+
+local function RegisterEventCallback(Object, Event, Callback)
+	if ( Type(Callback) == "function" ) then
+		-- Link the callback to the parent object
+		ParentMap[Object] = ParentMap[Object] or {}
+		ParentMap[Object][Callback] = true
+
+		DispatcherRegister(Callback, Event)
+	end
+end
+
+local function RegisterUnitEvent(Object, Event, ...)
+	if ( ... ) then
+		FilterMap[Object] = FilterMap[Object] or {}
+		FilterMap[Object][Event] = {...}
+	end
+
+	DispatcherRegister(Object, Event)
+end
+
+local function RegisterUnitEventCallback(Object, Event, Callback, ...)
+	if ( Type(Callback) == "function" ) then
+		-- Link the callback to the parent object
+		ParentMap[Object] = ParentMap[Object] or {}
+		ParentMap[Object][Callback] = true
+
+		RegisterUnitEvent(Callback, Event, ...)
+	end
+end
+
+local function UnregisterEventCallback(Object, Event, Callback)
+	if ( Type(Callback) == "function" ) then
+		-- Unlink the callback from the parent object
+		local Parent = ParentMap[Object]
+		if ( Parent and Parent[Callback] ) then
+			Parent[Callback] = nil
+			if ( not Next(Parent) ) then ParentMap[Object] = nil end
+		end
+
+		DispatcherUnregister(Callback, Event)
+	end
+end
+
+local function UnregisterUnitEventCallback(Object, Event, Callback, Unit)
+	if ( Type(Callback) == "function" ) then
+		if ( Unit ) then
+			local ObjectFilter = FilterMap[Callback]
+			local EventFilter = ObjectFilter and ObjectFilter[Event]
+
+			if ( EventFilter ) then
+				local Removed
+				local Total = #EventFilter
+
+				for i = Total, 1, -1 do
+					if ( EventFilter[i] == Unit ) then
+						Removed = Remove(EventFilter, i)
+						Total = Total - 1
+					end
+				end
+
+				if ( not Removed or Total > 0 ) then return end
+			else
+				return
+			end
+		end
+
+		-- Unlink the callback from the parent object
+		local Parent = ParentMap[Object]
+		if ( Parent and Parent[Callback] ) then
+			Parent[Callback] = nil
+			if ( not Next(Parent) ) then ParentMap[Object] = nil end
+		end
+
+		DispatcherUnregister(Callback, Event)
+	end
+end
+
+local function UnregisterAllEvents(Object)
+	for Event in Pairs(ObjectMap) do DispatcherUnregister(Object, Event) end
+end
+
+local function RegisterAllEvents(Object)
+	for Event in Pairs(EventRegistry) do RegisterEvent(Object, Event) end
+end
+
+-- Dispatcher
+EventHandler:SetScript("OnEvent", Dispatcher)
 
 -- Module
-EventHandler.Fire = EventHandler_Fire
-EventHandler.Register = EventHandler_Register
+EventHandler.Define = Define
+EventHandler.Fire = Dispatcher
+EventHandler.RegisterEvent = RegisterEvent
+EventHandler.RegisterUnitEvent = RegisterUnitEvent
+EventHandler.RegisterAllEvents = RegisterAllEvents
+EventHandler.UnregisterEvent = DispatcherUnregister
+EventHandler.UnregisterAllEvents = UnregisterAllEvents
+EventHandler.RegisterEventCallback = RegisterEventCallback
+EventHandler.UnregisterEventCallback = UnregisterEventCallback
+EventHandler.RegisterUnitEventCallback = RegisterUnitEventCallback
+EventHandler.UnregisterUnitEventCallback = UnregisterUnitEventCallback
 
 -- Private Namespace
 Private.EventHandler = EventHandler
-
---[[
-
-	EventHandler: EventTrace Support
-
-]]
-
-local EventTrace = SlashCmdList.EVENTTRACE
-function SlashCmdList.EVENTTRACE(MSG)
-	EventTrace(MSG)
-
-	local ETF = _G["EventTraceFrame"]
-	local function Start()
-		for k in pairs(EVENT_ARCHIVE) do ETF:RegisterEvent(k) end
-	end
-	Start()
-	HookSecureFunc("EventTraceFrame_StartEventCapture", Start)
-	HookSecureFunc("EventTraceFrame_StopEventCapture", function()
-		for k in pairs(EVENT_ARCHIVE) do ETF:UnregisterEvent(k) end
-	end)
-
-	SlashCmdList.EVENTTRACE = EventTrace
-end

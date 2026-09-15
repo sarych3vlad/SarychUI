@@ -296,7 +296,7 @@ function Coordinator:SyncBagsModeFromDB()
 	local addons = AddonsDB()
 	if not modules or not addons then return end
 
-	modules.bags = modules.bags or { enabled = true, mode = "default" }
+	modules.bags = modules.bags or { enabled = true, mode = "elvui" }
 	-- Bagnon_FT: тултипы/учёт предметов по персонажам — совместим с SarychUI Bags, classic и Bagnon UI.
 	-- Не входит в bags.mode; включается отдельным тумблером в списке аддонов.
 	addons.Bagnon_FT = addons.Bagnon_FT or { enabled = true }
@@ -307,7 +307,7 @@ function Coordinator:SyncBagsModeFromDB()
 	end
 	addons.SarychUI_Bags = addons.SarychUI_Bags or { enabled = false }
 
-	local mode = modules.bags.mode or "default"
+	local mode = modules.bags.mode or "elvui"
 	if mode == "classic" then
 		mode = "default"
 		modules.bags.mode = "default"

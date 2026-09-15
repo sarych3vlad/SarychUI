@@ -2,131 +2,128 @@ local _, Private = ...
 
 local _G = _G
 local Type = type
-local Enum = Enum
-local pairs = pairs
+local Pairs = pairs
 local ShowUIPanel = ShowUIPanel
 local HideUIPanel = HideUIPanel
 
 local InteractionManagerFrameInfo
 
-local function InteractionManagerFrameInfoCreate()
-	--[[
-		frame = [REQUIRED][FRAME] - The frame that is intended to open
-		showFunc = [OPTIONAL][FUNCTION] - This will happen when we recieve the event with this type.. If none is specified ShowUIPanel will be called by default.
-		hideFunc = [OPTIONAL][FUNCTION] - This happens on PLAYER_INTERACTION_FRAME_HIDE. If nothing is specified, HideUIPanel will be called. 
-		loadFunc = [OPTIONAL][FUNCTION] - Only need to specify if the frame requires to be loaded before used. 
-	]]
+local function GetInteractionManagerFrameInfo()
+	if ( not InteractionManagerFrameInfo ) then
+		local Interaction = Enum.PlayerInteractionType
 
-	InteractionManagerFrameInfo = {
-		[Enum.PlayerInteractionType.Merchant] = {
-			frame = "MerchantFrame",
-			showFunc = "MerchantFrame_MerchantShow",
-			hideFunc = "MerchantFrame_MerchantClosed",
-			showEvent = "MERCHANT_SHOW",
-			hideEvent = "MERCHANT_CLOSED"
-		},
+		--[[
+			Frame     = [REQUIRED][STRING]   - The global string name of the frame intended to open.
+			ShowFunc  = [OPTIONAL][FUNCTION] - Function or global string name called on open. Defaults to ShowUIPanel.
+			HideFunc  = [OPTIONAL][FUNCTION] - Function or global string name called on close. Defaults to HideUIPanel.
+			LoadFunc  = [OPTIONAL][FUNCTION] - Required only if the frame must be loaded on demand before use.
+			ShowEvent = [OPTIONAL][STRING]   - Client event string that triggers the frame to show.
+			HideEvent = [OPTIONAL][STRING]   - Client event string that triggers the frame to hide.
+		]]
 
-		[Enum.PlayerInteractionType.Banker] = {
-			frame = "BankFrame",
-			showFunc = "BankFrame_Open",
-			showEvent = "BANKFRAME_OPENED",
-			hideEvent = "BANKFRAME_CLOSED"
-		},
-
-		[Enum.PlayerInteractionType.Trainer] = {
-			frame = "ClassTrainerFrame",
-			showFunc = "ClassTrainerFrame_Show",
-			hideFunc = "ClassTrainerFrame_Hide",
-			loadFunc = ClassTrainerFrame_LoadUI,
-			showEvent = "TRAINER_SHOW",
-			hideEvent = "TRAINER_CLOSED"
-		},
-
-		[Enum.PlayerInteractionType.GuildBanker] = {
-			frame = "GuildBankFrame",
-			loadFunc = GuildBankFrame_LoadUI,
-			showEvent = "GUILDBANKFRAME_OPENED",
-			hideEvent = "GUILDBANKFRAME_CLOSED"
-		},
-
-		[Enum.PlayerInteractionType.Registrar] = {
-			frame = "GuildRegistrarFrame"
-		},
-
-		[Enum.PlayerInteractionType.PersonalTabardVendor] = {
-			frame = "TabardFrame",
-			showFunc = "TabardFrame_Open"
-		},
-
-		[Enum.PlayerInteractionType.MailInfo] = {
-			frame = "MailFrame",
-			showFunc = "MailFrame_Show",
-			hideFunc = "MailFrame_Hide",
-			showEvent = "MAIL_SHOW",
-			hideEvent = "MAIL_CLOSED"
-		},
-
-		[Enum.PlayerInteractionType.Auctioneer] = {
-			frame = "AuctionHouseFrame",
-			showEvent = "AUCTION_HOUSE_SHOW",
-			hideEvent = "AUCTION_HOUSE_CLOSED"
+		InteractionManagerFrameInfo = {
+			[Interaction.Merchant] = {
+				Frame = "MerchantFrame",
+				ShowFunc = "MerchantFrame_MerchantShow",
+				HideFunc = "MerchantFrame_MerchantClosed",
+				ShowEvent = "MERCHANT_SHOW",
+				HideEvent = "MERCHANT_CLOSED"
+			},
+			[Interaction.Banker] = {
+				Frame = "BankFrame",
+				ShowFunc = "BankFrame_Open",
+				ShowEvent = "BANKFRAME_OPENED",
+				HideEvent = "BANKFRAME_CLOSED"
+			},
+			[Interaction.Trainer] = {
+				Frame = "ClassTrainerFrame",
+				ShowFunc = "ClassTrainerFrame_Show",
+				HideFunc = "ClassTrainerFrame_Hide",
+				LoadFunc = ClassTrainerFrame_LoadUI,
+				ShowEvent = "TRAINER_SHOW",
+				HideEvent = "TRAINER_CLOSED"
+			},
+			[Interaction.GuildBanker] = {
+				Frame = "GuildBankFrame",
+				LoadFunc = GuildBankFrame_LoadUI,
+				ShowEvent = "GUILDBANKFRAME_OPENED",
+				HideEvent = "GUILDBANKFRAME_CLOSED"
+			},
+			[Interaction.Registrar] = {
+				Frame = "GuildRegistrarFrame"
+			},
+			[Interaction.GuildTabardVendor] = {
+				Frame = "TabardFrame",
+				ShowFunc = "TabardFrame_Open"
+			},
+			[Interaction.MailInfo] = {
+				Frame = "MailFrame",
+				ShowFunc = "MailFrame_Show",
+				HideFunc = "MailFrame_Hide",
+				ShowEvent = "MAIL_SHOW",
+				HideEvent = "MAIL_CLOSED"
+			},
+			[Interaction.Auctioneer] = {
+				Frame = "AuctionHouseFrame",
+				ShowEvent = "AUCTION_HOUSE_SHOW",
+				HideEvent = "AUCTION_HOUSE_CLOSED"
+			}
 		}
-	}
+	end
+
+	return InteractionManagerFrameInfo
 end
 
 local PlayerInteractionFrameManagerMixin = PlayerInteractionFrameManagerMixin or {}
 
-function PlayerInteractionFrameManagerMixin:ShowFrame(interactionType)
-	if ( not InteractionManagerFrameInfo ) then
-		InteractionManagerFrameInfoCreate()
-	end
-
-	local frameInfo = InteractionManagerFrameInfo[interactionType]
-	if not frameInfo then
+function PlayerInteractionFrameManagerMixin:ShowFrame(InteractionType)
+	local FrameInfo = GetInteractionManagerFrameInfo()[InteractionType]
+	if ( not FrameInfo ) then
 		return
-	end 
-
-	if frameInfo.loadFunc and not _G[frameInfo.frame] then
-		frameInfo.loadFunc()
 	end
 
-	if frameInfo.showFunc then
-		if Type(frameInfo.showFunc) == "string" then
-			frameInfo.showFunc = _G[frameInfo.showFunc]
+	local FrameName = FrameInfo.Frame
+	if ( FrameInfo.LoadFunc and not _G[FrameName] ) then
+		FrameInfo.LoadFunc()
+	end
+
+	local ShowFunc = FrameInfo.ShowFunc
+	if ( ShowFunc ) then
+		if ( Type(ShowFunc) == "string" ) then
+			ShowFunc = _G[ShowFunc]
+			FrameInfo.ShowFunc = ShowFunc
 		end
-		if frameInfo.showFunc then
-			frameInfo.showFunc()
+		if ( ShowFunc ) then
+			ShowFunc()
 		end
 	else
-		ShowUIPanel(_G[frameInfo.frame], frameInfo.forceShow)
+		ShowUIPanel(_G[FrameName], FrameInfo.ForceShow)
 	end
 end
 
-function PlayerInteractionFrameManagerMixin:HideFrame(interactionType)
-	if ( not InteractionManagerFrameInfo ) then
-		InteractionManagerFrameInfoCreate()
-	end
-
-	local frameInfo = InteractionManagerFrameInfo[interactionType]
-	if not frameInfo then
+function PlayerInteractionFrameManagerMixin:HideFrame(InteractionType)
+	local FrameInfo = GetInteractionManagerFrameInfo()[InteractionType]
+	if ( not FrameInfo ) then
 		return
 	end
 
-	-- The frame isn't loaded, so nothing to hide.
-	if not _G[frameInfo.frame] then
+	local Frame = _G[FrameInfo.Frame]
+	if ( not Frame ) then
 		return
 	end
 
-	if frameInfo.hideFunc then
-		if Type(frameInfo.hideFunc) == "string" then
-			frameInfo.hideFunc = _G[frameInfo.hideFunc]
+	local HideFunc = FrameInfo.HideFunc
+	if ( HideFunc ) then
+		if ( Type(HideFunc) == "string" ) then
+			HideFunc = _G[HideFunc]
+			FrameInfo.HideFunc = HideFunc
 		end
-		if frameInfo.hideFunc then
-			frameInfo.hideFunc()
+		if ( HideFunc ) then
+			HideFunc()
 		end
 	else
-		HideUIPanel(_G[frameInfo.frame])
-	end			
+		HideUIPanel(Frame)
+	end
 end
 
 function PlayerInteractionFrameManagerMixin:OnLoad()
@@ -134,11 +131,11 @@ function PlayerInteractionFrameManagerMixin:OnLoad()
 	self:RegisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_HIDE")
 end
 
-function PlayerInteractionFrameManagerMixin:OnEvent(event, type) 
-	if (event == "PLAYER_INTERACTION_MANAGER_FRAME_SHOW") then
-		self:ShowFrame(type)
-	elseif (event == "PLAYER_INTERACTION_MANAGER_FRAME_HIDE") then
-		self:HideFrame(type)
+function PlayerInteractionFrameManagerMixin:OnEvent(Event, InteractionType)
+	if ( Event == "PLAYER_INTERACTION_MANAGER_FRAME_SHOW" ) then
+		self:ShowFrame(InteractionType)
+	elseif ( Event == "PLAYER_INTERACTION_MANAGER_FRAME_HIDE" ) then
+		self:HideFrame(InteractionType)
 	end
 end
 
@@ -146,66 +143,49 @@ end
 
 local EventHandler = Private.EventHandler
 local EventHandler_Fire = EventHandler.Fire
-local EventHandler_Register = EventHandler.Register
+local EventHandler_Define = EventHandler.Define
 
 local PlayerInteractionFrameManager = PlayerInteractionFrameManager or CreateFrame("Frame")
 PlayerInteractionFrameManager.ShowFrame = PlayerInteractionFrameManagerMixin.ShowFrame
 PlayerInteractionFrameManager.HideFrame = PlayerInteractionFrameManagerMixin.HideFrame
 
 PlayerInteractionFrameManager:SetScript("OnEvent", function(Self, Event)
-	local Type = Self.__Show[Event]
-	if ( Type ) then
-		EventHandler_Fire(nil, "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", Type)
-	else
-		local Type = Self.__Hide[Event]
-		if ( Type ) then
-			EventHandler_Fire(nil, "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", Type)
+	local FrameInfoTable = GetInteractionManagerFrameInfo()
+
+	for Enum, Meta in Pairs(FrameInfoTable) do
+		if ( Meta.ShowEvent == Event ) then
+			EventHandler_Fire(nil, "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", Enum)
+			return
+		elseif ( Meta.HideEvent == Event ) then
+			EventHandler_Fire(nil, "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", Enum)
+			return
 		end
 	end
 end)
 
 local function PLAYER_INTERACTION_MANAGER_FRAME_EH(Trigger, Event)
-	local EventMapType = Event == "PLAYER_INTERACTION_MANAGER_FRAME_SHOW" and "__Show" or "__Hide"
-	local EventMap = PlayerInteractionFrameManager[EventMapType]
+	local IsShow = (Event == "PLAYER_INTERACTION_MANAGER_FRAME_SHOW")
+	local EventField = IsShow and "ShowEvent" or "HideEvent"
+	local FrameInfoTable = GetInteractionManagerFrameInfo()
 
-	if ( Trigger == "OnRegister" ) then
-		if ( EventMap ) then
-			return
-		else
-			EventMap = {}
-			PlayerInteractionFrameManager[EventMapType] = EventMap
-
-			if ( not InteractionManagerFrameInfo ) then
-				InteractionManagerFrameInfoCreate()
-			end
-		end
-	end
-
-	local EventIndex = EventMapType == "__Show" and "showEvent" or "hideEvent"
-
-	for Enum, Meta in pairs(InteractionManagerFrameInfo) do
-		local Event = Meta[EventIndex]
-		if ( Event ) then
+	for Enum, Meta in Pairs(FrameInfoTable) do
+		local SubEvent = Meta[EventField]
+		if ( SubEvent ) then
 			if ( Trigger == "OnRegister" ) then
-				PlayerInteractionFrameManager:RegisterEvent(Event)
-				EventMap[Event] = Enum
+				PlayerInteractionFrameManager:RegisterEvent(SubEvent)
 			else
-				PlayerInteractionFrameManager:UnregisterEvent(Event)
+				PlayerInteractionFrameManager:UnregisterEvent(SubEvent)
 			end
 		end
-	end
-
-	if ( Trigger == "OnUnregister" ) then
-		PlayerInteractionFrameManager[EventMapType] = nil
 	end
 end
 
-EventHandler_Register("Event", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW")
-EventHandler_Register("Event", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE")
-EventHandler_Register("OnRegister", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", PLAYER_INTERACTION_MANAGER_FRAME_EH)
-EventHandler_Register("OnUnregister", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", PLAYER_INTERACTION_MANAGER_FRAME_EH)
-EventHandler_Register("OnRegister", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", PLAYER_INTERACTION_MANAGER_FRAME_EH)
-EventHandler_Register("OnUnregister", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", PLAYER_INTERACTION_MANAGER_FRAME_EH)
+EventHandler_Define("Event", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW")
+EventHandler_Define("Event", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE")
+EventHandler_Define("OnRegister", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", PLAYER_INTERACTION_MANAGER_FRAME_EH)
+EventHandler_Define("OnUnregister", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", PLAYER_INTERACTION_MANAGER_FRAME_EH)
+EventHandler_Define("OnRegister", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", PLAYER_INTERACTION_MANAGER_FRAME_EH)
+EventHandler_Define("OnUnregister", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", PLAYER_INTERACTION_MANAGER_FRAME_EH)
 
 -- Global
 _G.PlayerInteractionFrameManagerMixin = PlayerInteractionFrameManagerMixin

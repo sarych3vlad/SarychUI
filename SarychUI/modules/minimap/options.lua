@@ -80,6 +80,23 @@ local function isOn(key)
 	return v == 1 or v == true
 end
 
+local function WriteMinimapOffset(axis, value)
+	local mdb = module.addon.db.profile.modules[moduleName]
+	if not mdb then return end
+	if axis == "x" then
+		mdb.offsetX = value
+		mdb.minimapX = value
+		mdb.minimapSavedX = value
+	else
+		mdb.offsetY = value
+		mdb.minimapY = value
+		mdb.minimapSavedY = value
+	end
+	if module.ApplySettings then
+		module:ApplySettings()
+	end
+end
+
 function module:BuildAddonButtonIconOptions()
 	if SarychUI_ProfileOptionsStage then
 		return SarychUI_ProfileOptionsStage("minimap.BuildAddonButtonIconOptions", module._BuildAddonButtonIconOptionsImpl, module)
@@ -394,8 +411,7 @@ function module:GetOptions()
 								min = -500, max = 500, step = 1,
 								get = function() return self.addon.db.profile.modules[moduleName].offsetX or 0 end,
 								set = function(_, value)
-									self.addon.db.profile.modules[moduleName].offsetX = value
-									if self.ApplySettings then self:ApplySettings() end
+									WriteMinimapOffset("x", value)
 								end,
 								hidden = function() return not isOn("positioningEnabled") end,
 							},
@@ -406,8 +422,7 @@ function module:GetOptions()
 								min = -500, max = 500, step = 1,
 								get = function() return self.addon.db.profile.modules[moduleName].offsetY or 0 end,
 								set = function(_, value)
-									self.addon.db.profile.modules[moduleName].offsetY = value
-									if self.ApplySettings then self:ApplySettings() end
+									WriteMinimapOffset("y", value)
 								end,
 								hidden = function() return not isOn("positioningEnabled") end,
 							},

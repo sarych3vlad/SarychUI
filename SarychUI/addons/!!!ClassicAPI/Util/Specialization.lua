@@ -9,8 +9,6 @@ local CheckInteractDistance = CheckInteractDistance
 local EventHandler = Private.EventHandler
 local EventHandler_Fire = EventHandler.Fire
 
--- TODO: Make asynchronous? Store details in a cache and process it.
-
 --[[ EventHandler: INSPECT_READY ]]
 
 local INSPECT_READY = CreateFrame("Frame")
@@ -29,7 +27,7 @@ local function InspectReady(_, Event)
 	INSPECT_READY.Queued = nil
 end
 
-EventHandler.Register("Event", "INSPECT_READY")
+EventHandler.Define("Event", "INSPECT_READY")
 HookSecureFunc("NotifyInspect", InspectNotify)
 HookSecureFunc("ClearInspectPlayer", InspectReady)
 INSPECT_READY:SetScript("OnEvent", InspectReady)

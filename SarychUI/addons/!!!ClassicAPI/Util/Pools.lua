@@ -1,3 +1,5 @@
+if ObjectPoolMixin then return end
+
 local next = next
 local tostring = tostring
 local type = type

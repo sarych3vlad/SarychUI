@@ -42,11 +42,17 @@ local function GetSliderUpdater()
 	return f
 end
 
+local FlushPendingOptionsValueSync
+
 local function FlushPendingOptionsRefresh()
 	if not SUI._pendingOptionsRefresh then
 		return
 	end
 	if SUI._optionsSliderDragging or SUI._optionsTextEditing then
+		return
+	end
+	-- Nested rebuild while RenderCurrentContent/ClearContent is live tears the window.
+	if SUI.OptionsCore and SUI.OptionsCore._rendering then
 		return
 	end
 	-- Clear first so NotifySarychUIOptionsChange does not re-defer.
@@ -55,6 +61,37 @@ local function FlushPendingOptionsRefresh()
 		SUI:NotifySarychUIOptionsChange()
 	end
 end
+
+-- Focus-lost on 3.3.5 often fires while ClearContent is destroying the edit box.
+-- Flush on the next frame so navigation/rebuild is not re-entered mid-render.
+local function ScheduleFlushAfterEdit()
+	if W._flushAfterEditScheduled then
+		return
+	end
+	W._flushAfterEditScheduled = true
+	local f = CreateFrame("Frame")
+	f:SetScript("OnUpdate", function(self)
+		self:SetScript("OnUpdate", nil)
+		W._flushAfterEditScheduled = nil
+		if SUI.OptionsCore and SUI.OptionsCore._rendering then
+			return
+		end
+		FlushPendingOptionsRefresh()
+		FlushPendingOptionsValueSync()
+	end)
+end
+
+local function BeginOptionsTextEdit()
+	SUI._optionsTextEditing = true
+end
+
+local function EndOptionsTextEdit()
+	SUI._optionsTextEditing = nil
+	ScheduleFlushAfterEdit()
+end
+
+-- Defined below, but the drag updater calls it.
+local EndOptionsSliderDrag
 
 local function BeginOptionsSliderDrag(row, onTick, onStop)
 	SUI._optionsSliderDragging = true
@@ -89,7 +126,7 @@ local function BeginOptionsSliderDrag(row, onTick, onStop)
 	end
 end
 
-local function EndOptionsSliderDrag()
+function EndOptionsSliderDrag()
 	local f = W._sliderUpdater
 	if f then
 		f:SetScript("OnUpdate", nil)
@@ -162,8 +199,13 @@ local function SyncWidgetTree(frame)
 	if not frame then
 		return
 	end
-	if frame._suiValueWidget and type(frame.Refresh) == "function" then
-		-- Skip the widget the user is actively editing.
+	if type(frame._suiGetDisabled) == "function" and type(frame.SetDisabled) == "function" then
+		SafeCall(frame.SetDisabled, frame, frame._suiGetDisabled())
+	end
+	-- Every widget that can re-read its own value does so here: checkbox, slider,
+	-- dropdown, input, color, keybinding, dynamic labels. Each Refresh already
+	-- bails out while its own control is busy (focus / drag / waiting for a key).
+	if type(frame.Refresh) == "function" then
 		if not (frame._dragging or (frame.edit and frame.edit.HasFocus and frame.edit:HasFocus())) then
 			SafeCall(frame.Refresh, frame)
 		end
@@ -189,9 +231,27 @@ function SUI:SyncOpenOptionsValues()
 	end
 end
 
-local function FlushPendingOptionsValueSync()
+FlushPendingOptionsValueSync = function()
 	if SUI._pendingOptionsValueSync and SUI.SyncOpenOptionsValues then
 		SUI:SyncOpenOptionsValues()
+	end
+end
+
+-- Apply a module's live (in-game) settings after an options change.
+-- Preview widgets update separately; this is what actually changes the UI.
+function SUI.ApplyLiveModule(mod)
+	if type(mod) == "string" then
+		mod = SUI.GetModule and SUI:GetModule(mod, true) or (SUI.modules and SUI.modules[mod])
+	end
+	if not mod then
+		return
+	end
+	if type(mod.ApplySettings) == "function" then
+		mod:ApplySettings()
+	elseif type(mod.ApplyAllSettings) == "function" then
+		mod:ApplyAllSettings()
+	elseif type(mod.RefreshConfig) == "function" then
+		mod:RefreshConfig()
 	end
 end
 
@@ -508,6 +568,17 @@ function W:Description(parent, text)
 		end
 	end
 
+	f.SetDynamicText = function(self, text)
+		text = text or ""
+		if fs:GetText() == text then return end
+		fs:SetText(text)
+		local before = self:GetHeight() or 0
+		self:MeasureHeight(self:GetWidth())
+		if math.abs((self:GetHeight() or 0) - before) > 0.5 then
+			BubbleHeightChange(self)
+		end
+	end
+
 	f:SetScript("OnSizeChanged", function(self, width)
 		if self._measureLock then return end
 		-- Skip pre-layout tiny widths — they produce huge wrap that sticks until reselect.
@@ -725,7 +796,7 @@ function W:Header(parent, text, tooltipFn, iconPath, helpIcon)
 	return f
 end
 
-function W:Button(parent, text, onClick, tooltipFn)
+function W:Button(parent, text, onClick, tooltipFn, nameFn)
 	local btn = CreateFrame("Button", nil, parent)
 	btn:SetHeight(24)
 	btn:SetWidth(120)
@@ -733,6 +804,16 @@ function W:Button(parent, text, onClick, tooltipFn)
 	local fs = MakeLabel(btn, text, T.fonts.normal)
 	fs:SetPoint("CENTER")
 	btn.label = fs
+	if type(nameFn) == "function" then
+		btn._suiValueWidget = true
+		btn._nameFn = nameFn
+		btn.Refresh = function(self)
+			local n = SafeCall(self._nameFn)
+			if n ~= nil and self.label then
+				self.label:SetText(tostring(n))
+			end
+		end
+	end
 	btn:SetScript("OnEnter", function(self)
 		if self._disabled then return end
 		T:ApplyFlat(self, T.colors.buttonHover, T.colors.accent)
@@ -1359,22 +1440,17 @@ function W:Slider(parent, text, minV, maxV, step, get, set, previewKey, tooltipF
 	end)
 
 	edit:SetScript("OnEditFocusGained", function()
-		SUI._optionsTextEditing = true
+		BeginOptionsTextEdit()
 	end)
 	edit:SetScript("OnEnterPressed", function()
 		CommitTyped()
 		edit:ClearFocus()
 	end)
 	edit:SetScript("OnEditFocusLost", function()
-		SUI._optionsTextEditing = nil
-		if row._disabled or row._committing or row._dragging then
-			FlushPendingOptionsRefresh()
-			FlushPendingOptionsValueSync()
-			return
+		if not (row._disabled or row._committing or row._dragging) then
+			CommitTyped()
 		end
-		CommitTyped()
-		FlushPendingOptionsRefresh()
-		FlushPendingOptionsValueSync()
+		EndOptionsTextEdit()
 	end)
 	edit:SetScript("OnEscapePressed", function(self)
 		if row._dragging then return end
@@ -1436,12 +1512,11 @@ function W:Input(parent, text, get, set)
 	end
 
 	edit:SetScript("OnEditFocusGained", function()
-		SUI._optionsTextEditing = true
+		BeginOptionsTextEdit()
 	end)
 	edit:SetScript("OnEnterPressed", Commit)
 	edit:SetScript("OnEditFocusLost", function()
-		SUI._optionsTextEditing = nil
-		FlushPendingOptionsRefresh()
+		EndOptionsTextEdit()
 	end)
 	edit:SetScript("OnEscapePressed", function(self)
 		row:Refresh()
@@ -1510,6 +1585,7 @@ function W:InputWithButton(parent, text, buttonText, get, set, clearOnSave)
 
 	local function Commit()
 		local value = edit:GetText()
+		SUI._optionsTextEditing = nil
 		SafeCall(set, value)
 		if clearOnSave then
 			edit:SetText("")
@@ -1532,12 +1608,11 @@ function W:InputWithButton(parent, text, buttonText, get, set, clearOnSave)
 	end)
 
 	edit:SetScript("OnEditFocusGained", function()
-		SUI._optionsTextEditing = true
+		BeginOptionsTextEdit()
 	end)
 	edit:SetScript("OnEnterPressed", Commit)
 	edit:SetScript("OnEditFocusLost", function()
-		SUI._optionsTextEditing = nil
-		FlushPendingOptionsRefresh()
+		EndOptionsTextEdit()
 	end)
 	edit:SetScript("OnEscapePressed", function(self)
 		row:Refresh()
@@ -1572,17 +1647,26 @@ end
 
 local function FlushDeferredOptionsRefresh()
 	local OC = SUI.OptionsCore
-	if not OC or not OC._refreshAfterDropdown then
+	if not OC then
+		return
+	end
+	-- A set() made from the open list defers its refresh; closing is the retry point.
+	if not OC._refreshAfterDropdown and not SUI._pendingOptionsRefresh then
 		return
 	end
 	OC._refreshAfterDropdown = nil
-	if OC._open and OC.Refresh then
+	if OC._open then
 		-- Next frame: avoid re-entrancy from ClearContent → CloseOpenDropdown.
 		local f = CreateFrame("Frame")
 		f:SetScript("OnUpdate", function(self)
 			self:SetScript("OnUpdate", nil)
-			if OC._open and OC.Refresh and not W:IsDropdownOpen() then
-				OC:Refresh()
+			if OC._open and not W:IsDropdownOpen() then
+				SUI._pendingOptionsRefresh = nil
+				if OC.SmartRefresh then
+					OC:SmartRefresh()
+				elseif OC.Refresh then
+					OC:Refresh()
+				end
 			end
 		end)
 	end
@@ -1630,7 +1714,7 @@ function W:CloseOpenDropdown(opts)
 end
 
 -- One-row: select (left) + edit box + action button (right).
-function W:SelectInputButton(parent, selectLabel, valuesFn, getType, setType, inputLabel, getInput, setInput, buttonText)
+function W:SelectInputButton(parent, selectLabel, valuesFn, getType, setType, inputLabel, getInput, setInput, buttonText, onDraft)
 	local row = CreateFrame("Frame", nil, parent)
 	row:SetHeight(40)
 
@@ -1770,18 +1854,50 @@ function W:SelectInputButton(parent, selectLabel, valuesFn, getType, setType, in
 		T:ApplyFlat(self, T.colors.buttonBg, T.colors.borderSoft)
 	end)
 
+	row.edit = edit
+
 	row.Refresh = function(self)
 		RefreshType()
-		local v = SafeCall(getInput)
+		if edit:HasFocus() then
+			return
+		end
+		local v = row._draft
+		if v == nil then
+			v = SafeCall(getInput)
+		end
 		edit:SetText(v ~= nil and tostring(v) or "")
+	end
+
+	local function RememberDraft(text)
+		row._draft = text or ""
+		if type(onDraft) == "function" then
+			SafeCall(onDraft, row._draft)
+		end
 	end
 
 	local function Commit()
 		local value = edit:GetText()
+		row._draft = nil
+		-- Drop the typing guard first so Add/Enter can rebuild the spell list now.
+		SUI._optionsTextEditing = nil
 		SafeCall(setInput, value)
 		edit:SetText("")
 		edit:ClearFocus()
 	end
+
+	edit:SetScript("OnTextChanged", function(self, userInput)
+		if not userInput then
+			return
+		end
+		RememberDraft(self:GetText())
+	end)
+	edit:SetScript("OnEditFocusGained", function()
+		BeginOptionsTextEdit()
+	end)
+	edit:SetScript("OnEditFocusLost", function()
+		RememberDraft(edit:GetText())
+		EndOptionsTextEdit()
+	end)
 
 	addBtn:SetScript("OnEnter", function(self)
 		if self._disabled then return end
@@ -1796,7 +1912,9 @@ function W:SelectInputButton(parent, selectLabel, valuesFn, getType, setType, in
 	end)
 	edit:SetScript("OnEnterPressed", Commit)
 	edit:SetScript("OnEscapePressed", function(self)
-		row:Refresh()
+		row._draft = nil
+		local v = SafeCall(getInput)
+		edit:SetText(v ~= nil and tostring(v) or "")
 		self:ClearFocus()
 	end)
 

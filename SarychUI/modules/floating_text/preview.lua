@@ -377,7 +377,7 @@ function BossPreview:Create(parent)
 	local function Layout()
 		local db = FloatingTextDB() or {}
 		local enabled = LiveOrDb(BossPreview._live, db, "enableRaidBossEmoteReposition", db.enableRaidBossEmoteReposition or 0)
-		local offsetY = LiveOrDb(BossPreview._live, db, "raidBossEmoteOffsetY", -430)
+		local offsetY = LiveOrDb(BossPreview._live, db, "raidBossEmoteOffsetY", -600)
 		local maxWidth = LiveOrDb(BossPreview._live, db, "raidBossEmoteMaxWidth", 600)
 
 		local y = OffsetToPreviewY(offsetY + 430, 22)
@@ -818,7 +818,7 @@ function CombatPreview:Create(parent)
 	local function Layout()
 		local master = CombatFlag("enableHealCombatTextAdjust", true)
 		local shiftPlus = master and CombatFlag("healShiftPlus", true)
-		local shiftMinus = master and CombatFlag("healShiftMinus", false)
+		local shiftMinus = master and CombatFlag("healShiftMinus", true)
 		local hideLess = master and CombatFlag("healHideLess", true)
 		local shiftLess = master and CombatFlag("healShiftLess", true) and not hideLess
 
@@ -826,10 +826,10 @@ function CombatPreview:Create(parent)
 		local minusX, minusY = 0, 0
 		local lessX, lessY = 0, 0
 		if shiftPlus then
-			plusX, plusY = CombatOffsetPx(stage, CombatLive("healPlusX", -200), CombatLive("healPlusY", -70))
+			plusX, plusY = CombatOffsetPx(stage, CombatLive("healPlusX", -467), CombatLive("healPlusY", -45))
 		end
 		if shiftMinus then
-			minusX, minusY = CombatOffsetPx(stage, CombatLive("healMinusX", 0), CombatLive("healMinusY", 0))
+			minusX, minusY = CombatOffsetPx(stage, CombatLive("healMinusX", 0), CombatLive("healMinusY", -50))
 		end
 		if shiftLess then
 			lessX, lessY = CombatOffsetPx(stage, CombatLive("healLessX", -250), CombatLive("healLessY", -30))

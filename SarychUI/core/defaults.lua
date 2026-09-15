@@ -291,14 +291,14 @@ SarychUI.defaults = {
             -- Bags module
             bags = {
                 enabled = true,
-                mode = "default", -- "default" | "elvui" | "baudbag"
+                mode = "elvui", -- "default" | "elvui" | "baudbag"
                 enableBagSearch = true,
                 elvui = {
                     showKeyring = true,
                     vendorGraysAuto = false,
                     disableBagSort = false,
                     -- classic = 3 toggles below; adibags = AdiBags-like sections + sort
-                    splitMode = "classic",
+                    splitMode = "adibags",
                     -- When splitMode is adibags: toolbar toggle for category headers (does not fall back to classic)
                     adiBagsCategories = true,
                     consumableSplit = false,
@@ -317,7 +317,7 @@ SarychUI.defaults = {
                     -- When AdiBags «категории предметов» are on
                     categoriesBackgroundAlpha = 0.85,
                     -- Reuse Dragonflight quest-tracker header strip on bag/bank title bar
-                    dragonflightHeader = true,
+                    dragonflightHeader = false,
                     bagColumns = 10,
                     bankColumns = 10,
                     bagFont = "Arial Narrow",
@@ -427,13 +427,13 @@ SarychUI.defaults = {
 				-- Combat text
 				enableHealCombatTextAdjust = 1,
 				healShiftPlus = 1,
-				healShiftMinus = 0,
+				healShiftMinus = 1,
 				healShiftLess = 1,
 				healHideLess = 1,
-				healPlusX = -200,
-				healPlusY = -70,
+				healPlusX = -467,
+				healPlusY = -45,
 				healMinusX = 0,
-				healMinusY = 0,
+				healMinusY = -50,
 				healLessX = -250,
 				healLessY = -30,
 				combatTextPlusDrag = 0,
@@ -441,7 +441,7 @@ SarychUI.defaults = {
 				combatTextLessDrag = 0,
 				-- Raid boss emotes
 				enableRaidBossEmoteReposition = 1,
-				raidBossEmoteOffsetY = -430,
+				raidBossEmoteOffsetY = -600,
 				raidBossEmoteMaxWidth = 600,
 			},
 			
@@ -486,7 +486,7 @@ SarychUI.defaults = {
 				microMenuAlphaEnabled = true,
 				microMenuAlpha = 0.95,
 				-- classic | dragonflight (только текстуры микроменю)
-				microMenuStyle = "classic",
+				microMenuStyle = "dragonflight",
 				-- DF only: hide latency pip while green; show on yellow/red
 				microMenuHideGreenLatency = true,
 				hideReputationBar = true,
@@ -696,7 +696,7 @@ SarychUI.defaults = {
 				itemRefIconsEnabled = 1,
 				
 				-- Chat Abbreviation settings: empty = Blizzard default channel name (no rewrite)
-				lfgAbbrev = "",
+				lfgAbbrev = "[Поиск]",
 				abbrGuild = "",
 				abbrOfficer = "",
 				abbrParty = "",
@@ -970,7 +970,7 @@ SarychUI.defaults = {
 						shadowY = -1,
 						offsetX = -6,
 						offsetY = 1,
-						anchorToName = false,
+						anchorToName = true,
 						-- When ElvUI shows a totem as IconFrame (icon-only), anchor distance left of the icon.
 						totemSupport = true,
 					},
@@ -995,7 +995,7 @@ SarychUI.defaults = {
 			},
 			-- SarychUI Bags (bags mode: elvui)
 			SarychUI_Bags = {
-				enabled = false,
+				enabled = true,
 			},
 			-- _Cursor (embedded)
 			["_Cursor"] = {
@@ -1179,7 +1179,7 @@ local function MigrateProfileDefaults(profile)
 			bagsDb.elvui.showItemLevel = false
 		end
 		if bagsDb.elvui.splitMode == nil then
-			bagsDb.elvui.splitMode = bagsDefaults.elvui.splitMode or "classic"
+			bagsDb.elvui.splitMode = bagsDefaults.elvui.splitMode or "adibags"
 		elseif bagsDb.elvui.splitMode ~= "adibags" then
 			bagsDb.elvui.splitMode = "classic"
 		end
@@ -1227,7 +1227,7 @@ local function MigrateProfileDefaults(profile)
 			bagsDb.elvui.scale = bagsDefaults.elvui.scale or 1.05
 		end
 		if bagsDb.elvui.dragonflightHeader == nil then
-			bagsDb.elvui.dragonflightHeader = bagsDefaults.elvui.dragonflightHeader ~= false
+			bagsDb.elvui.dragonflightHeader = bagsDefaults.elvui.dragonflightHeader == true
 		end
 		-- One-shot: previous window alpha default was 0.85 → 0.65; add categories alpha.
 		if bagsDb.elvui._windowAlphaDefaultsRev ~= 1 then
@@ -1315,6 +1315,17 @@ local function MigrateProfileDefaults(profile)
 		end
 		if mapDb.mapType == nil then
 			mapDb.mapType = mapDefaults.mapType
+		end
+	end
+
+	local mmbDb = profile.modules and profile.modules.mainmenubar
+	local mmbDefaults = SarychUI.defaults.profile.modules.mainmenubar
+	if mmbDb and mmbDefaults then
+		if mmbDb.microMenuStyle == nil then
+			mmbDb.microMenuStyle = mmbDefaults.microMenuStyle
+		end
+		if mmbDb.microMenuHideGreenLatency == nil then
+			mmbDb.microMenuHideGreenLatency = mmbDefaults.microMenuHideGreenLatency
 		end
 	end
 	
@@ -1481,6 +1492,9 @@ local function MigrateProfileDefaults(profile)
 
 	local chatDb = modules and modules.chat
 	local chatDef = SarychUI.defaults.profile.modules.chat
+	if chatDb and chatDef and chatDb.lfgAbbrev == nil then
+		chatDb.lfgAbbrev = chatDef.lfgAbbrev or "[Поиск]"
+	end
 	if chatDb and chatDef and chatDef.chatWheel then
 		if type(chatDb.chatWheel) ~= "table" then
 			chatDb.chatWheel = CopyTable(chatDef.chatWheel)

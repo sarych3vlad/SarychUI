@@ -1535,10 +1535,14 @@ end
 
 local function IsDragonflightBagHeaderEnabled()
 	local elvui = GetBagsElvuiDb()
-	if elvui and elvui.dragonflightHeader == false then
-		return false
+	if elvui and elvui.dragonflightHeader ~= nil then
+		return elvui.dragonflightHeader and true or false
 	end
-	return true
+	local def = SarychUI and SarychUI.defaults and SarychUI.defaults.profile
+		and SarychUI.defaults.profile.modules
+		and SarychUI.defaults.profile.modules.bags
+		and SarychUI.defaults.profile.modules.bags.elvui
+	return def and def.dragonflightHeader == true
 end
 
 local function GetBagTitleBarH()

@@ -9,27 +9,26 @@ local C_Container = C_Container or {}
 local Tooltip = Private.Tooltip
 
 function C_Container.GetContainerItemInfo(ContainerIndex, SlotIndex)
-	local Icon, Stack, Locked, Quality, Readable = GetContainerItemInfo(ContainerIndex, SlotIndex)
+	local Icon, Stack, Locked, Quality, Readable, _, Link = GetContainerItemInfo(ContainerIndex, SlotIndex)
+	if ( not Icon ) then return end
 
-	if ( Icon ) then
-		Tooltip:ClearLines()
-		Tooltip:SetBagItem(ContainerIndex, SlotIndex)
-		local Line = _G["__CAPIScanTooltipTextLeft2"]
+	Tooltip:ClearLines()
+	Tooltip:SetBagItem(ContainerIndex, SlotIndex)
+	local Line = _G["CAPI_ScanTooltipTextLeft2"]
 
-		return {
-			iconFileID = Icon,
-			stackCount = Stack,
-			isLocked = Locked,
-			quality = Quality,
-			isReadable = Readable,
-			hasLoot = false,
-			hyperlink = C_Container.GetContainerItemLink(ContainerIndex, SlotIndex),
-			isFiltered = false,
-			hasNoValue = false,
-			itemID = C_Container.GetContainerItemID(ContainerIndex, SlotIndex),
-			isBound = Line and Line:GetText() == ITEM_SOULBOUND
-		}
-	end
+	return {
+		iconFileID = Icon,
+		stackCount = Stack,
+		isLocked = Locked,
+		quality = Quality,
+		isReadable = Readable,
+		hasLoot = false,
+		hyperlink = Link,
+		isFiltered = false,
+		hasNoValue = false,
+		itemID = C_Container.GetContainerItemID(ContainerIndex, SlotIndex),
+		isBound = Line and Line:GetText() == ITEM_SOULBOUND
+	}
 end
 
 function C_Container.GetMaxArenaCurrency()
@@ -63,6 +62,7 @@ C_Container.GetContainerNumFreeSlots = GetContainerNumFreeSlots
 C_Container.ContainerIDToInventoryID = ContainerIDToInventoryID
 C_Container.GetContainerItemDurability = GetContainerItemDurability
 
+C_Container.SetItemSearch = Private.Void
 C_Container.UseHearthstone = Private.Void
 C_Container.IsBattlePayItem = Private.False
 C_Container.IsContainerFiltered = Private.False
@@ -72,7 +72,6 @@ C_Container.SetBackpackAutosortDisabled = Private.False
 --[[
 C_Container.SortBags
 C_Container.SortBankBags
-C_Container.SetItemSearch
 C_Container.GetBagSlotFlag
 C_Container.SetBagSlotFlag
 C_Container.SocketContainerItem
@@ -96,4 +95,3 @@ C_Container.GetContainerItemPurchaseCurrency
 
 -- Global
 _G.C_Container = C_Container
-_G.C_GetContainerItemInfo = C_Container.GetContainerItemInfo
