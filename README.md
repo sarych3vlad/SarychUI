@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://discord.gg/Thyh85WfmP"><strong>Discord</strong></a>
   &nbsp;•&nbsp;
-  <a href="https://www.youtube.com/@sarych3vlad413"><strong>YouTube Guide / Видеогайд</strong></a>
+  <a href="https://youtu.be/wvoK7YzF3b4"><strong>YouTube Guide / Видеогайд</strong></a>
 </p>
 
 ---
@@ -26,7 +26,7 @@ A complete setup and configuration guide is available on **YouTube**.
 Additional **MPQ patches, client patches, DLLs, tools, and other modifications** can be found on the Discord server.
 
 **Discord:** https://discord.gg/Thyh85WfmP
-**YouTube Guide:** https://www.youtube.com/@sarych3vlad413
+**YouTube Guide:** https://youtu.be/wvoK7YzF3b4
 
 ---
 
@@ -39,4 +39,4 @@ Additional **MPQ patches, client patches, DLLs, tools, and other modifications**
 Дополнительные **MPQ-патчи, патчи клиента, DLL, инструменты и другие модификации** можно найти на Discord-сервере.
 
 **Discord:** https://discord.gg/Thyh85WfmP
-**Видеогайд:** https://www.youtube.com/@sarych3vlad413
+**Видеогайд:** https://youtu.be/wvoK7YzF3b4
