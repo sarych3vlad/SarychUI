@@ -1,4 +1,4 @@
--- SarychUI Options Widgets — custom controls (no AceGUI visuals).
+-- SarychUI Options Widgets - custom controls (no AceGUI visuals).
 local SUI = SarychUI
 local T = SUI.OptionsTheme
 SUI.OptionsWidgets = SUI.OptionsWidgets or {}
@@ -28,8 +28,18 @@ local function SafeCall(fn, ...)
 	return nil
 end
 
+local function TUI(text)
+	if type(text) ~= "string" or text == "" then
+		return text
+	end
+	if SUI and SUI.T then
+		return SUI:T(text)
+	end
+	return text
+end
+
 -- Non-interactive updater while a slider is dragged.
--- IMPORTANT: do NOT show an EnableMouse fullscreen capture mid-click — on 3.3.5
+-- IMPORTANT: do NOT show an EnableMouse fullscreen capture mid-click - on 3.3.5
 -- that steals focus and makes IsMouseButtonDown / phantom MouseUp end the drag
 -- while LMB is still held. Release is handled by OnDragStop / OnMouseUp on the hit.
 local function GetSliderUpdater()
@@ -103,7 +113,7 @@ local function BeginOptionsSliderDrag(row, onTick, onStop)
 			EndOptionsSliderDrag()
 			return
 		end
-		-- Widget destroyed (tab switch / full rebuild) — end cleanly.
+		-- Widget destroyed (tab switch / full rebuild) - end cleanly.
 		if not row.GetParent or not row:GetParent() then
 			if onStop then
 				onStop()
@@ -156,7 +166,7 @@ function SUI.IsOptionsInteractBusy()
 end
 
 -- Looping preview OnUpdate only while the host is shown (active tab).
--- Leaving the tab hides/destroys the host → animation stops immediately.
+-- Leaving the tab hides/destroys the host -> animation stops immediately.
 function SUI.BindOptionsPreviewAnim(host, onUpdate)
 	if not host or type(onUpdate) ~= "function" then
 		return
@@ -180,7 +190,7 @@ function SUI.BindOptionsPreviewAnim(host, onUpdate)
 			host:SetScript("OnUpdate", nil)
 		end
 	end
-	-- Rebinding only swaps the tick fn — never stack OnShow/OnHide hooks.
+	-- Rebinding only swaps the tick fn - never stack OnShow/OnHide hooks.
 	if not host._suiPreviewAnimBound then
 		host._suiPreviewAnimBound = true
 		host:HookScript("OnShow", sync)
@@ -229,6 +239,32 @@ function SUI:SyncOpenOptionsValues()
 	if child then
 		SyncWidgetTree(child)
 	end
+end
+
+local function SyncExternalWidget(frame, syncKey)
+	if not frame then return false end
+	if frame._suiExternalSyncKey == syncKey and type(frame.RefreshExternal) == "function" then
+		SafeCall(frame.RefreshExternal, frame)
+		return true
+	end
+	local children = { frame:GetChildren() }
+	for i = 1, #children do
+		if SyncExternalWidget(children[i], syncKey) then
+			return true
+		end
+	end
+	return false
+end
+
+-- Refresh one value changed outside /sui (for example a minimap-button drag).
+-- Unlike the ordinary refresh pass, this intentionally replaces a focused
+-- edit value because the external gesture is the user's newer input method.
+function SUI:SyncOpenOptionValue(syncKey)
+	if not syncKey or not self.OptionsCore or not self.OptionsCore._open then
+		return false
+	end
+	local child = self.OptionsWindow and self.OptionsWindow.contentChild
+	return child and SyncExternalWidget(child, syncKey) or false
 end
 
 FlushPendingOptionsValueSync = function()
@@ -299,6 +335,8 @@ local OPTION_PREVIEW_NAMES = {
 	"FrameHitPreview",
 	"CombatTextPreview",
 	"ArenaPreview",
+	"ArenaNumbersPreview",
+	"ArenaGroupTitlesPreview",
 	"AurasPreview",
 	"MinimapPreview",
 	"CombatIndicatorPreview",
@@ -324,6 +362,7 @@ local function PreviewNameForKey(key)
 	if type(key) ~= "string" then return nil end
 	if key == "itemRefIconsEnabled" then return "ChatTooltipPreview" end
 	if key:find("^combatIndicator") then return "CombatIndicatorPreview" end
+	if key == "enableFocusComboPoints" then return "CombatIndicatorPreview" end
 	if key:find("^heal") then return "CombatTextPreview" end
 	if key == "errorSysMsgOffsetY" then return "SysMsgPreview" end
 	if key:find("^error") then return "ErrorFilterPreview" end
@@ -337,10 +376,17 @@ local function PreviewNameForKey(key)
 	then
 		return "PlatesAurasLayoutPreview"
 	end
-	if key:find("PVP") or key:find("^pvp") or key:find("^classIconPortraits") then
+	if key:find("PVP") or key:find("^pvp") or key:find("^classIcon")
+		or key == "hideFrameLevel" or key:find("^nameBackground") or key:find("^classColored") then
 		return "FramePvpPreview"
 	end
+	if key == "hideFocusAuras" or key == "hideTargetAuras" or key == "hideTargetOfTargetAuras" or key == "enableDispelHighlight"
+		or key == "changeFrameAuraSize" or key:find("^frameAura") then
+		return "AurasPreview"
+	end
 	if key:find("^trinkets") then return "ArenaPreview" end
+	if key:find("^arenaNumbers") then return "ArenaNumbersPreview" end
+	if key == "hideGroupRaidText" then return "ArenaGroupTitlesPreview" end
 	if key == "fontSizeSmall" or key == "fontSizeMedium" or key == "fontSizeLarge" then
 		return "CooldownTextPreview"
 	end
@@ -368,7 +414,7 @@ local function DeliverPreview(preview, key, value, live)
 	end
 end
 
--- Notify only mounted preview(s) for this options page — not every preview module.
+-- Notify only mounted preview(s) for this options page - not every preview module.
 function W:NotifyOptionPreview(key, value, live)
 	if not key then return end
 
@@ -536,7 +582,7 @@ function W:Description(parent, text)
 	f.label = fs
 
 	-- Measure wrapped height for a known width (panel may not fire OnSizeChanged yet).
-	-- No extra internal padding — parent panel/section pad keeps even insets.
+	-- No extra internal padding - parent panel/section pad keeps even insets.
 	f.MeasureHeight = function(self, width)
 		local w = width or self:GetWidth()
 		-- Ignore bogus tiny widths from pre-layout frames (causes huge wrap).
@@ -581,7 +627,7 @@ function W:Description(parent, text)
 
 	f:SetScript("OnSizeChanged", function(self, width)
 		if self._measureLock then return end
-		-- Skip pre-layout tiny widths — they produce huge wrap that sticks until reselect.
+		-- Skip pre-layout tiny widths - they produce huge wrap that sticks until reselect.
 		if width and width < 80 then
 			return
 		end
@@ -689,6 +735,9 @@ local function ShowCooltip(anchor, lines)
 			r, g, b = COOLTIP_ORANGE[1], COOLTIP_ORANGE[2], COOLTIP_ORANGE[3]
 		end
 		if text ~= "" then
+			if SUI and SUI.T then
+				text = SUI:T(text)
+			end
 			count = count + 1
 			local fs = f.lines[count]
 			if not fs then
@@ -920,6 +969,14 @@ function W:Checkbox(parent, text, get, set, tooltipFn, helpIcon, previewKey)
 			if combatIndPreview and combatIndPreview.SetActiveKey then
 				combatIndPreview:SetActiveKey(nil)
 			end
+			local arenaNumPreview = SUI.ArenaNumbersPreview
+			if arenaNumPreview and arenaNumPreview.SetActiveKey then
+				arenaNumPreview:SetActiveKey(nil)
+			end
+			local groupTitlesPreview = SUI.ArenaGroupTitlesPreview
+			if groupTitlesPreview and groupTitlesPreview.SetActiveKey then
+				groupTitlesPreview:SetActiveKey(nil)
+			end
 		end
 	end
 
@@ -1030,12 +1087,13 @@ function W:Checkbox(parent, text, get, set, tooltipFn, helpIcon, previewKey)
 	return row
 end
 
-function W:ColorPicker(parent, text, get, set, hasAlpha, tooltipFn)
+function W:ColorPicker(parent, text, get, set, hasAlpha, tooltipFn, previewKey)
 	local row = CreateFrame("Frame", nil, parent)
 	row:SetHeight(T.sizes.rowH or 22)
 	row:EnableMouse(true)
 	row._hasAlpha = hasAlpha and true or false
 	row._tooltipFn = tooltipFn
+	row._previewKey = previewKey
 
 	local label = MakeLabel(row, text)
 	label:SetPoint("LEFT", row, "LEFT", 0, 0)
@@ -1066,7 +1124,11 @@ function W:ColorPicker(parent, text, get, set, hasAlpha, tooltipFn)
 	end
 
 	local function ApplyColor(r, g, b, a)
-		row._r, row._g, row._b, row._a = r or 1, g or 1, b or 1, a or 1
+		if r == nil then r = 1 end
+		if g == nil then g = 1 end
+		if b == nil then b = 1 end
+		if a == nil then a = 1 end
+		row._r, row._g, row._b, row._a = r, g, b, a
 		fill:SetVertexColor(row._r, row._g, row._b, row._hasAlpha and row._a or 1)
 	end
 
@@ -1078,12 +1140,21 @@ function W:ColorPicker(parent, text, get, set, hasAlpha, tooltipFn)
 		ApplyColor(r, g, b, a)
 	end
 
+	local function NotifyPreview(value, live)
+		if row._previewKey then
+			W:NotifyOptionPreview(row._previewKey, value, live)
+		end
+	end
+
 	local function ColorCallback(r, g, b, a, confirmed)
 		if not row._hasAlpha then
 			a = 1
 		end
 		ApplyColor(r, g, b, a)
-		if confirmed then
+		if row._previewKey then
+			NotifyPreview({ r, g, b, a }, true)
+			SafeCall(set, r, g, b, a)
+		elseif confirmed then
 			SafeCall(set, r, g, b, a)
 		end
 	end
@@ -1094,7 +1165,7 @@ function W:ColorPicker(parent, text, get, set, hasAlpha, tooltipFn)
 		HideUIPanel(ColorPickerFrame)
 		ColorPickerFrame:SetFrameStrata("FULLSCREEN_DIALOG")
 
-		local cr, cg, cb, ca = row._r or 1, row._g or 1, row._b or 1, row._a or 1
+		local cr, cg, cb, ca = row._r or 1, row._g or 1, row._b or 1, (row._a == nil) and 1 or row._a
 		local cancelled = false
 
 		local function CurrentAlpha()
@@ -1143,16 +1214,30 @@ function W:ColorPicker(parent, text, get, set, hasAlpha, tooltipFn)
 		ShowUIPanel(ColorPickerFrame)
 	end)
 	swatch:SetScript("OnEnter", function(self)
+		NotifyPreview(nil, false)
 		ShowTip(self)
 	end)
 	swatch:SetScript("OnLeave", function()
 		HideCooltip()
+		if row._previewKey then
+			local pvpPreview = SUI.FramePvpPreview
+			if pvpPreview and pvpPreview.SetActiveKey then
+				pvpPreview:SetActiveKey(nil)
+			end
+		end
 	end)
 	row:SetScript("OnEnter", function(self)
+		NotifyPreview(nil, false)
 		ShowTip(self.swatch or self)
 	end)
 	row:SetScript("OnLeave", function()
 		HideCooltip()
+		if row._previewKey then
+			local pvpPreview = SUI.FramePvpPreview
+			if pvpPreview and pvpPreview.SetActiveKey then
+				pvpPreview:SetActiveKey(nil)
+			end
+		end
 	end)
 
 	row.SetDisabled = function(self, disabled)
@@ -1177,7 +1262,7 @@ function W:Slider(parent, text, minV, maxV, step, get, set, previewKey, tooltipF
 	row._suiValueWidget = true
 	row._previewKey = previewKey
 	row._tooltipFn = tooltipFn
-	-- Default: ordinary slider — drag applies immediately. Opt out with suiLiveApply=false.
+	-- Default: ordinary slider - drag applies immediately. Opt out with suiLiveApply=false.
 	if liveApply == false then
 		row._liveApply = false
 	else
@@ -1230,7 +1315,7 @@ function W:Slider(parent, text, minV, maxV, step, get, set, previewKey, tooltipF
 	local ac = T.colors.accent
 	edit:SetTextColor(ac[1], ac[2], ac[3], 1)
 
-	-- Visual Slider only — native thumb drag on 3.3.5 snaps back when capture
+	-- Visual Slider only - native thumb drag on 3.3.5 snaps back when capture
 	-- is lost (scroll/parent). All interaction goes through an overlay hit button.
 	local slider = CreateFrame("Slider", nil, row)
 	slider:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -2)
@@ -1313,6 +1398,17 @@ function W:Slider(parent, text, minV, maxV, step, get, set, previewKey, tooltipF
 		SetVisual(v)
 	end
 
+	row.RefreshExternal = function(self)
+		row._externalSync = true
+		if edit:HasFocus() then
+			edit:ClearFocus()
+		end
+		row._externalSync = nil
+		local v = tonumber(SafeCall(get)) or minV
+		v = Clamp(Round(v))
+		SetVisual(v)
+	end
+
 	local function IsIncompleteNumber(raw)
 		if not raw or raw == "" then
 			return true
@@ -1328,7 +1424,7 @@ function W:Slider(parent, text, minV, maxV, step, get, set, previewKey, tooltipF
 		raw = raw and raw:gsub(",", ".") or ""
 		raw = raw:gsub("%s+", "")
 		if IsIncompleteNumber(raw) then
-			-- Focus lost on incomplete input → revert, do not fight the user mid-type.
+			-- Focus lost on incomplete input -> revert, do not fight the user mid-type.
 			local v = tonumber(SafeCall(get)) or minV
 			v = Clamp(Round(v))
 			edit:SetText(FormatValue(v))
@@ -1364,7 +1460,7 @@ function W:Slider(parent, text, minV, maxV, step, get, set, previewKey, tooltipF
 		end
 	end
 
-	-- Ordinary slider: thumb → preview every step; set() ~30/sec so heavy
+	-- Ordinary slider: thumb -> preview every step; set() ~30/sec so heavy
 	-- ApplySettings cannot stall the drag. Final set() always runs on mouse-up.
 	local LIVE_APPLY_INTERVAL = 0.03
 	local function LiveApplyPending()
@@ -1403,7 +1499,7 @@ function W:Slider(parent, text, minV, maxV, step, get, set, previewKey, tooltipF
 		end
 	end
 
-	-- RegisterForDrag → OnDragStop fires on release even outside the hit rect.
+	-- RegisterForDrag -> OnDragStop fires on release even outside the hit rect.
 	hit:RegisterForDrag("LeftButton")
 	hit:SetScript("OnMouseDown", function(_, button)
 		if row._disabled or button ~= "LeftButton" then return end
@@ -1447,7 +1543,7 @@ function W:Slider(parent, text, minV, maxV, step, get, set, previewKey, tooltipF
 		edit:ClearFocus()
 	end)
 	edit:SetScript("OnEditFocusLost", function()
-		if not (row._disabled or row._committing or row._dragging) then
+		if not row._externalSync and not (row._disabled or row._committing or row._dragging) then
 			CommitTyped()
 		end
 		EndOptionsTextEdit()
@@ -1533,7 +1629,7 @@ function W:Input(parent, text, get, set)
 end
 
 -- Details-like create profile: edit box + Save button on the same row.
--- Empty/nil text → single-line input + button (no label above).
+-- Empty/nil text -> single-line input + button (no label above).
 -- clearOnSave (default true): wipe the box after commit (add-to-list / new name).
 -- Pass false to keep/show the saved value (settings fields with OK).
 function W:InputWithButton(parent, text, buttonText, get, set, clearOnSave)
@@ -1555,7 +1651,7 @@ function W:InputWithButton(parent, text, buttonText, get, set, clearOnSave)
 	btn:SetHeight(T.sizes.controlH or 20)
 	btn:SetWidth(btnW)
 	T:ApplyFlat(btn, T.colors.buttonBg, T.colors.borderSoft)
-	local btnLabel = MakeLabel(btn, buttonText or "Сохранить", T.fonts.normal)
+	local btnLabel = MakeLabel(btn, buttonText or TUI("Сохранить"), T.fonts.normal)
 	btnLabel:SetPoint("CENTER")
 	btn.label = btnLabel
 
@@ -1656,7 +1752,7 @@ local function FlushDeferredOptionsRefresh()
 	end
 	OC._refreshAfterDropdown = nil
 	if OC._open then
-		-- Next frame: avoid re-entrancy from ClearContent → CloseOpenDropdown.
+		-- Next frame: avoid re-entrancy from ClearContent -> CloseOpenDropdown.
 		local f = CreateFrame("Frame")
 		f:SetScript("OnUpdate", function(self)
 			self:SetScript("OnUpdate", nil)
@@ -1703,7 +1799,7 @@ function W:CloseOpenDropdown(opts)
 		end
 		openDropdown = nil
 	end
-	-- ClearContent already rebuilds the page — don't schedule another Refresh.
+	-- ClearContent already rebuilds the page - don't schedule another Refresh.
 	if opts.fromClearContent then
 		if SUI.OptionsCore then
 			SUI.OptionsCore._refreshAfterDropdown = nil
@@ -1722,7 +1818,7 @@ function W:SelectInputButton(parent, selectLabel, valuesFn, getType, setType, in
 	local btnW = 90
 	local gap = 6
 
-	local typeLabel = MakeLabel(row, selectLabel or "Тип")
+	local typeLabel = MakeLabel(row, selectLabel or TUI("Тип"))
 	typeLabel:SetPoint("TOPLEFT", 0, 0)
 
 	local typeBtn = CreateFrame("Button", nil, row)
@@ -1744,7 +1840,7 @@ function W:SelectInputButton(parent, selectLabel, valuesFn, getType, setType, in
 	addBtn:SetHeight(T.sizes.controlH or 20)
 	addBtn:SetWidth(btnW)
 	T:ApplyFlat(addBtn, T.colors.buttonBg, T.colors.borderSoft)
-	local addLabel = MakeLabel(addBtn, buttonText or "Добавить", T.fonts.normal)
+	local addLabel = MakeLabel(addBtn, buttonText or TUI("Добавить"), T.fonts.normal)
 	addLabel:SetPoint("CENTER")
 	addBtn.label = addLabel
 
@@ -1783,7 +1879,7 @@ function W:SelectInputButton(parent, selectLabel, valuesFn, getType, setType, in
 	end
 
 	local function LabelFor(key, map)
-		if key == nil then return "—" end
+		if key == nil then return "-" end
 		if type(map) == "table" and map[key] ~= nil then
 			return tostring(map[key])
 		end
@@ -2018,7 +2114,7 @@ function W:Keybinding(parent, text, get, set, tooltipFn)
 	msgframe:SetFrameStrata("FULLSCREEN_DIALOG")
 	msgframe:SetFrameLevel(1000)
 	T:ApplyFlat(msgframe, { 0, 0, 0, 0.92 }, T.colors.borderSoft)
-	local msg = MakeLabel(msgframe, "Нажмите клавишу для назначения. ESC — сбросить. Повторный клик — отмена.")
+	local msg = MakeLabel(msgframe, TUI("Нажмите клавишу для назначения. ESC - сбросить. Повторный клик - отмена."))
 	msg:SetPoint("LEFT", 8, 0)
 	msg:SetPoint("RIGHT", -8, 0)
 	msgframe.msg = msg
@@ -2027,7 +2123,7 @@ function W:Keybinding(parent, text, get, set, tooltipFn)
 
 	local function FormatKey(key)
 		if not key or key == "" then
-			return NOT_BOUND or "Не назначено"
+			return TUI("Не назначено")
 		end
 		return tostring(key)
 	end
@@ -2159,7 +2255,7 @@ function W:Dropdown(parent, text, values, get, set, placeholder, flagPathFn)
 	local row = CreateFrame("Frame", nil, parent)
 	local hasLabel = type(text) == "string" and text ~= ""
 	row:SetHeight(hasLabel and 40 or 22)
-	placeholder = placeholder or "—"
+	placeholder = placeholder or "-"
 	if type(flagPathFn) ~= "function" then
 		flagPathFn = nil
 	end
@@ -2344,7 +2440,7 @@ function W:Dropdown(parent, text, values, get, set, placeholder, flagPathFn)
 			item:ClearAllPoints()
 			item:SetPoint("TOPLEFT", list, "TOPLEFT", 4, y)
 			item:SetPoint("TOPRIGHT", list, "TOPRIGHT", -4, y)
-			item.label:SetText("Нет доступных профилей")
+			item.label:SetText(TUI("Нет доступных профилей"))
 			T:SetTextColor(item.label, "textDim")
 			if item.flagIcon then
 				item.flagIcon:Hide()
@@ -2453,7 +2549,7 @@ function W:SelectWithButton(parent, selectLabel, values, get, set, buttonText, o
 		row:SetHeight(22)
 	end
 
-	local actionBtn = self:Button(row, buttonText or "Настройки", onClick, buttonTooltipFn)
+	local actionBtn = self:Button(row, buttonText or TUI("Настройки"), onClick, buttonTooltipFn)
 	actionBtn:SetWidth(120)
 	actionBtn:SetHeight(22)
 	actionBtn:ClearAllPoints()
@@ -2526,6 +2622,88 @@ function W:SelectWithButton(parent, selectLabel, values, get, set, buttonText, o
 	return row
 end
 
+function W:SelectWithColor(parent, selectLabel, values, get, set, getColor, setColor, hasAlpha, colorTooltipFn, colorHiddenFn, colorPreviewKey, selectPreviewKey)
+	local row = CreateFrame("Frame", nil, parent)
+	row._colorHiddenFn = colorHiddenFn
+	row:SetHeight(22)
+
+	local colorRow = self:ColorPicker(row, "", getColor, setColor, hasAlpha and true or false, colorTooltipFn, colorPreviewKey)
+	colorRow:SetHeight(22)
+	colorRow:SetWidth(28)
+	colorRow:ClearAllPoints()
+	colorRow:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, 0)
+	if colorRow.label then
+		colorRow.label:Hide()
+	end
+
+	local drop = self:Dropdown(row, "", values, get, function(value)
+		set(value)
+		if selectPreviewKey then
+			W:NotifyOptionPreview(selectPreviewKey, value, true)
+		end
+		if row.Refresh then row:Refresh() end
+	end)
+	drop:ClearAllPoints()
+	drop:SetHeight(22)
+	drop:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+	drop:SetPoint("TOPRIGHT", colorRow, "TOPLEFT", -8, 0)
+	if drop.btn then
+		drop.btn:ClearAllPoints()
+		drop.btn:SetPoint("TOPLEFT", drop, "TOPLEFT", 0, 0)
+		drop.btn:SetPoint("BOTTOMRIGHT", drop, "BOTTOMRIGHT", 0, 0)
+		if selectPreviewKey then
+			drop.btn:SetScript("OnEnter", function()
+				W:NotifyOptionPreview(selectPreviewKey, nil, false)
+			end)
+			drop.btn:SetScript("OnLeave", function()
+				local pvpPreview = SUI.FramePvpPreview
+				if pvpPreview and pvpPreview.SetActiveKey then
+					pvpPreview:SetActiveKey(nil)
+				end
+			end)
+		end
+	end
+
+	local function SyncColorVisibility()
+		local hide = false
+		if type(row._colorHiddenFn) == "function" then
+			local ok, res = pcall(row._colorHiddenFn)
+			hide = ok and res and true or false
+		end
+		if hide then
+			colorRow:Hide()
+			drop:ClearAllPoints()
+			drop:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+			drop:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, 0)
+		else
+			colorRow:Show()
+			drop:ClearAllPoints()
+			drop:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+			drop:SetPoint("TOPRIGHT", colorRow, "TOPLEFT", -8, 0)
+		end
+		if drop.btn then
+			drop.btn:ClearAllPoints()
+			drop.btn:SetPoint("TOPLEFT", drop, "TOPLEFT", 0, 0)
+			drop.btn:SetPoint("BOTTOMRIGHT", drop, "BOTTOMRIGHT", 0, 0)
+		end
+	end
+
+	row.Refresh = function(self)
+		if drop.Refresh then drop:Refresh() end
+		if colorRow.Refresh then colorRow:Refresh() end
+		SyncColorVisibility()
+	end
+	row.SetDisabled = function(self, disabled)
+		if drop.SetDisabled then drop:SetDisabled(disabled) end
+		if colorRow.SetDisabled then colorRow:SetDisabled(disabled) end
+	end
+
+	row.drop = drop
+	row.colorRow = colorRow
+	row:Refresh()
+	return row
+end
+
 -- Compact list row: optional icon + label + optional right action button.
 -- Pass buttonText = false/nil and no onClick to hide the button (fixed rows).
 function W:CompactListRow(parent, labelText, buttonText, onClick, iconTexture)
@@ -2538,7 +2716,7 @@ function W:CompactListRow(parent, labelText, buttonText, onClick, iconTexture)
 	local rightOffset = 0
 	if buttonText ~= false and buttonText ~= nil then
 		local btnW = 80
-		local btn = self:Button(row, buttonText or "Удалить", onClick)
+		local btn = self:Button(row, buttonText or TUI("Удалить"), onClick)
 		btn:SetWidth(btnW)
 		btn:SetHeight(T.sizes.controlH or 20)
 		btn:ClearAllPoints()

@@ -1,8 +1,8 @@
 --[[
-	ClassicAPI 1.27 moved the widget method injection into WidgetAPI.lua, which SarychUI
-	does not load (the widget layer comes from SharedExtendedMethods.lua instead).
-	Without it, frames calling RegisterEvent("GROUP_ROSTER_UPDATE") and friends would
-	never receive the emulated events, so the same hooks are installed here.
+	3.3.5 RegisterEvent errors on unknown retail events (GROUP_ROSTER_UPDATE, etc).
+	ClassicAPI 1.28 WidgetAPI post-hooks RegisterEvent, so the native call still runs first
+	and aborts CompactRaidFrame OnLoad. Wrap RegisterEvent so emulated events reach
+	EventHandler even when the client rejects the name.
 ]]
 
 local _, Private = ...
@@ -10,13 +10,9 @@ local _, Private = ...
 local PCall = pcall
 local CreateFrame = CreateFrame
 local GetMetaTable = getmetatable
-local HookSecureFunc = hooksecurefunc
 
 local EventHandler = Private.EventHandler
 
---[[ EventHandler: Widget Method Injection ]]
-
--- Frame types of 3.3.5 that can register events. Each has its own metatable.
 local WIDGET_TYPE = {
 	"Frame",
 	"Button",
@@ -34,21 +30,6 @@ local WIDGET_TYPE = {
 	"StatusBar",
 }
 
-local POST_HOOK = {
-	"RegisterEvent",
-	"UnregisterEvent",
-	"RegisterAllEvents",
-	"UnregisterAllEvents",
-}
-
-local METHOD = {
-	RegisterUnitEvent = EventHandler.RegisterUnitEvent,
-	RegisterEventCallback = EventHandler.RegisterEventCallback,
-	RegisterUnitEventCallback = EventHandler.RegisterUnitEventCallback,
-	UnregisterEventCallback = EventHandler.UnregisterEventCallback,
-	UnregisterUnitEventCallback = EventHandler.UnregisterUnitEventCallback,
-}
-
 local Processed = {}
 
 for i = 1, #WIDGET_TYPE do
@@ -60,14 +41,36 @@ for i = 1, #WIDGET_TYPE do
 
 		if ( Object.Hide ) then Object:Hide() end
 
-		for Method, Function in pairs(METHOD) do
-			Metatable[Method] = Function
+		local NativeRegister = Metatable.RegisterEvent
+		local NativeUnregister = Metatable.UnregisterEvent
+		local NativeRegisterAll = Metatable.RegisterAllEvents
+		local NativeUnregisterAll = Metatable.UnregisterAllEvents
+
+		if ( NativeRegister ) then
+			Metatable.RegisterEvent = function(Self, Event)
+				EventHandler.RegisterEvent(Self, Event)
+				PCall(NativeRegister, Self, Event)
+			end
 		end
 
-		for j = 1, #POST_HOOK do
-			local Method = POST_HOOK[j]
-			if ( Metatable[Method] ) then
-				HookSecureFunc(Metatable, Method, EventHandler[Method])
+		if ( NativeUnregister ) then
+			Metatable.UnregisterEvent = function(Self, Event)
+				EventHandler.UnregisterEvent(Self, Event)
+				PCall(NativeUnregister, Self, Event)
+			end
+		end
+
+		if ( NativeRegisterAll ) then
+			Metatable.RegisterAllEvents = function(Self)
+				EventHandler.RegisterAllEvents(Self)
+				PCall(NativeRegisterAll, Self)
+			end
+		end
+
+		if ( NativeUnregisterAll ) then
+			Metatable.UnregisterAllEvents = function(Self)
+				EventHandler.UnregisterAllEvents(Self)
+				PCall(NativeUnregisterAll, Self)
 			end
 		end
 	end

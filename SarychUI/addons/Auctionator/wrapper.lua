@@ -61,7 +61,7 @@ end
 
 local function ShowDisableReloadPopup()
 	if SarychUI and SarychUI.ShowReloadPopup then
-		SarychUI:ShowReloadPopup("|cff1784d1Auctionator|r будет убран из «Интерфейс → Модификации» после перезагрузки (/reload).")
+		SarychUI:ShowReloadPopup("|cff1784d1Auctionator|r будет убран из «Интерфейс -> Модификации» после перезагрузки (/reload).")
 	elseif StaticPopup_Show then
 		StaticPopup_Show("SARYCHUI_RELOAD_UI")
 	end
@@ -151,7 +151,7 @@ end
 function SarychUI_OpenAuctionatorConfig()
 	if not GetRuntimeEnabledFromDB() then
 		if SarychUI and SarychUI.Print then
-			SarychUI:Print("|cffff9900Auctionator:|r сначала включите аддон в |cff1784d1Настройки → Аддоны|r.")
+			SarychUI:Print("|cffff9900Auctionator:|r сначала включите аддон в |cff1784d1Настройки -> Аддоны|r.")
 		end
 		return false
 	end
@@ -187,7 +187,7 @@ function wrapper:GetOptions()
 			enabled = {
 				type = "toggle",
 				name = "Включить",
-				desc = "Включить/выключить Auctionator. При выключении нужен /reload, чтобы убрать пункт из «Интерфейс → Модификации».",
+				desc = "Включить/выключить Auctionator. При выключении нужен /reload, чтобы убрать пункт из «Интерфейс -> Модификации».",
 				order = 1,
 				get = function()
 					return wrapper:IsRuntimeEnabled()
@@ -199,7 +199,7 @@ function wrapper:GetOptions()
 			open = {
 				type = "execute",
 				name = "Открыть настройки Auctionator",
-				desc = "Открыть окно настроек Auctionator (Interface → AddOns → Auctionator)",
+				desc = "Открыть окно настроек Auctionator (Interface -> AddOns -> Auctionator)",
 				order = 2,
 				disabled = function()
 					return not wrapper:IsRuntimeEnabled()
@@ -210,7 +210,7 @@ function wrapper:GetOptions()
 			},
 			description = {
 				type = "description",
-				name = "Легковесный аддон, который делает покупку, продажу и управление аукционами легким и быстрым.\nВключение — сразу; выключение из списка Модификаций — после /reload.\n\nАвтор: "
+				name = "Легковесный аддон, который делает покупку, продажу и управление аукционами легким и быстрым.\nВключение - сразу; выключение из списка Модификаций - после /reload.\n\nАвтор: "
 					.. (wrapper.author or "Zirco")
 					.. "\nВерсия: "
 					.. (wrapper.version or "2.6.8"),

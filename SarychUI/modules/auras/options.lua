@@ -106,11 +106,33 @@ function module:GetOptions()
 						order = 2,
 						inline = true,
 						args = {
+							hideTargetAuras = {
+								type = "toggle",
+								name = "Скрыть ауры |cFFFFD700цели|r",
+								desc = "Скрыть ауры на фрейме |cFFFFD700цели|r",
+								order = 1,
+								width = "full",
+								suiPreviewKey = "hideTargetAuras",
+								get = function()
+									return isOn("hideTargetAuras")
+								end,
+								set = function(_, v)
+									local db = DB(); if not db then return end
+									db.hideTargetAuras = v and 1 or 0
+									if module.RefreshAuraLayout then
+										module:RefreshAuraLayout()
+									end
+									if module.ForceUpdateAuras then
+										module:ForceUpdateAuras()
+									end
+									NotifyAurasPreview("hideTargetAuras", v and 1 or 0)
+								end,
+							},
 							hideFocusAuras = {
 								type = "toggle",
 								name = "Скрыть ауры |cFFFFD700фокуса|r",
 								desc = "Скрыть ауры на фрейме |cFFFFD700фокуса|r",
-								order = 1,
+								order = 2,
 								width = "full",
 								get = function()
 									return isOn("hideFocusAuras")
@@ -128,7 +150,7 @@ function module:GetOptions()
 								type = "toggle",
 								name = "Скрыть ауры \"|cFFFFD700цели цели|r\"",
 								desc = "Скрыть ауры на фрейме \"|cFFFFD700цели цели|r\"",
-								order = 2,
+								order = 3,
 								width = "full",
 								get = function()
 									return isOn("hideTargetOfTargetAuras")
@@ -140,6 +162,60 @@ function module:GetOptions()
 										module:ForceUpdateAuras()
 									end
 									NotifyAurasPreview("hideTargetOfTargetAuras", v and 1 or 0)
+								end,
+							},
+						},
+					},
+
+					growUpBox = {
+						type = "group",
+						name = "Расположить ауры над фреймом",
+						order = 2.5,
+						inline = true,
+						args = {
+							frameAurasGrowUp = {
+								type = "toggle",
+								name = "Включить",
+								desc = "Баффы и дебаффы цели и фокуса растут вверх от рамки.",
+								order = 1,
+								width = "full",
+								suiPreviewKey = "frameAurasGrowUp",
+								get = function()
+									return isOn("frameAurasGrowUp")
+								end,
+								set = function(_, v)
+									local db = DB(); if not db then return end
+									db.frameAurasGrowUp = v and 1 or 0
+									if module.ApplySettings then
+										module:ApplySettings()
+									end
+									NotifyAurasPreview("frameAurasGrowUp", v and 1 or 0)
+									RefreshConfig()
+								end,
+							},
+							frameAurasGrowUpY = {
+								type = "range",
+								name = "Смещение по Y",
+								desc = "Вертикальное смещение аур относительно верхнего края рамки.",
+								min = -40,
+								max = 80,
+								step = 1,
+								order = 2,
+								width = "full",
+								suiPreviewKey = "frameAurasGrowUpY",
+								hidden = function() return not isOn("frameAurasGrowUp") end,
+								get = function()
+									local db = DB()
+									if not db or db.frameAurasGrowUpY == nil then return -17 end
+									return db.frameAurasGrowUpY
+								end,
+								set = function(_, val)
+									local db = DB(); if not db then return end
+									db.frameAurasGrowUpY = val
+									if module.ApplySettings then
+										module:ApplySettings()
+									end
+									NotifyAurasPreview("frameAurasGrowUpY", val)
 								end,
 							},
 						},
@@ -168,6 +244,101 @@ function module:GetOptions()
 										toolsModule:ApplyDispelHighlight()
 									end
 									NotifyAurasPreview("enableDispelHighlight", val and 1 or 0)
+								end,
+							},
+						},
+					},
+
+					auraSizeBox = {
+						type = "group",
+						name = "Изменить размер аур",
+						order = 4,
+						inline = true,
+						args = {
+							changeFrameAuraSize = {
+								type = "toggle",
+								name = "Включить",
+								desc = "Включает ползунки размера баффов и дебаффов на рамках цели и фокуса.",
+								order = 1,
+								width = "full",
+								suiPreviewKey = "changeFrameAuraSize",
+								get = function()
+									return isOn("changeFrameAuraSize")
+								end,
+								set = function(_, v)
+									local db = DB(); if not db then return end
+									db.changeFrameAuraSize = v and 1 or 0
+									if module.ApplySettings then
+										module:ApplySettings()
+									end
+									NotifyAurasPreview("changeFrameAuraSize", v and 1 or 0)
+									RefreshConfig()
+								end,
+							},
+							frameAuraOtherSize = {
+								type = "range",
+								name = "Размер аур цели",
+								desc = "Размер баффов и дебаффов на рамках цели и фокуса, которые наложил не вы.",
+								min = 15, max = 34, step = 1,
+								order = 2,
+								width = "full",
+								suiPreviewKey = "frameAuraOtherSize",
+								hidden = function() return not isOn("changeFrameAuraSize") end,
+								get = function()
+									local db = DB()
+									return db and db.frameAuraOtherSize or 23
+								end,
+								set = function(_, val)
+									local db = DB(); if not db then return end
+									db.frameAuraOtherSize = val
+									if module.ApplySettings then
+										module:ApplySettings()
+									end
+									NotifyAurasPreview("frameAuraOtherSize", val)
+								end,
+							},
+							frameAuraSelfSize = {
+								type = "range",
+								name = "Размер своих аур",
+								desc = "Размер баффов и дебаффов на рамках цели и фокуса, которые наложили вы (или питомец).",
+								min = 15, max = 34, step = 1,
+								order = 3,
+								width = "full",
+								suiPreviewKey = "frameAuraSelfSize",
+								hidden = function() return not isOn("changeFrameAuraSize") end,
+								get = function()
+									local db = DB()
+									return db and db.frameAuraSelfSize or 23
+								end,
+								set = function(_, val)
+									local db = DB(); if not db then return end
+									db.frameAuraSelfSize = val
+									if module.ApplySettings then
+										module:ApplySettings()
+									end
+									NotifyAurasPreview("frameAuraSelfSize", val)
+								end,
+							},
+							frameAuraRowWidth = {
+								type = "range",
+								name = "Ширина ряда аур",
+								desc = "Сколько баффов помещается в одном ряду на рамке цели. Чем больше значение, тем длиннее ряд.",
+								min = 108, max = 200, step = 14,
+								order = 4,
+								width = "full",
+								suiPreviewKey = "frameAuraRowWidth",
+								hidden = function() return not isOn("changeFrameAuraSize") end,
+								get = function()
+									local db = DB()
+									return db and db.frameAuraRowWidth or 122
+								end,
+								set = function(_, val)
+									local db = DB(); if not db then return end
+									db.frameAuraRowWidth = val
+									if module.ApplySettings then
+										module:ApplySettings()
+									end
+									NotifyAurasPreview("frameAuraRowWidth", val)
 								end,
 							},
 						},
@@ -306,6 +477,80 @@ function module:GetOptions()
 								end,
 								hidden = function()
 									return not isOn("manageBuffs")
+								end,
+							},
+						},
+					},
+					buffRowBox = {
+						type = "group",
+						name = "Изменить кол-во аур в ряду",
+						order = 2,
+						inline = true,
+						args = {
+							changePlayerBuffRow = {
+								type = "toggle",
+								name = "Включить",
+								desc = "Сколько аур показывать в одном ряду на панели баффов игрока.",
+								order = 1,
+								width = "full",
+								get = function()
+									return isOn("changePlayerBuffRow")
+								end,
+								set = function(_, v)
+									local db = DB(); if not db then return end
+									db.changePlayerBuffRow = v and 1 or 0
+									if module.ApplySettings then
+										module:ApplySettings()
+									end
+									RefreshConfig()
+								end,
+							},
+							playerBuffsPerRow = {
+								type = "range",
+								name = "Аур в ряду",
+								desc = "Сколько аур показывать в одном ряду на панели баффов игрока.",
+								min = 1, max = 10, step = 1,
+								order = 2,
+								width = "full",
+								hidden = function() return not isOn("changePlayerBuffRow") end,
+								get = function()
+									local db = DB()
+									return db and db.playerBuffsPerRow or 8
+								end,
+								set = function(_, val)
+									local db = DB(); if not db then return end
+									db.playerBuffsPerRow = val
+									if module.ApplySettings then
+										module:ApplySettings()
+									end
+								end,
+							},
+						},
+					},
+					poisonIconsBox = {
+						type = "group",
+						name = L and (L["Poison Icons"] or "Иконки ядов вместо оружия") or "Иконки ядов вместо оружия",
+						desc = L and (L["Added by suggestion: Hannahmckay"] or "Добавлено по предложению: Hannahmckay") or "Добавлено по предложению: Hannahmckay",
+						order = 3,
+						inline = true,
+						suiHelpIcon = true,
+						args = {
+							showPoisonIcons = {
+								type = "toggle",
+								name = L and (L["Enable"] or "Включить") or "Включить",
+								desc = L and (L["Poison Icons Desc"] or "Для разбойника показывать иконку нанесённого яда вместо иконки оружия среди временных эффектов.") or "Для разбойника показывать иконку нанесённого яда вместо иконки оружия среди временных эффектов.",
+								order = 1,
+								width = "full",
+								get = function()
+									return isOn("showPoisonIcons")
+								end,
+								set = function(_, value)
+									local db = DB(); if not db then return end
+									db.showPoisonIcons = value and 1 or 0
+									if module.ApplyPoisonIcons then
+										module:ApplyPoisonIcons()
+									end
+									RefreshConfig()
 								end,
 							},
 						},

@@ -103,9 +103,7 @@ function wrapper:Enable()
 	
 	-- Enable the addon functionality
 	if CL_Fix and CL_Fix.f and CL_Fix.fCLFix then
-		if not (SarychUI and SarychUI.Compatibility and SarychUI.Compatibility:ShouldSkipCombatLogClear()) then
-			CL_Fix.f:SetScript("OnUpdate", CL_Fix.fCLFix)
-		end
+		CL_Fix.f:SetScript("OnUpdate", CL_Fix.fCLFix)
 	end
 end
 
@@ -138,10 +136,6 @@ end
 
 -- Get options table for settings
 function wrapper:GetOptions()
-	local function IsWowOptimizeActive()
-		return SarychUI and SarychUI.Compatibility and SarychUI.Compatibility:ShouldSkipCombatLogClear()
-	end
-
 	return {
 		type = "group",
 		name = "CL_Fix",
@@ -150,27 +144,13 @@ function wrapper:GetOptions()
 			enabled = {
 				type = "toggle",
 				name = "Включить",
-				desc = function()
-					if IsWowOptimizeActive() then
-						return "Активен wow_optimize — очистка combat log уже в DLL.\nВключать CL_Fix нет смысла."
-					end
-					return "Включить/выключить CL_Fix"
-				end,
+				desc = "Включить/выключить CL_Fix",
 				order = 1,
 				get = function()
-					if IsWowOptimizeActive() then
-						return false
-					end
 					return wrapper:IsRuntimeEnabled()
 				end,
 				set = function(_, value)
-					if value and IsWowOptimizeActive() then
-						return
-					end
 					wrapper:SetRuntimeEnabled(value)
-				end,
-				disabled = function()
-					return IsWowOptimizeActive()
 				end,
 			},
 			description = {
@@ -178,20 +158,6 @@ function wrapper:GetOptions()
 				name = "Обходной путь для бага Combat Log, введенного в патче 2.4.X, счетчики урона должны работать правильно (Workaround for the Combat Log bug introduced in patch 2.4.X, damage meters should work properly now).\n\nАвтор: " .. (self.author or "Неизвестен") .. "\nВерсия: " .. (self.version or "Неизвестна"),
 				order = 2,
 				width = "full",
-			},
-			compatNote = {
-				type = "description",
-				name = function()
-					if not IsWowOptimizeActive() then
-						return ""
-					end
-					return "|cFFFFD700Совместимость:|r активен wow_optimize — очистка combat log уже в DLL, CL_Fix отключён."
-				end,
-				order = 3,
-				width = "full",
-				hidden = function()
-					return not IsWowOptimizeActive()
-				end,
 			},
 		},
 	}

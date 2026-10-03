@@ -104,13 +104,12 @@ local MAX_NAME_LENGTH = 26
 S.altCdHooksInstalled, S.altCdEnabled = false, false
 S.altCdUnitBarEventFrame = nil
 S.altCdAuraUpdateHooked = false
+S.altCdOmniCreateHooked, S.altCdOmniSetTooltipHooked = false, false
+S.altCdOmniRetryFrame = nil
 
 -- Alt FPS functionality
 S.altFpsFrame, S.altFpsShown, S.altFpsAltPressed = nil, false, false
 S.altFpsOriginalFonts, S.altFpsReapplyScale = {}, false
-
--- SpeedyLoad functionality
-S.speedyLoadFrame, S.speedyLoadInitialized, S.speedyLoadEnteredOnce = nil, false, false
 
 -- Flight Times functionality
 S.flightTimesEnabled, S.flightTimesFrame, S.flightCheckFrame = false, nil, nil
@@ -161,6 +160,7 @@ S.errorFilterFrames = {
 
 -- BlizzMove functionality
 S.blizzMoveInitialized, S.blizzMoveFrame = false, nil
+S.blizzMovePendingFrames, S.blizzMoveRegenFrame = nil, nil
 S.blizzMoveDefaults = {
     AchievementFrame = {save = true},
     CalendarFrame = {save = true},
@@ -228,7 +228,7 @@ local function SetFocusHotkey(frame)
     end
 end
 
--- Badge Stack Buyer: Shift+LeftClick emblem at merchant → quantity split → buy.
+-- Badge Stack Buyer: Shift+LeftClick emblem at merchant -> quantity split -> buy.
 -- Emblems use extendedCost on 3.3.5, so BuyMerchantItem(index, amount) is ignored;
 -- we buy 1/item but spread purchases across frames to avoid client freeze / DC.
 S.badgeBuyerFrame, S.badgeBuyerInitialized = nil, false
@@ -658,7 +658,7 @@ local function UpdateCompactParty()
     end
 end
 
--- Arena Right-Click Focus helpers (must be above EnableFocuser — Lua local scope)
+-- Arena Right-Click Focus helpers (must be above EnableFocuser - Lua local scope)
 S.arenaRightClickFocusInitialized, S.arenaRightClickFocusEventFrame = false, nil
 
 local function SetArenaRightClickFocus(frame)
@@ -1166,63 +1166,6 @@ end
 -- Dispel Highlight Functionality
 -- ============================================================================
 
--- Guard Blizzard TargetFrame aura layout against bad numeric args / re-entrant updates.
-local targetFrameAuraUpdateLock = {}
-
-local function InstallTargetFrameAuraGuard()
-    if S.targetFrameAuraGuardInstalled then
-        return
-    end
-
-    local function guardAuraPositions(funcName)
-        local orig = _G[funcName]
-        if type(orig) ~= "function" then
-            return
-        end
-        _G[funcName] = function(self, auraName, numAuras, numOppositeAuras, largeAuraList, updateFunc, maxRowWidth, offsetX, ...)
-            if self and type(self.auraRows) ~= "number" then
-                self.auraRows = 0
-            end
-            numAuras = tonumber(numAuras) or 0
-            numOppositeAuras = tonumber(numOppositeAuras) or 0
-            if type(maxRowWidth) ~= "number" then
-                maxRowWidth = tonumber(self and self.TOT_AURA_ROW_WIDTH) or tonumber(AURA_ROW_WIDTH) or 101
-            end
-            return orig(self, auraName, numAuras, numOppositeAuras, largeAuraList, updateFunc, maxRowWidth, offsetX, ...)
-        end
-    end
-
-    local function guardUpdateAuras(funcName)
-        local orig = _G[funcName]
-        if type(orig) ~= "function" then
-            return
-        end
-        _G[funcName] = function(self, ...)
-            if not self then
-                return orig(...)
-            end
-            if targetFrameAuraUpdateLock[self] then
-                return
-            end
-            if type(self.auraRows) ~= "number" then
-                self.auraRows = 0
-            end
-            targetFrameAuraUpdateLock[self] = true
-            local ok, err = pcall(orig, self, ...)
-            targetFrameAuraUpdateLock[self] = nil
-            if not ok then
-                error(err)
-            end
-        end
-    end
-
-    guardAuraPositions("TargetFrame_UpdateAuraPositions")
-    guardUpdateAuras("TargetFrame_UpdateAuras")
-    guardUpdateAuras("FocusFrame_UpdateAuras")
-
-    S.targetFrameAuraGuardInstalled = true
-end
-
 -- Defined below, but ScheduleDispelMark closes over it.
 local MarkDispellablesOnFrame
 
@@ -1412,7 +1355,7 @@ local function ShortenPetName(frame)
 
     local name = UnitName("pet")
     if name and strlenutf8(name) > MAX_NAME_LENGTH then
-        name = strsub(name, 1, MAX_NAME_LENGTH) .. "…"
+        name = strsub(name, 1, MAX_NAME_LENGTH) .. "..."
     end
     frame.name:SetText(name or "")
 end
@@ -1481,7 +1424,8 @@ end
 
 -- ============================================================================
 -- Alt CD Announcement (Dota-style ability ping, text prefix ">")
--- Alt + LMB only via __SarychUIAltCDMouseClick; keybinds ignored.
+-- A secure Alt-only overlay intercepts mouse clicks without modifying Blizzard's
+-- protected action buttons, their scripts, action fields or secure attributes.
 -- ============================================================================
 
 -- Single namespace for this feature: these were 76 chunk-level locals and this
@@ -1497,16 +1441,9 @@ AltCD.BUTTON_GROUPS = {
     { "BonusActionButton", 10 },
 }
 
-AltCD.ATTR_KEYS = {
-    "type", "action", "spell", "macro", "macrotext", "item", "unit",
-    "type1", "action1", "spell1", "macro1", "macrotext1", "item1", "unit1",
-    "type2", "action2", "spell2", "macro2", "macrotext2", "item2", "unit2",
-    "alt-type", "alt-type1", "alt-action", "alt-action1",
-    "alt-spell", "alt-spell1", "alt-macro", "alt-macro1",
-    "alt-macrotext", "alt-macrotext1", "alt-item", "alt-item1", "alt-unit", "alt-unit1",
-    "*type", "*type1", "*action", "*action1",
-    "*spell", "*spell1", "*macro", "*macro1", "*item", "*item1", "*unit", "*unit1",
-}
+AltCD.overlays = setmetatable({}, { __mode = "k" })
+AltCD.pendingOverlayButtons = setmetatable({}, { __mode = "k" })
+AltCD.overlaysEnabled = false
 
 function AltCD.IsActive()
     local db = DB()
@@ -1521,6 +1458,27 @@ end
 function AltCD.IsAuraActive()
     local db = DB()
     return db and db.enabled and db.enableAltAuras == 1
+end
+
+function AltCD.IsOmniCDAddonEnabled()
+    local wrapper = SarychUI and SarychUI.GetAddOn and SarychUI:GetAddOn("OmniCD")
+    if wrapper and wrapper.IsRuntimeEnabled then
+        return wrapper:IsRuntimeEnabled() and true or false
+    end
+    if SarychUI and SarychUI.IsAddOnEnabled then
+        return SarychUI:IsAddOnEnabled("OmniCD") and true or false
+    end
+    return OmniCDEnabled == true
+end
+
+function AltCD.IsOmniCDActive()
+    local db = DB()
+    return db and db.enabled and db.enableAltOmniCD == 1 and AltCD.IsOmniCDAddonEnabled()
+end
+
+function AltCD.GetOmniCDParty()
+    local E = OmniCD and OmniCD[1]
+    return E and E.Party
 end
 
 AltCD.PREFIX = "> "
@@ -1616,10 +1574,6 @@ end
 function AltCD.GetActionSlot(button)
     if not button then
         return nil
-    end
-
-    if ActionButton_UpdateAction then
-        pcall(ActionButton_UpdateAction, button)
     end
 
     local slot = button.action
@@ -2207,179 +2161,85 @@ function AltCD.AnnounceAction(info)
     SendChatMessage(message, AltCD.GetChatChannel())
 end
 
-function AltCD.SaveButtonAttributes(button)
-    if not button or not button.GetAttribute then
+function AltCD.OnOverlayPostClick(sourceButton, mouseButton)
+    if mouseButton ~= "LeftButton" or not AltCD.IsActive() or not IsAltKeyDown() then
+        return
+    end
+
+    local actionInfo = AltCD.ResolveAction(sourceButton)
+    if actionInfo then
+        AltCD.AnnounceAction(actionInfo)
+    end
+end
+
+function AltCD.EnsureOverlayCombatFrame()
+    if S.altCdOverlayCombatFrame then
+        return
+    end
+
+    local frame = CreateFrame("Frame")
+    frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    frame:SetScript("OnEvent", function()
+        for button in pairs(AltCD.pendingOverlayButtons) do
+            AltCD.pendingOverlayButtons[button] = nil
+            AltCD.CreateActionOverlay(button)
+        end
+        AltCD.SetOverlaysEnabled(AltCD.overlaysEnabled)
+    end)
+    S.altCdOverlayCombatFrame = frame
+end
+
+function AltCD.CreateActionOverlay(button)
+    if not button or AltCD.overlays[button] or not AltCD.IsBlizzardActionButton(button) then
+        return AltCD.overlays[button]
+    end
+
+    if InCombatLockdown and InCombatLockdown() then
+        AltCD.pendingOverlayButtons[button] = true
+        AltCD.EnsureOverlayCombatFrame()
         return nil
     end
 
-    local saved = {}
-    for i = 1, #AltCD.ATTR_KEYS do
-        local key = AltCD.ATTR_KEYS[i]
-        local value = button:GetAttribute(key)
-        if value ~= nil then
-            saved[key] = value
-        end
-    end
+    local buttonName = button:GetName()
+    local overlay = CreateFrame("Button", "SarychUIAltCDOverlay_" .. buttonName, button, "SecureActionButtonTemplate")
+    overlay:SetAllPoints(button)
+    overlay:SetFrameStrata(button:GetFrameStrata())
+    overlay:SetFrameLevel((button:GetFrameLevel() or 0) + 20)
+    overlay:RegisterForClicks("LeftButtonUp")
+    overlay:EnableMouse(true)
+    overlay:HookScript("PostClick", function(_, mouseButton)
+        AltCD.OnOverlayPostClick(button, mouseButton)
+    end)
+    overlay:Hide()
 
-    if not next(saved) then
-        return nil
+    AltCD.overlays[button] = overlay
+    if AltCD.overlaysEnabled and RegisterStateDriver then
+        RegisterStateDriver(overlay, "visibility", "[mod:alt] show; hide")
     end
-    return saved
+    return overlay
 end
 
-function AltCD.ClearButtonAttributes(button)
-    if not button or not button.SetAttribute then
+function AltCD.SetOverlaysEnabled(enabled)
+    AltCD.overlaysEnabled = enabled and true or false
+    if InCombatLockdown and InCombatLockdown() then
+        AltCD.EnsureOverlayCombatFrame()
         return
     end
 
-    for i = 1, #AltCD.ATTR_KEYS do
-        button:SetAttribute(AltCD.ATTR_KEYS[i], nil)
-    end
-    button:SetAttribute("type", nil)
-    button:SetAttribute("type1", nil)
-end
-
-function AltCD.RestoreButtonAttributes(button, saved)
-    if not button or not saved or not button.SetAttribute then
-        return
-    end
-
-    for key, value in pairs(saved) do
-        button:SetAttribute(key, value)
-    end
-end
-
-function AltCD.ClearMouseClickFlag(button)
-    if not button then
-        return
-    end
-    button.__SarychUIAltCDMouseClick = nil
-    if button.__sarychAltCdFlagTimer and AceTimer then
-        AceTimer:CancelTimer(button.__sarychAltCdFlagTimer)
-        button.__sarychAltCdFlagTimer = nil
-    end
-end
-
-function AltCD.OnMouseDown(button, mouseButton)
-    if not AltCD.IsActive() then
-        return
-    end
-    if not AltCD.IsBlizzardActionButton(button) then
-        return
-    end
-    if mouseButton ~= "LeftButton" then
-        return
-    end
-    if not IsAltKeyDown() then
-        return
-    end
-
-    button.__SarychUIAltCDMouseClick = true
-
-    if AceTimer then
-        if button.__sarychAltCdFlagTimer then
-            AceTimer:CancelTimer(button.__sarychAltCdFlagTimer)
-        end
-        button.__sarychAltCdFlagTimer = AceTimer:ScheduleTimer(function()
-            if button then
-                button.__SarychUIAltCDMouseClick = nil
-                button.__sarychAltCdFlagTimer = nil
+    for _, overlay in pairs(AltCD.overlays) do
+        if AltCD.overlaysEnabled and RegisterStateDriver then
+            RegisterStateDriver(overlay, "visibility", "[mod:alt] show; hide")
+        else
+            if UnregisterStateDriver then
+                UnregisterStateDriver(overlay, "visibility")
             end
-        end, 1)
-    elseif C_Timer and C_Timer.After then
-        C_Timer.After(1, function()
-            if button then
-                button.__SarychUIAltCDMouseClick = nil
-            end
-        end)
-    end
-end
-
-function AltCD.OnMouseUp(button, mouseButton)
-    if not AltCD.IsActive() then
-        return
-    end
-    -- OnMouseUp fires before PreClick on LeftButtonUp buttons; defer clear so PreClick can consume the flag first.
-    if AceTimer then
-        AceTimer:ScheduleTimer(function()
-            AltCD.ClearMouseClickFlag(button)
-        end, 0)
-    elseif C_Timer and C_Timer.After then
-        C_Timer.After(0, function()
-            AltCD.ClearMouseClickFlag(button)
-        end)
-    end
-end
-
-function AltCD.OnPreClick(button, mouseButton, down)
-    if not button.__SarychUIAltCDMouseClick then
-        return
-    end
-
-    AltCD.ClearMouseClickFlag(button)
-
-    if not AltCD.IsActive() then
-        return
-    end
-    if not AltCD.IsBlizzardActionButton(button) then
-        return
-    end
-    if mouseButton ~= "LeftButton" then
-        return
-    end
-    if not IsAltKeyDown() then
-        return
-    end
-
-    local actionInfo = AltCD.ResolveAction(button)
-    if not actionInfo then
-        return
-    end
-
-    local saved = AltCD.SaveButtonAttributes(button)
-    if not saved and button.GetAttribute then
-        local fallbackType = button:GetAttribute("type")
-        if fallbackType ~= nil then
-            saved = { type = fallbackType }
+            overlay:Hide()
         end
     end
-    if not saved then
-        return
-    end
-
-    AltCD.AnnounceAction(actionInfo)
-    AltCD.ClearButtonAttributes(button)
-    button.__SarychUIAltCDRestore = saved
-end
-
-function AltCD.OnPostClick(button, mouseButton, down)
-    AltCD.ClearMouseClickFlag(button)
-
-    local saved = button and button.__SarychUIAltCDRestore
-    if not saved then
-        return
-    end
-
-    AltCD.RestoreButtonAttributes(button, saved)
-    button.__SarychUIAltCDRestore = nil
 end
 
 function AltCD.HookButtonClickScripts(button)
-    if not button or button.__SarychUIAltCDClickHooked then
-        return
-    end
-    if not AltCD.IsBlizzardActionButton(button) then
-        return
-    end
-    if not button.HookScript then
-        return
-    end
-
-    button:HookScript("OnMouseDown", AltCD.OnMouseDown)
-    button:HookScript("OnMouseUp", AltCD.OnMouseUp)
-    button:HookScript("PreClick", AltCD.OnPreClick)
-    button:HookScript("PostClick", AltCD.OnPostClick)
-    button.__SarychUIAltCDClickHooked = true
+    return AltCD.CreateActionOverlay(button)
 end
 
 function AltCD.HookAllActionButtons()
@@ -2610,9 +2470,9 @@ end
 
 function AltCD.BuildAuraTimeSuffix(remaining)
     if remaining and remaining > 0 then
-        return " — осталось " .. AltCD.FormatAuraTime(remaining)
+        return " - осталось " .. AltCD.FormatAuraTime(remaining)
     end
-    return " — без времени"
+    return " - без времени"
 end
 
 function AltCD.BuildAuraStackSuffix(count)
@@ -2737,21 +2597,13 @@ function AltCD.InitAuraPings()
 end
 
 function AltCD.InstallAuraUpdateHooks()
-    if S.altCdAuraUpdateHooked or not hooksecurefunc then
-        return
-    end
+	if S.altCdAuraUpdateHooked or not hooksecurefunc then
+		return
+	end
 
-    if type(TargetFrame_UpdateAuras) == "function" then
-        hooksecurefunc("TargetFrame_UpdateAuras", function(self)
-            local unit = (self and self.unit) or "target"
-            local fallbackName = (unit == "focus") and "фокусе" or "цели"
-            AltCD.HookFrameAuraButtons(self, unit, fallbackName, 32, 16)
-        end)
-    end
-
-    if type(FocusFrame_UpdateAuras) == "function" then
-        hooksecurefunc("FocusFrame_UpdateAuras", function(self)
-            AltCD.HookFrameAuraButtons(self, "focus", "фокусе", 32, 16)
+	if type(FocusFrame_UpdateAuras) == "function" then
+		hooksecurefunc("FocusFrame_UpdateAuras", function(self)
+			AltCD.HookFrameAuraButtons(self, "focus", "фокусе", 32, 16)
         end)
     end
 
@@ -2785,6 +2637,258 @@ function AltCD.InstallAuraHooks()
     AltCD.InitAuraPings()
 end
 
+function AltCD.GetOmniCDOwnerName(icon)
+    if not icon then
+        return nil
+    end
+
+    local P = AltCD.GetOmniCDParty()
+    local info = P and icon.guid and P.groupInfo and P.groupInfo[icon.guid]
+    local name = info and info.nameWithoutRealm
+    if (not name or name == "") and type(icon.unitName) == "string" then
+        name = icon.unitName
+    end
+    if type(name) == "string" and name ~= "" then
+        return name:match("^([^-]+)") or name
+    end
+    if icon.unit and UnitName then
+        local unitName = UnitName(icon.unit)
+        if unitName and unitName ~= "" then
+            return unitName
+        end
+    end
+    return nil
+end
+
+function AltCD.GetOmniCDRemaining(icon)
+    if not icon then
+        return 0
+    end
+
+    local P = AltCD.GetOmniCDParty()
+    local info = P and icon.guid and P.groupInfo and P.groupInfo[icon.guid]
+    local active = info and info.active and info.active[icon.spellID]
+    local startTime, duration
+    if active then
+        startTime = active.startTime
+        duration = active.duration
+    end
+
+    if (not startTime or not duration) and icon.cooldown and icon.cooldown.GetCooldownTimes then
+        local cooldownStart, cooldownDuration = icon.cooldown:GetCooldownTimes()
+        if cooldownStart and cooldownDuration and cooldownDuration > 0 then
+            if cooldownStart > 10000 then
+                cooldownStart = cooldownStart / 1000
+                cooldownDuration = cooldownDuration / 1000
+            end
+            startTime = cooldownStart
+            duration = cooldownDuration
+        end
+    end
+
+    if not startTime or not duration or duration <= 0 then
+        return 0
+    end
+
+    local remaining = ceil(startTime + duration - GetTime())
+    if remaining < 0 then
+        return 0
+    end
+    return remaining
+end
+
+function AltCD.GetOmniCDSpellLink(icon)
+    local spellID = icon and (icon.spellID or icon.tooltipID)
+    if type(spellID) ~= "number" or spellID <= 0 then
+        return nil
+    end
+
+    local link = AltCD.GetSpellLink(spellID)
+    if link and link ~= "" then
+        return link
+    end
+
+    local name = GetSpellInfo and GetSpellInfo(spellID)
+    if name and name ~= "" then
+        return name
+    end
+    return nil
+end
+
+function AltCD.FormatOmniCDTime(seconds)
+    seconds = tonumber(seconds) or 0
+    if seconds < 0 then
+        seconds = 0
+    end
+    seconds = math.floor(seconds + 0.5)
+    if seconds < 60 then
+        return seconds .. " сек."
+    end
+    return format("%d:%02d", math.floor(seconds / 60), seconds % 60)
+end
+
+function AltCD.BuildOmniCDMessage(spellLink, remaining, ownerName)
+    local status
+    if remaining and remaining > 0 then
+        status = "перезаряжается: " .. AltCD.FormatOmniCDTime(remaining)
+    else
+        status = "готова"
+    end
+
+    if ownerName and ownerName ~= "" then
+        return AltCD.PREFIX .. spellLink .. " у " .. ownerName .. " " .. status
+    end
+    return AltCD.PREFIX .. spellLink .. " " .. status
+end
+
+function AltCD.AnnounceOmniCDIcon(icon)
+    local spellLink = AltCD.GetOmniCDSpellLink(icon)
+    if not spellLink then
+        return
+    end
+
+    local message = AltCD.BuildOmniCDMessage(
+        spellLink,
+        AltCD.GetOmniCDRemaining(icon),
+        AltCD.GetOmniCDOwnerName(icon)
+    )
+    if not message or message == "" then
+        return
+    end
+
+    SendChatMessage(message, AltCD.GetChatChannel())
+end
+
+function AltCD.OnOmniCDIconMouseUp(icon, button)
+    if not AltCD.IsOmniCDActive() then
+        return
+    end
+    if not AltCD.IsAltLeftMouseClick(button) then
+        return
+    end
+    AltCD.AnnounceOmniCDIcon(icon)
+end
+
+function AltCD.RefreshOmniCDIconMouse(icon)
+    if not icon or not icon.EnableMouse then
+        return
+    end
+    if AltCD.IsOmniCDActive() then
+        icon:EnableMouse(true)
+        return
+    end
+    if icon.SetTooltip then
+        icon:SetTooltip()
+    end
+end
+
+function AltCD.HookOmniCDIcon(icon)
+    if not icon or icon.__SarychUIAltCDOmniHooked then
+        return
+    end
+
+    if icon.GetScript and icon:GetScript("OnMouseUp") then
+        icon:HookScript("OnMouseUp", AltCD.OnOmniCDIconMouseUp)
+    elseif icon.SetScript then
+        icon:SetScript("OnMouseUp", AltCD.OnOmniCDIconMouseUp)
+    end
+
+    icon.__SarychUIAltCDOmniHooked = true
+    AltCD.RefreshOmniCDIconMouse(icon)
+end
+
+function AltCD.EnumerateOmniCDIcons(callback)
+    local P = AltCD.GetOmniCDParty()
+    local pool = P and P.IconPool
+    if not pool or not callback then
+        return
+    end
+
+    if pool.EnumerateAll then
+        for icon in pool:EnumerateAll() do
+            callback(icon)
+        end
+        return
+    end
+
+    if pool.allObjects then
+        for icon in pairs(pool.allObjects) do
+            callback(icon)
+        end
+    end
+end
+
+function AltCD.WrapOmniCDIconPool()
+    local P = AltCD.GetOmniCDParty()
+    local pool = P and P.IconPool
+    if not pool then
+        return false
+    end
+
+    if not pool.__SarychUIAltCDInitWrapped then
+        local origInit = pool.initializeFunc
+        pool.initializeFunc = function(framePool, icon)
+            if origInit then
+                origInit(framePool, icon)
+            end
+            AltCD.HookOmniCDIcon(icon)
+        end
+        pool.__SarychUIAltCDInitWrapped = true
+    end
+
+    AltCD.EnumerateOmniCDIcons(AltCD.HookOmniCDIcon)
+    return true
+end
+
+function AltCD.HookOmniCDSetTooltipMixin()
+    if S.altCdOmniSetTooltipHooked then
+        return true
+    end
+
+    local P = AltCD.GetOmniCDParty()
+    local mixin = P and P.BarFrameIconMixin
+    if not mixin or not mixin.SetTooltip or not hooksecurefunc then
+        return false
+    end
+
+    hooksecurefunc(mixin, "SetTooltip", function(icon)
+        if AltCD.IsOmniCDActive() then
+            icon:EnableMouse(true)
+        end
+    end)
+    S.altCdOmniSetTooltipHooked = true
+    return true
+end
+
+function AltCD.EnsureOmniCDRetryFrame()
+    if S.altCdOmniRetryFrame then
+        return
+    end
+
+    local frame = CreateFrame("Frame")
+    frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+    frame:SetScript("OnEvent", function()
+        AltCD.InstallOmniCDHooks()
+    end)
+    S.altCdOmniRetryFrame = frame
+end
+
+function AltCD.InstallOmniCDHooks()
+    local P = AltCD.GetOmniCDParty()
+    if P and P.CreateIconFramePool and hooksecurefunc and not S.altCdOmniCreateHooked then
+        hooksecurefunc(P, "CreateIconFramePool", function()
+            AltCD.WrapOmniCDIconPool()
+            AltCD.HookOmniCDSetTooltipMixin()
+        end)
+        S.altCdOmniCreateHooked = true
+    end
+
+    AltCD.HookOmniCDSetTooltipMixin()
+    AltCD.WrapOmniCDIconPool()
+    AltCD.EnumerateOmniCDIcons(AltCD.RefreshOmniCDIconMouse)
+    AltCD.EnsureOmniCDRetryFrame()
+end
+
 function AltCD.InstallUnitBarHooks()
     AltCD.EnsureUnitBarPingEventFrame()
     AltCD.InitUnitBarPings()
@@ -2805,7 +2909,7 @@ function AltCD.InstallHooks()
 end
 
 function AltCD.RemoveHooks()
-    S.altCdHooksInstalled = false
+    AltCD.SetOverlaysEnabled(false)
 end
 
 -- Apply alt CD announcement settings
@@ -2834,11 +2938,13 @@ function module:EnableAltCD()
 
     AltCD.InstallHooks()
     S.altCdEnabled = true
+    AltCD.SetOverlaysEnabled(true)
 end
 
 -- Disable alt CD announcement
 function module:DisableAltCD()
     S.altCdEnabled = false
+    AltCD.SetOverlaysEnabled(false)
     -- Keep S.altCdHooksInstalled so ActionButton_OnLoad is not hooked again on re-enable.
 end
 
@@ -2870,6 +2976,16 @@ function module:ApplyAltAuras()
     end
 
     AltCD.InstallAuraHooks()
+end
+
+function module:ApplyAltOmniCD()
+    local db = DB()
+    if not db or not db.enabled or db.enableAltOmniCD ~= 1 or not AltCD.IsOmniCDAddonEnabled() then
+        AltCD.EnumerateOmniCDIcons(AltCD.RefreshOmniCDIconMouse)
+        return
+    end
+
+    AltCD.InstallOmniCDHooks()
 end
 
 -- ============================================================================
@@ -3179,431 +3295,25 @@ function module:DisableAltFPS()
 end
 
 -- ============================================================================
--- SpeedyLoad Functionality
+-- SpeedyLoad (native Runtime service)
 -- ============================================================================
 
--- Events to unregister during loading (safe set)
-S.speedyLoadEventsSafe = {
-    SPELLS_CHANGED = {},
-    USE_GLYPH = {},
-    PET_TALENT_UPDATE = {},
-    PLAYER_TALENT_UPDATE = {},
-    WORLD_MAP_UPDATE = {},
-    UPDATE_WORLD_STATES = {},
-    CRITERIA_UPDATE = {},
-    RECEIVED_ACHIEVEMENT_LIST = {},
-    ACTIONBAR_SLOT_CHANGED = {},
-    SPELL_UPDATE_USABLE = {},
-    UPDATE_FACTION = {}
-}
-
--- Extra events for aggressive mode (restored without re-fire — args are required)
-S.speedyLoadEventsAggressiveExtra = {
-    ACTIONBAR_UPDATE_STATE = {},
-    ACTIONBAR_UPDATE_USABLE = {},
-    ACTIONBAR_UPDATE_COOLDOWN = {},
-    SPELL_UPDATE_COOLDOWN = {},
-    UNIT_AURA = {},
-    UNIT_INVENTORY_CHANGED = {},
-    BAG_UPDATE = {},
-    QUEST_LOG_UPDATE = {},
-    COMPANION_UPDATE = {},
-    PET_BAR_UPDATE = {},
-    TRADE_SKILL_UPDATE = {},
-    MERCHANT_UPDATE = {},
-}
-
--- Active event table (rebuilt when mode changes)
-S.speedyLoadEvents = {}
-
-function S.SpeedyLoad_IsEnabled()
-    local sys = SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.system
-    return sys and (sys.enableSpeedyLoad == 1 or sys.enableSpeedyLoad == true) or false
-end
-
-function S.SpeedyLoad_RestoreTrackedFrames()
-    for e, frames in pairs(S.speedyLoadEvents) do
-        if type(frames) == "table" then
-            for frame in pairs(frames) do
-                if frame and frame.RegisterEvent then
-                    pcall(frame.RegisterEvent, frame, e)
-                end
-                frames[frame] = nil
-            end
-        end
-    end
-end
-
-local function SpeedyLoad_RebuildEventTable()
-    local sys = SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.system
-    local mode = (sys and sys.speedyLoadMode) or "safe"
-    wipe(S.speedyLoadEvents)
-    for e in pairs(S.speedyLoadEventsSafe) do
-        S.speedyLoadEvents[e] = {}
-    end
-    if mode == "aggressive" then
-        for e in pairs(S.speedyLoadEventsAggressiveExtra) do
-            S.speedyLoadEvents[e] = {}
-        end
-    end
-end
-
-SpeedyLoad_RebuildEventTable()
-
--- Events that are safe to re-fire with a known dummy arg after loading
-local SPEEDY_REFIRE_SAFE = {
-    ACTIONBAR_SLOT_CHANGED = true,
-}
-
--- After /reload or loading screens, unit portraits may stay blank until refreshed.
--- Kept on S (not local) — tools/module.lua is near Lua 5.1's 200-local limit.
-function S.SpeedyLoad_RefreshUnitPortraits()
-    local update = UnitFramePortrait_Update
-    if type(update) == "function" then
-        local frames = {
-            PlayerFrame, PetFrame, TargetFrame, FocusFrame,
-            TargetFrameToT, FocusFrameToT,
-            PartyMemberFrame1, PartyMemberFrame2, PartyMemberFrame3, PartyMemberFrame4,
-        }
-        for i = 1, #frames do
-            local frame = frames[i]
-            if frame then
-                pcall(update, frame)
-            end
-        end
-    end
-    if type(SetPortraitTexture) == "function" then
-        if PlayerPortrait then pcall(SetPortraitTexture, PlayerPortrait, "player") end
-        if PetPortrait then pcall(SetPortraitTexture, PetPortrait, "pet") end
-        if TargetFramePortrait and UnitExists("target") then
-            pcall(SetPortraitTexture, TargetFramePortrait, "target")
-        end
-        if FocusFramePortrait and UnitExists("focus") then
-            pcall(SetPortraitTexture, FocusFramePortrait, "focus")
-        end
-        if MicroButtonPortrait then
-            pcall(SetPortraitTexture, MicroButtonPortrait, "player")
-        end
-    end
-    if type(PlayerFrame_Update) == "function" then
-        pcall(PlayerFrame_Update)
-    end
-    local frameMod = SarychUI and SarychUI.modules and SarychUI.modules.frame
-    if frameMod and frameMod.Apply3DPortraits then
-        pcall(function()
-            frameMod:Apply3DPortraits()
-        end)
-    end
-end
-
-function S.SpeedyLoad_SchedulePortraitRefresh()
-    local driver = S.speedyLoadPortraitDriver
-    if not driver then
-        driver = CreateFrame("Frame")
-        S.speedyLoadPortraitDriver = driver
-        driver:SetScript("OnUpdate", function(self, elapsed)
-            self.elapsed = (self.elapsed or 0) + elapsed
-            local step = self.step or 0
-            if step == 0 then
-                S.SpeedyLoad_RefreshUnitPortraits()
-                self.step = 1
-            elseif step == 1 and self.elapsed >= 0.15 then
-                S.SpeedyLoad_RefreshUnitPortraits()
-                self.step = 2
-            elseif step == 2 and self.elapsed >= 0.5 then
-                S.SpeedyLoad_RefreshUnitPortraits()
-                self.step = 3
-            elseif step == 3 and self.elapsed >= 1.0 then
-                S.SpeedyLoad_RefreshUnitPortraits()
-                self.step = 4
-            elseif step == 4 and self.elapsed >= 2.0 then
-                S.SpeedyLoad_RefreshUnitPortraits()
-                self.step = 5
-            elseif step == 5 and self.elapsed >= 3.0 then
-                S.SpeedyLoad_RefreshUnitPortraits()
-                self.step = 0
-                self.elapsed = 0
-                self:Hide()
-            end
-        end)
-    end
-    driver.elapsed = 0
-    driver.step = 0
-    driver:Show()
-end
-
--- Needed locals for tracking
-S.speedyLoadOccured, S.speedyLoadListenForUnreg, S.speedyLoadList = {}, false, nil
-S.validUnregisterFuncs = nil
-
--- Check if unregister function is valid (security check)
-local function SpeedyLoad_IsValidUnregisterFunc(tbl, func)
-    if not func then return false end
-    local valid = issecurevariable(tbl, "UnregisterEvent")
-    if not S.validUnregisterFuncs[func] then
-        S.validUnregisterFuncs[func] = not (not valid)
-    end
-    return valid
-end
-
--- Unregister events for speedy loading with security checks
-local function SpeedyLoad_Unregister(event, ...)
-    for i = 1, select("#", ...) do
-        local frame = select(i, ...)
-        if frame then
-            local UnregisterEvent = frame.UnregisterEvent
-            if UnregisterEvent then
-                -- Check if we can safely call UnregisterEvent
-                if S.validUnregisterFuncs[UnregisterEvent] or SpeedyLoad_IsValidUnregisterFunc(frame, UnregisterEvent) then
-                    UnregisterEvent(frame, event)
-                    S.speedyLoadEvents[event][frame] = 1
-                end
-            end
-        end
-    end
-end
-
--- SpeedyLoad event handler
-local function SpeedyLoad_EventHandler(self, event, ...)
-    if not S.SpeedyLoad_IsEnabled() then
-        -- Flag can flip mid-load; tear the driver down instead of no-op'ing
-        -- while other frames still have events stripped.
-        if S.speedyLoadInitialized or S.speedyLoadFrame then
-            module:DisableSpeedyLoad()
-        end
-        return
-    end
-    
-    if event == "ADDON_LOADED" then
-        local name = ...
-        -- Check if SarychUI is loaded (or core is loaded)
-        if name and (name == "SarychUI" or name:lower() == "sarychui") then
-            S.speedyLoadFrame:UnregisterEvent("ADDON_LOADED")
-
-            -- Make sure our PLAYER_ENTERING_WORLD is always the first
-            S.speedyLoadList = {GetFramesRegisteredForEvent("PLAYER_ENTERING_WORLD")}
-            for i, frame in ipairs(S.speedyLoadList) do
-                if frame and frame.UnregisterEvent then
-                    frame:UnregisterEvent("PLAYER_ENTERING_WORLD")
-                end
-            end
-
-            -- After we register PLAYER_ENTERING_WORLD to our frame, we put back
-            -- the event to all the frames it was removed from
-            S.speedyLoadFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-            for i, frame in ipairs(S.speedyLoadList) do
-                if frame and frame.RegisterEvent then
-                    frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-                end
-            end
-            wipe(S.speedyLoadList)
-            S.speedyLoadList = nil
-
-            -- WTF Blizzard, why registering this event?
-            if PetStableFrame and PetStableFrame.UnregisterEvent then
-                PetStableFrame:UnregisterEvent("SPELLS_CHANGED")
-            end
-        end
-
-    elseif event == "PLAYER_ENTERING_WORLD" then
-        if not S.speedyLoadEnteredOnce then
-            S.speedyLoadFrame:RegisterEvent("PLAYER_LEAVING_WORLD")
-            
-            -- Hook UnregisterEvent to track when frames unregister events
-            if S.speedyLoadFrame and getmetatable(S.speedyLoadFrame) and getmetatable(S.speedyLoadFrame).__index then
-                hooksecurefunc(getmetatable(S.speedyLoadFrame).__index, "UnregisterEvent", function(frame, event)
-                    if S.speedyLoadListenForUnreg then
-                        local frames = S.speedyLoadEvents[event]
-                        if frames then
-                            frames[frame] = nil
-                        end
-                    end
-                end)
-            end
-            
-            S.speedyLoadEnteredOnce = true
-            -- /reload race: PLAYER_LEAVING_WORLD can fire before the first PEW and
-            -- leave Blizzard frames without SPELLS_CHANGED / etc. Restore now.
-            for e, frames in pairs(S.speedyLoadEvents) do
-                for frame in pairs(frames) do
-                    if frame and frame.RegisterEvent then
-                        frame:RegisterEvent(e)
-                    end
-                    frames[frame] = nil
-                end
-            end
-            wipe(S.speedyLoadOccured)
-            S.speedyLoadListenForUnreg = false
-            for e in pairs(S.speedyLoadEvents) do
-                S.speedyLoadFrame:UnregisterEvent(e)
-            end
-            S.SpeedyLoad_SchedulePortraitRefresh()
-        else
-            S.speedyLoadListenForUnreg = false
-            
-            -- Re-register all events that were unregistered
-            for e, frames in pairs(S.speedyLoadEvents) do
-                for frame in pairs(frames) do
-                    if frame and frame.RegisterEvent then
-                        frame:RegisterEvent(e)
-                        
-                        -- Only re-fire events with known-safe dummy args.
-                        -- Aggressive events (UNIT_AURA, BAG_UPDATE, …) need real
-                        -- payloads; re-firing with nil crashes addons (e.g. Carbonite).
-                        if S.speedyLoadOccured[e] and SPEEDY_REFIRE_SAFE[e] then
-                            local OnEvent = frame:GetScript("OnEvent")
-                            if OnEvent then
-                                local arg1 = (e == "ACTIONBAR_SLOT_CHANGED") and 0 or nil
-                                local success, err = pcall(OnEvent, frame, e, arg1)
-                                if not success and geterrorhandler then
-                                    geterrorhandler()(err, 1)
-                                end
-                            end
-                        end
-                    end
-                    frames[frame] = nil
-                end
-            end
-            wipe(S.speedyLoadOccured)
-            
-            -- Stop listening to these events on our frame until next leave
-            for e in pairs(S.speedyLoadEvents) do
-                S.speedyLoadFrame:UnregisterEvent(e)
-            end
-            S.SpeedyLoad_SchedulePortraitRefresh()
-        end
-
-    elseif event == "PLAYER_LEAVING_WORLD" then
-        wipe(S.speedyLoadOccured)
-        
-        -- Unregister events for speedy loading
-        for e in pairs(S.speedyLoadEvents) do
-            SpeedyLoad_Unregister(e, GetFramesRegisteredForEvent(e))
-            -- MUST REGISTER AFTER UNREGISTER
-            S.speedyLoadFrame:RegisterEvent(e)
-        end
-        
-        S.speedyLoadListenForUnreg = true
-
-    else
-        -- Track that this event occurred
-        S.speedyLoadOccured[event] = 1
-        -- Compress: do not propagate or simulate, just stop listening to duplicates
-        S.speedyLoadFrame:UnregisterEvent(event)
-    end
-end
-
--- Apply speedy load settings
+-- Loading-screen event suppression is owned by core/runtime.lua. Tools keeps
+-- these delegates so profile application and older callers retain the same API.
 function module:ApplySpeedyLoad()
-    local enabled = S.SpeedyLoad_IsEnabled()
-    if enabled then
-        SpeedyLoad_RebuildEventTable()
-        if S.speedyLoadInitialized then
-            -- Mode change while active: rebuild tables for next leave/enter cycle.
-            for e in pairs(S.speedyLoadEvents) do
-                S.speedyLoadEvents[e] = S.speedyLoadEvents[e] or {}
-            end
-        else
-            self:EnableSpeedyLoad()
-        end
-    else
-        -- Restore tracked frames BEFORE wiping the event table.
-        self:DisableSpeedyLoad()
-        SpeedyLoad_RebuildEventTable()
+    if SarychUI and SarychUI.Runtime then
+        SarychUI.Runtime:RefreshSpeedyLoad()
     end
 end
 
--- Enable speedy load
 function module:EnableSpeedyLoad()
-    if not S.SpeedyLoad_IsEnabled() then return end
-    
-    if S.speedyLoadInitialized then return end -- Already enabled
-    
-    -- Create frame
-    S.speedyLoadFrame = CreateFrame("Frame")
-    S.speedyLoadEnteredOnce = false
-    
-    -- Initialize valid unregister functions cache
-    S.validUnregisterFuncs = {[S.speedyLoadFrame.UnregisterEvent] = true}
-    
-    -- Reset tracking variables
-    S.speedyLoadOccured = {}
-    S.speedyLoadListenForUnreg = false
-    S.speedyLoadList = nil
-    
-    -- Reset events tables for current mode
-    SpeedyLoad_RebuildEventTable()
-    for e in pairs(S.speedyLoadEvents) do
-        S.speedyLoadEvents[e] = {}
-    end
-
-    -- Register ADDON_LOADED to detect when SarychUI is loaded
-    S.speedyLoadFrame:RegisterEvent("ADDON_LOADED")
-    
-    -- Check if SarychUI is already loaded
-    if IsAddOnLoaded("SarychUI") then
-        S.speedyLoadFrame:UnregisterEvent("ADDON_LOADED")
-        S.speedyLoadFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-        
-        -- Make sure our PLAYER_ENTERING_WORLD is always the first
-        S.speedyLoadList = {GetFramesRegisteredForEvent("PLAYER_ENTERING_WORLD")}
-        for i, frame in ipairs(S.speedyLoadList) do
-            if frame and frame.UnregisterEvent then
-                frame:UnregisterEvent("PLAYER_ENTERING_WORLD")
-            end
-        end
-        
-        -- After we register PLAYER_ENTERING_WORLD to our frame, we put back
-        -- the event to all the frames it was removed from
-        S.speedyLoadFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-        for i, frame in ipairs(S.speedyLoadList) do
-            if frame and frame.RegisterEvent then
-                frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-            end
-        end
-        wipe(S.speedyLoadList)
-        S.speedyLoadList = nil
-        
-        -- WTF Blizzard, why registering this event?
-        if PetStableFrame and PetStableFrame.UnregisterEvent then
-            PetStableFrame:UnregisterEvent("SPELLS_CHANGED")
-        end
-    end
-    
-    -- Set event handler
-    S.speedyLoadFrame:SetScript("OnEvent", SpeedyLoad_EventHandler)
-    
-    S.speedyLoadInitialized = true
+    self:ApplySpeedyLoad()
 end
 
--- Disable speedy load
 function module:DisableSpeedyLoad()
-    if not S.speedyLoadInitialized and not S.speedyLoadFrame then return end
-
-    S.speedyLoadListenForUnreg = false
-    S.SpeedyLoad_RestoreTrackedFrames()
-
-    -- Unregister all events and clear script
-    if S.speedyLoadFrame then
-        S.speedyLoadFrame:UnregisterAllEvents()
-        S.speedyLoadFrame:SetScript("OnEvent", nil)
-        S.speedyLoadFrame = nil
+    if SarychUI and SarychUI.Runtime then
+        SarychUI.Runtime:RestoreSpeedyLoad()
     end
-
-    -- Reset state
-    S.speedyLoadEnteredOnce = false
-
-    -- Reset tracking variables
-    S.speedyLoadOccured = {}
-    S.speedyLoadList = nil
-    S.validUnregisterFuncs = nil
-
-    -- Reset events tables
-    for e in pairs(S.speedyLoadEvents) do
-        S.speedyLoadEvents[e] = {}
-    end
-
-    S.speedyLoadInitialized = false
 end
 
 -- ============================================================================
@@ -3891,16 +3601,12 @@ function module:EnableShowFlightTimes()
     -- Create flight times countdown frame (similar to arena countdown)
     local FLIGHT_TIMER_FONT_SIZE = 18
     -- Same winged-boot glyph WDM uses for neutral flight nodes.
-    local FLIGHT_TIMER_ICON_TEXTURE = "Interface\\AddOns\\SarychUI\\addons\\WDM\\textures\\objecticonsatlas"
+    local FLIGHT_TIMER_ICON_TEXTURE = "Interface\\AddOns\\SarychUI\\media\\maps\\objecticonsatlas"
     local FLIGHT_TIMER_ICON_COORDS = { 0.53418, 0.56543, 0.601562, 0.632812 }
 
     local function ApplyFlightTimerIcon(tex)
         if not tex then return end
-        if type(WDM_GetTexturePath) == "function" then
-            tex:SetTexture(WDM_GetTexturePath("objecticonsatlas"))
-        else
-            tex:SetTexture(FLIGHT_TIMER_ICON_TEXTURE)
-        end
+        tex:SetTexture(FLIGHT_TIMER_ICON_TEXTURE)
         tex:SetTexCoord(unpack(FLIGHT_TIMER_ICON_COORDS))
         tex:SetBlendMode("BLEND")
         tex:SetAlpha(1)
@@ -4202,7 +3908,7 @@ function module:EnableShowFlightTimes()
             tickerAcc = 0
             timeSinceStart = timeSinceStart + 0.1
             
-            -- 1) If we never got airborne within MAX_START_DELAY → cancel watcher
+            -- 1) If we never got airborne within MAX_START_DELAY -> cancel watcher
             if not seenAirborne and timeSinceStart > MAX_START_DELAY then
                 self:Hide()
                 ticker = nil
@@ -4219,7 +3925,7 @@ function module:EnableShowFlightTimes()
                 return
             end
             
-            -- 3) After having been airborne, first false → real landing
+            -- 3) After having been airborne, first false -> real landing
             if seenAirborne then
                 self:Hide()
                 S.stopFlightTimesFunc()
@@ -4682,7 +4388,7 @@ function module:ApplyInviteCountdown()
             self:EnableInviteCountdown()
         end
         
-        -- Если сейчас уже открыт подходящий попап/диалог — запустить таймеры сразу
+        -- Если сейчас уже открыт подходящий попап/диалог - запустить таймеры сразу
         if S.inviteCountdownInitialized then
             local dlg = InviteLFGDialog()
             if dlg and S.popupTimer and not S.popupTimer.active then
@@ -6320,6 +6026,36 @@ local function ResetCharacterFrameModelDefaults()
     end
 end
 
+S.QueueBlizzMoveLayout = function(frame)
+    if not frame then
+        return
+    end
+    S.blizzMovePendingFrames = S.blizzMovePendingFrames or {}
+    S.blizzMovePendingFrames[frame] = true
+    if S.blizzMoveRegenFrame then
+        return
+    end
+    local f = CreateFrame("Frame")
+    f:RegisterEvent("PLAYER_REGEN_ENABLED")
+    f:SetScript("OnEvent", function()
+        local pending = S.blizzMovePendingFrames
+        S.blizzMovePendingFrames = nil
+        if not pending then
+            return
+        end
+        local apply = S.ApplyBlizzMoveLayout
+        if type(apply) ~= "function" then
+            return
+        end
+        for queued in pairs(pending) do
+            if queued and queued.IsShown and queued:IsShown() then
+                apply(queued)
+            end
+        end
+    end)
+    S.blizzMoveRegenFrame = f
+end
+
 local function EnsureCharacterFrameHideHook()
     local characterFrame = _G.CharacterFrame
     if not characterFrame or characterFrame._SarychUI_BlizzMoveHideHook then
@@ -6330,6 +6066,9 @@ local function EnsureCharacterFrameHideHook()
     characterFrame:HookScript("OnHide", function(self)
         local db = DB()
         if not db or not db.enabled or db.enableBlizzMove ~= 1 then return end
+        if InCombatLockdown and InCombatLockdown() then
+            return
+        end
 
         local settings = self.settings
         if not settings then
@@ -6375,14 +6114,14 @@ local function DebugBlizzMoveClick(frameName, eventName, button, ctrlDown, oldSa
 end
 
 do
-    -- handlers the frame OnShow event
-    local function OnShow(self, ...)
+    S.ApplyBlizzMoveLayout = function(self)
         local db = DB()
         if not db or not db.enabled or db.enableBlizzMove ~= 1 then return end
-        
-        local frameName = self:GetName()
+        if not self then return end
+
+        local frameName = self.GetName and self:GetName()
         if not frameName then return end
-        
+
         local frames = db.blizzMoveFrames or {}
         local settings = frames[frameName]
         if settings and settings.point and settings.save then
@@ -6411,10 +6150,22 @@ do
         end
     end
 
+    -- handlers the frame OnShow event
+    local function OnShow(self, ...)
+        local db = DB()
+        if not db or not db.enabled or db.enableBlizzMove ~= 1 then return end
+        if InCombatLockdown and InCombatLockdown() then
+            S.QueueBlizzMoveLayout(self)
+            return
+        end
+        S.ApplyBlizzMoveLayout(self)
+    end
+
     -- handles frames rescaling
     local function OnMouseWheel(self, ...)
         local db = DB()
         if not db or not db.enabled or db.enableBlizzMove ~= 1 then return end
+        if InCombatLockdown and InCombatLockdown() then return end
         
         if IsControlKeyDown() then
             local frameToMove = self.frameToMove
@@ -6440,6 +6191,7 @@ do
     local function OnDragStart(self)
         local db = DB()
         if not db or not db.enabled or db.enableBlizzMove ~= 1 then return end
+        if InCombatLockdown and InCombatLockdown() then return end
         
         local frameToMove = self.frameToMove
         if not frameToMove then return end
@@ -6451,6 +6203,7 @@ do
     local function OnDragStop(self)
         local db = DB()
         if not db or not db.enabled or db.enableBlizzMove ~= 1 then return end
+        if InCombatLockdown and InCombatLockdown() then return end
         
         local frameToMove = self.frameToMove
         local settings = frameToMove.settings
@@ -6826,348 +6579,37 @@ function module:DisableBlizzMove()
 end
 
 -- ============================================================================
--- DarkMode Functionality
+-- DarkMode Functionality (Lorti UI)
 -- ============================================================================
 
-S.darkModeInitialized, S.darkModeFrame = false, nil
-S.darkModeConfig = {
-    color = {r = 0.37, g = 0.37, b = 0.37, a = 1}
-}
-
-S.darkModeFramesList = {
-    -- UnitFrames
-    "PlayerFrameTexture",
-    "TargetFrameTextureFrameTexture",
-    "PetFrameTexture",
-    "PartyMemberFrame1Texture",
-    "PartyMemberFrame2Texture",
-    "PartyMemberFrame3Texture",
-    "PartyMemberFrame4Texture",
-    "PartyMemberFrame1PetFrameTexture",
-    "PartyMemberFrame2PetFrameTexture",
-    "PartyMemberFrame3PetFrameTexture",
-    "PartyMemberFrame4PetFrameTexture",
-    "FocusFrameTextureFrameTexture",
-    "TargetFrameToTTextureFrameTexture",
-    "FocusFrameToTTextureFrameTexture",
-    "Boss1TargetFrameTextureFrameTexture",
-    "Boss2TargetFrameTextureFrameTexture",
-    "Boss3TargetFrameTextureFrameTexture",
-    "Boss4TargetFrameTextureFrameTexture",
-    "Boss5TargetFrameTextureFrameTexture",
-    "Boss1TargetFrameSpellBarBorder",
-    "Boss2TargetFrameSpellBarBorder",
-    "Boss3TargetFrameSpellBarBorder",
-    "Boss4TargetFrameSpellBarBorder",
-    "Boss5TargetFrameSpellBarBorder",
-    "RuneButtonIndividual1BorderTexture",
-    "RuneButtonIndividual2BorderTexture",
-    "RuneButtonIndividual3BorderTexture",
-    "RuneButtonIndividual4BorderTexture",
-    "RuneButtonIndividual5BorderTexture",
-    "RuneButtonIndividual6BorderTexture",
-    "CastingBarFrameBorder",
-    "FocusFrameSpellBarBorder",
-    "TargetFrameSpellBarBorder",
-    -- MainMenuBar
-    "SlidingActionBarTexture0",
-    "SlidingActionBarTexture1",
-    "BonusActionBarTexture0",
-    "BonusActionBarTexture1",
-    "BonusActionBarTexture",
-    "MainMenuBarTexture0",
-    "MainMenuBarTexture1",
-    "MainMenuBarTexture2",
-    "MainMenuBarTexture3",
-    "MainMenuMaxLevelBar0",
-    "MainMenuMaxLevelBar1",
-    "MainMenuMaxLevelBar2",
-    "MainMenuMaxLevelBar3",
-    "MainMenuXPBarTextureLeftCap",
-    "MainMenuXPBarTextureRightCap",
-    "MainMenuXPBarTexture0",
-    "MainMenuXPBarTexture1",
-    "MainMenuXPBarTexture2",
-    "MainMenuXPBarTexture3",
-    "MainMenuXPBarTextureMid",
-    "ReputationWatchBarTexture0",
-    "ReputationWatchBarTexture1",
-    "ReputationWatchBarTexture2",
-    "ReputationWatchBarTexture3",
-    "ReputationXPBarTexture0",
-    "ReputationXPBarTexture1",
-    "ReputationXPBarTexture2",
-    "ReputationXPBarTexture3",
-    "MainMenuBarLeftEndCap",
-    "MainMenuBarRightEndCap",
-    "StanceBarLeft",
-    "StanceBarMiddle",
-    "StanceBarRight",
-    "ShapeshiftBarLeft",
-    "ShapeshiftBarMiddle",
-    "ShapeshiftBarRight",
-    -- ArenaFrames
-    "ArenaEnemyFrame1Texture",
-    "ArenaEnemyFrame2Texture",
-    "ArenaEnemyFrame3Texture",
-    "ArenaEnemyFrame4Texture",
-    "ArenaEnemyFrame5Texture",
-    "ArenaEnemyFrame1SpecBorder",
-    "ArenaEnemyFrame2SpecBorder",
-    "ArenaEnemyFrame3SpecBorder",
-    "ArenaEnemyFrame4SpecBorder",
-    "ArenaEnemyFrame5SpecBorder",
-    "ArenaEnemyFrame1PetFrameTexture",
-    "ArenaEnemyFrame2PetFrameTexture",
-    "ArenaEnemyFrame3PetFrameTexture",
-    "ArenaEnemyFrame4PetFrameTexture",
-    "ArenaEnemyFrame5PetFrameTexture",
-    "ArenaPrepFrame1Texture",
-    "ArenaPrepFrame2Texture",
-    "ArenaPrepFrame3Texture",
-    "ArenaPrepFrame4Texture",
-    "ArenaPrepFrame5Texture",
-    "ArenaPrepFrame1SpecBorder",
-    "ArenaPrepFrame2SpecBorder",
-    "ArenaPrepFrame3SpecBorder",
-    "ArenaPrepFrame4SpecBorder",
-    "ArenaPrepFrame5SpecBorder",
-    -- PANES
-    "CharacterFrameTitleBg",
-    "CharacterFrameBg",
-    -- MINIMAP
-    "MinimapBorder",
-    "MinimapBorderTop",
-    "MiniMapTrackingButtonBorder",
-    "TargetFrameSpellBarBorderShield",
-    "FocusFrameSpellBarBorderShield",
-}
-
-S.originalColors = {}
-
--- Darken texture (simple function to apply color to texture)
-local function Darken_Texture(texture)
-    if not texture then return end
-    -- Store original color if not already stored
-    if not S.originalColors[texture] then
-        local r, g, b, a = texture:GetVertexColor()
-        S.originalColors[texture] = {r = r, g = g, b = b, a = a}
-    end
-    -- Apply dark color
-    texture:SetVertexColor(S.darkModeConfig.color.r, S.darkModeConfig.color.g, S.darkModeConfig.color.b, S.darkModeConfig.color.a)
-end
-
--- Restore original texture color
-local function Restore_Texture(texture)
-    if not texture then return end
-    if S.originalColors[texture] then
-        local orig = S.originalColors[texture]
-        texture:SetVertexColor(orig.r, orig.g, orig.b, orig.a)
-    else
-        -- If no original color stored, restore to white (default Blizzard texture color)
-        texture:SetVertexColor(1, 1, 1, 1)
-    end
-end
-
-S.darkenedButtons = {}
-
--- Darken action button (excluding equipped border)
-local function Darken_Button(name)
-    local db = DB()
-    if not db or not db.enabled or db.enableDarkMode ~= 1 then return end
-    if not name or not _G[name] or S.darkenedButtons[name] then return end
-    S.darkenedButtons[name] = true
-    local btn = _G[name]
-
-    -- Don't darken border - it's used for equipped items indication
-    -- Border will keep its original behavior for showing equipped items
-
-    -- Darken normal texture
-    local t = _G[name .. "NormalTexture2"] or _G[name .. "NormalTexture"] or (btn.GetNormalTexture and btn:GetNormalTexture())
-    if t then
-        Darken_Texture(t)
-    end
-end
-
--- Restore action button
-local function Restore_Button(name)
-    if not name or not _G[name] or not S.darkenedButtons[name] then return end
-    local btn = _G[name]
-
-    -- Don't restore border - it wasn't darkened in the first place
-
-    -- Restore normal texture
-    local t = _G[name .. "NormalTexture2"] or _G[name .. "NormalTexture"] or (btn.GetNormalTexture and btn:GetNormalTexture())
-    if t then
-        Restore_Texture(t)
-    end
-    
-    S.darkenedButtons[name] = nil
-end
-
--- Darken bag button
-local function Darken_BagButton(name)
-    local db = DB()
-    if not db or not db.enabled or db.enableDarkMode ~= 1 then return end
-    if not name or not _G[name] or S.darkenedButtons[name] then return end
-    S.darkenedButtons[name] = true
-    local btn = _G[name]
-
-    -- Darken normal texture
-    local t = _G[name .. "NormalTexture"] or (btn.GetNormalTexture and btn:GetNormalTexture())
-    if t then
-        Darken_Texture(t)
-    end
-end
-
--- Restore bag button
-local function Restore_BagButton(name)
-    if not name or not _G[name] or not S.darkenedButtons[name] then return end
-    local btn = _G[name]
-
-    -- Restore normal texture
-    local t = _G[name .. "NormalTexture"] or (btn.GetNormalTexture and btn:GetNormalTexture())
-    if t then
-        Restore_Texture(t)
-    end
-    
-    S.darkenedButtons[name] = nil
-end
-
--- Apply dark mode
-local function ApplyDarkMode()
-    local db = DB()
-    if not db or not db.enabled or db.enableDarkMode ~= 1 then return end
-    
-    -- Update config color from database
-    if db.darkModeColor then
-        S.darkModeConfig.color.r = db.darkModeColor.r or 0.37
-        S.darkModeConfig.color.g = db.darkModeColor.g or 0.37
-        S.darkModeConfig.color.b = db.darkModeColor.b or 0.37
-        S.darkModeConfig.color.a = db.darkModeColor.a or 1
-    end
-    
-    -- Darken frames
-    for _, frameName in pairs(S.darkModeFramesList) do
-        Darken_Texture(_G[frameName])
-    end
-    
-    -- Darken action buttons
-    for i = 0, NUM_ACTIONBAR_BUTTONS do
-        Darken_Button("ActionButton" .. i)
-        Darken_Button("BonusActionButton" .. i)
-        Darken_Button("MultiBarBottomLeftButton" .. i)
-        Darken_Button("MultiBarBottomRightButton" .. i)
-        Darken_Button("MultiBarRightButton" .. i)
-        Darken_Button("MultiBarLeftButton" .. i)
-        Darken_Button("ShapeshiftButton" .. i)
-        Darken_Button("PetActionButton" .. i)
-
-        if i <= 3 then
-            Darken_BagButton("CharacterBag" .. i .. "Slot")
-        end
-    end
-    Darken_BagButton("MainMenuBarBackpackButton")
-end
-
--- Restore original colors
-local function RestoreDarkMode()
-    -- Restore all frames
-    for _, frameName in pairs(S.darkModeFramesList) do
-        Restore_Texture(_G[frameName])
-    end
-    
-    -- Restore action buttons
-    for i = 0, NUM_ACTIONBAR_BUTTONS do
-        Restore_Button("ActionButton" .. i)
-        Restore_Button("BonusActionButton" .. i)
-        Restore_Button("MultiBarBottomLeftButton" .. i)
-        Restore_Button("MultiBarBottomRightButton" .. i)
-        Restore_Button("MultiBarRightButton" .. i)
-        Restore_Button("MultiBarLeftButton" .. i)
-        Restore_Button("ShapeshiftButton" .. i)
-        Restore_Button("PetActionButton" .. i)
-
-        if i <= 3 then
-            Restore_BagButton("CharacterBag" .. i .. "Slot")
-        end
-    end
-    Restore_BagButton("MainMenuBarBackpackButton")
-    
-    -- Clear stored colors
-    wipe(S.originalColors)
-    -- Clear darkened buttons
-    wipe(S.darkenedButtons)
-end
-
--- Apply DarkMode settings
 function module:ApplyDarkMode()
     local db = DB()
-    if not db or not db.enabled then
-        if S.darkModeInitialized then
-            self:DisableDarkMode()
-        end
-        return
-    end
-    
-    if db.enableDarkMode == 1 then
-        if not S.darkModeInitialized then
-            self:EnableDarkMode()
-        else
-            -- Re-apply if already initialized
-            ApplyDarkMode()
-        end
+    local Lorti = _G.SarychUI_LortiUI
+    if not Lorti then return end
+    if not db or not db.enabled or db.enableDarkMode ~= 1 then
+        Lorti:Disable()
     else
-        -- Restore colors immediately when disabled
-        RestoreDarkMode()
-        if S.darkModeInitialized then
-            self:DisableDarkMode()
-        end
+        Lorti:Enable()
+    end
+    local mm = SarychUI.modules and SarychUI.modules.mainmenubar
+    if mm and mm.ApplyButtonBorderAlpha then
+        mm.ApplyButtonBorderAlpha()
     end
 end
 
--- Enable DarkMode
 function module:EnableDarkMode()
-    local db = DB()
-    if not db or not db.enabled or db.enableDarkMode ~= 1 then return end
-    if S.darkModeInitialized then return end -- Already enabled
-    
-    -- Create event frame
-    if not S.darkModeFrame then
-        S.darkModeFrame = CreateFrame("Frame")
-    end
-    
-    -- Register PLAYER_ENTERING_WORLD to apply dark mode
-    S.darkModeFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-    S.darkModeFrame:SetScript("OnEvent", function(self, event)
-        local checkDb = DB()
-        if not checkDb or not checkDb.enabled or checkDb.enableDarkMode ~= 1 then return end
-        
-        if event == "PLAYER_ENTERING_WORLD" then
-            ApplyDarkMode()
-        end
-    end)
-    
-    -- Apply immediately
-    ApplyDarkMode()
-    
-    S.darkModeInitialized = true
+    self:ApplyDarkMode()
 end
 
--- Disable DarkMode
 function module:DisableDarkMode()
-    if not S.darkModeInitialized then return end
-    
-    -- Restore original colors
-    RestoreDarkMode()
-    
-    -- Unregister all events
-    if S.darkModeFrame then
-        S.darkModeFrame:UnregisterAllEvents()
-        S.darkModeFrame:SetScript("OnEvent", nil)
+    local Lorti = _G.SarychUI_LortiUI
+    if Lorti then
+        Lorti:Disable()
     end
-    
-    S.darkModeInitialized = false
+    local mm = SarychUI.modules and SarychUI.modules.mainmenubar
+    if mm and mm.ApplyButtonBorderAlpha then
+        mm.ApplyButtonBorderAlpha()
+    end
 end
 
 function module:ApplyLootRollCounts()
@@ -7182,139 +6624,50 @@ function module:ApplyLootRollCounts()
     lrc.Enable()
 end
 
--- ============================================================================
--- Boss Frames desync fix (Blizzard BossNTargetFrame)
--- ============================================================================
--- Visibility: TargetFrame_Update hides when not UnitExists (engage / leave).
--- Dead overlay: TargetFrame_CheckDead shows when UnitHealth <= 0; hides when
--- health returns. Resurrecting bosses keep the unit token — only CheckDead
--- clears "Dead". Private servers often skip UNIT_HEALTH / engage → stuck UI.
--- (No new chunk-level locals — tools/module.lua is at Lua's 200-local limit.)
+--------------------------------------------------------------------
+-- Class-colored PvP scoreboard names (RougeUI ScoreBoard)
+--------------------------------------------------------------------
+local scoreboardHooked = false
 
-S.bossFramesFixFrame = nil
-S.bossFramesFixEnabled = false
-
-function module:SyncBossFrameDeadText(frame, unit)
-	if not frame or not frame.deadText then
-		return
-	end
-	-- Mirror Blizzard TargetFrame_CheckDead (3.3.5a).
-	if UnitExists(unit) and UnitIsConnected(unit) and (UnitHealth(unit) or 0) <= 0 then
-		frame.deadText:Show()
-	else
-		frame.deadText:Hide()
-	end
+local function ScoreboardClassNamesOn()
+	local db = DB()
+	if not db or db.enabled ~= true then return false end
+	return db.enablePvpScoreboardClassNames == 1 or db.enablePvpScoreboardClassNames == true
 end
 
-function module:ResyncBossFrames()
-	local db = DB()
-	if not db or db.enabled ~= true then
+local function ColorScoreBoard()
+	if not ScoreboardClassNamesOn() then return end
+	local _, instanceType = IsInInstance()
+	if instanceType ~= "pvp" and instanceType ~= "arena" then
 		return
 	end
-	if db.fixBossFrames ~= 1 and db.fixBossFrames ~= true then
-		return
-	end
-	for i = 1, 5 do
-		local frame = _G["Boss" .. i .. "TargetFrame"]
-		if frame then
-			local unit = frame.unit or ("boss" .. i)
-			if type(TargetFrame_Update) == "function" then
-				pcall(TargetFrame_Update, frame)
-			end
-			if type(TargetFrame_UpdateRaidTargetIcon) == "function" then
-				pcall(TargetFrame_UpdateRaidTargetIcon, frame)
-			end
-			-- Explicit dead-text sync after Update (hooks may skip CheckDead).
-			self:SyncBossFrameDeadText(frame, unit)
-			-- Safety if TargetFrame_Update was hooked and skipped Hide.
-			if frame:IsShown() and not UnitExists(unit) then
-				frame:Hide()
-			end
-		end
-	end
-	if type(UIParent_ManageFramePositions) == "function" then
-		pcall(UIParent_ManageFramePositions)
-	end
-end
-
-function module:EnableFixBossFrames()
-	local db = DB()
-	if S.bossFramesFixEnabled then
-		return
-	end
-	if not db or db.enabled ~= true then
-		return
-	end
-	if db.fixBossFrames ~= 1 and db.fixBossFrames ~= true then
-		return
-	end
-
-	if not S.bossFramesFixFrame then
-		S.bossFramesFixFrame = CreateFrame("Frame")
-	end
-	local f = S.bossFramesFixFrame
-	f:UnregisterAllEvents()
-	f:RegisterEvent("INSTANCE_ENCOUNTER_ENGAGE_UNIT")
-	f:RegisterEvent("PLAYER_REGEN_ENABLED")
-	f:RegisterEvent("PLAYER_ENTERING_WORLD")
-	f:RegisterEvent("PLAYER_LEAVING_WORLD")
-	-- Blizzard BossTargetFrame uses UNIT_HEALTH → TargetFrame_CheckDead.
-	f:RegisterEvent("UNIT_HEALTH")
-	f:RegisterEvent("UNIT_MAXHEALTH")
-	f._bossDeadWatch = 0
-	f:SetScript("OnEvent", function(_, event, unit)
-		if event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" then
-			if type(unit) ~= "string" or strsub(unit, 1, 4) ~= "boss" then
-				return
-			end
-		end
-		module:ResyncBossFrames()
-	end)
-	-- If UNIT_HEALTH never fires on resurrect, clear stuck "Dead" while shown.
-	f:SetScript("OnUpdate", function(self, elapsed)
-		self._bossDeadWatch = (self._bossDeadWatch or 0) + elapsed
-		if self._bossDeadWatch < 0.3 then
-			return
-		end
-		self._bossDeadWatch = 0
-		local stuck = false
-		for i = 1, 5 do
-			local frame = _G["Boss" .. i .. "TargetFrame"]
-			if frame and frame:IsShown() and frame.deadText and frame.deadText:IsShown() then
-				local unit = frame.unit or ("boss" .. i)
-				if UnitExists(unit) and (UnitHealth(unit) or 0) > 0 then
-					stuck = true
-					break
+	local n = GetNumBattlefieldScores and GetNumBattlefieldScores() or 0
+	for i = 1, n do
+		local fs = _G["WorldStateScoreButton" .. i .. "NameText"]
+		if fs then
+			local name, _, _, _, _, _, _, _, _, class = GetBattlefieldScore(i)
+			if name and class then
+				local c = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+				if c then
+					fs:SetText(format("|cff%02x%02x%02x%s|r", c.r * 255 + 0.5, c.g * 255 + 0.5, c.b * 255 + 0.5, name))
 				end
 			end
 		end
-		if stuck then
-			module:ResyncBossFrames()
-		end
-	end)
-
-	S.bossFramesFixEnabled = true
-	self:ResyncBossFrames()
-end
-
-function module:DisableFixBossFrames()
-	if S.bossFramesFixFrame then
-		S.bossFramesFixFrame:UnregisterAllEvents()
-		S.bossFramesFixFrame:SetScript("OnEvent", nil)
-		S.bossFramesFixFrame:SetScript("OnUpdate", nil)
 	end
-	S.bossFramesFixEnabled = false
 end
 
-function module:ApplyFixBossFrames()
-	local db = DB()
-	local enabled = db and db.enabled == true and (db.fixBossFrames == 1 or db.fixBossFrames == true)
-	if enabled then
-		-- Re-enable so UNIT_HEALTH / OnUpdate watch are always installed after /reload or toggle.
-		self:DisableFixBossFrames()
-		self:EnableFixBossFrames()
-	else
-		self:DisableFixBossFrames()
+function module:ApplyPvpScoreboardClassNames()
+	if not scoreboardHooked and WorldStateScoreFrame_Update then
+		scoreboardHooked = true
+		hooksecurefunc("WorldStateScoreFrame_Update", ColorScoreBoard)
+	end
+	-- Do not force WorldStateScoreFrame_Update at login: Blizzard Resize
+	-- calls SetWidth(nil) when the scoreboard has no live column layout.
+	if ScoreboardClassNamesOn()
+		and WorldStateScoreFrame
+		and WorldStateScoreFrame.IsShown
+		and WorldStateScoreFrame:IsShown() then
+		ColorScoreBoard()
 	end
 end
 
@@ -7333,6 +6686,7 @@ function module:ApplyAllSettings()
     self:ApplyAltCD()
     self:ApplyAltUnitBars()
     self:ApplyAltAuras()
+    self:ApplyAltOmniCD()
     self:ApplyAltFPS()
     self:ApplySpeedyLoad()
     self:ApplyTooltipCursor()
@@ -7354,7 +6708,10 @@ function module:ApplyAllSettings()
     end
     self:ApplyBlizzMove()
     self:ApplyDarkMode()
-    self:ApplyFixBossFrames()
+	if self.ApplyKeyEcho then
+        self:ApplyKeyEcho()
+    end
+    self:ApplyPvpScoreboardClassNames()
     self:ApplyTranslitAliases()
     self:ApplyClearChatSlash()
     self:ApplyVipCommands()
@@ -7495,8 +6852,6 @@ function module:Enable()
     local db = DB()
     if not db or db.enabled ~= true then return end
 
-    InstallTargetFrameAuraGuard()
-
     -- Create scanner frame for group updates
     if not S.scannerFrame then
         S.scannerFrame = CreateFrame("Frame")
@@ -7600,8 +6955,9 @@ function module:Disable()
     -- Disable DarkMode
     self:DisableDarkMode()
 
-    -- Disable boss frames desync fix
-    self:DisableFixBossFrames()
+	if self.DisableKeyEcho then
+        self:DisableKeyEcho()
+    end
 
     -- Chat extras / WoWCircle owned by tools
     self:DisableTranslitAliases()

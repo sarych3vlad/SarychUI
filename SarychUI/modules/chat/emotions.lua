@@ -68,6 +68,23 @@ local function IsEmotionBubblesEnabled()
 	return IsEmotionIconsEnabled() and sarChat_GetSetting("emotionBubbles", 0) == 1
 end
 
+local function IsClassMentionBubblesEnabled()
+	local api = _G.SarychUI_ClassMentions
+	return api and api.IsSpeechEnabled and api.IsSpeechEnabled()
+end
+
+local function IsBubbleScanNeeded()
+	return IsEmotionBubblesEnabled() or IsClassMentionBubblesEnabled()
+end
+
+local function ColorizeBubbleMentions(text)
+	local api = _G.SarychUI_ClassMentions
+	if text and api and api.Colorize then
+		return api.Colorize(text) or text
+	end
+	return text
+end
+
 local function IsEmotionPickerEnabled()
 	return IsChatModuleEnabled() and sarChat_GetSetting("emotionPickerEnabled", 0) == 1
 end
@@ -554,9 +571,9 @@ local function GetMenuButton()
 end
 
 -- DF micromenu-like states:
--- idle → soft white; hover → warm highlight;
--- picker open + hover → bright gold (like DF mouseover while selected);
--- picker open + cursor away → darker gold (like DF "down"/pushed while selected).
+-- idle -> soft white; hover -> warm highlight;
+-- picker open + hover -> bright gold (like DF mouseover while selected);
+-- picker open + cursor away -> darker gold (like DF "down"/pushed while selected).
 local COLOR_NORMAL = { 1.0, 1.0, 1.0, 0.65 }
 local COLOR_HOVER = { 1.0, 0.98, 0.82, 0.95 }
 local COLOR_ACTIVE = { 1.0, 0.82, 0.0, 1.0 }
@@ -815,7 +832,24 @@ local function GetBubbleFontString(frame)
 end
 
 local function IsBubbleTextProcessed(text)
-	return text and find(text, "|T", 1, true) and find(text, MEDIA_PATH, 1, true)
+	if not text then
+		return false
+	end
+	if find(text, "|cff", 1, true) then
+		return true
+	end
+	return find(text, "|T", 1, true) and find(text, MEDIA_PATH, 1, true)
+end
+
+local function ProcessBubbleSourceText(sourceText)
+	local text = sourceText
+	if IsClassMentionBubblesEnabled() then
+		text = ColorizeBubbleMentions(text)
+	end
+	if IsEmotionBubblesEnabled() then
+		text = GetSmileyReplacementText(text)
+	end
+	return text
 end
 
 local function UpdateChatBubbleEmojis(frame)
@@ -827,7 +861,7 @@ local function UpdateChatBubbleEmojis(frame)
 	local text = fontString:GetText()
 	if not text or text == "" then return end
 
-	if not IsEmotionBubblesEnabled() then
+	if not IsBubbleScanNeeded() then
 		if frame.__SarychUIEmojiOriginal and text ~= frame.__SarychUIEmojiOriginal then
 			fontString:SetText(frame.__SarychUIEmojiOriginal)
 			DebugBubbleLog("restored original", frame.__SarychUIEmojiOriginal)
@@ -864,7 +898,7 @@ local function UpdateChatBubbleEmojis(frame)
 		return
 	end
 
-	local newText = GetSmileyReplacementText(sourceText)
+	local newText = ProcessBubbleSourceText(sourceText)
 	frame.__SarychUIEmojiLastSource = sourceText
 
 	if newText ~= sourceText then
@@ -943,6 +977,18 @@ end
 
 local function EnableBubbleScanner()
 	if bubbleScanFrame then return end
+	local runtime = SarychUI and SarychUI.Runtime
+	if runtime then
+		bubbleScanFrame = "runtime"
+		local lastScan = 0
+		runtime:RegisterUpdate("chat.bubbles", 0.05, function(now)
+			if (now - lastScan) < GetBubbleScanInterval() then return end
+			lastScan = now
+			if IsBubbleScanNeeded() then ScanChatBubbles() end
+		end)
+		DebugBubbleLog("bubble scanner enabled (shared dispatcher)")
+		return
+	end
 
 	bubbleScanFrame = CreateFrame("Frame")
 	bubbleScanFrame.elapsed = 0
@@ -953,7 +999,7 @@ local function EnableBubbleScanner()
 		if self.elapsed < GetBubbleScanInterval() then return end
 		self.elapsed = 0
 
-		if not IsEmotionBubblesEnabled() then return end
+		if not IsBubbleScanNeeded() then return end
 
 		ScanChatBubbles()
 	end)
@@ -962,7 +1008,13 @@ end
 
 local function DisableBubbleScanner()
 	if bubbleScanFrame then
-		bubbleScanFrame:SetScript("OnUpdate", nil)
+		if bubbleScanFrame == "runtime" then
+			if SarychUI and SarychUI.Runtime then
+				SarychUI.Runtime:UnregisterUpdate("chat.bubbles")
+			end
+		else
+			bubbleScanFrame:SetScript("OnUpdate", nil)
+		end
 		bubbleScanFrame = nil
 	end
 	lastBubbleWorldChildCount = -1
@@ -979,7 +1031,7 @@ end)
 -- Starts or stops the bubble poll. Turning it off does one final pass first, so
 -- bubbles already on screen get their plain text back instead of keeping icons.
 local function ApplyBubbleSettings()
-	if IsEmotionBubblesEnabled() then
+	if IsBubbleScanNeeded() then
 		EnableBubbleScanner()
 	elseif bubbleScanFrame then
 		ScanChatBubbles()
@@ -1039,6 +1091,7 @@ _G.SarychUI_ChatEmotions = {
 	GetSmileyReplacementText = GetSmileyReplacementText,
 	GetSmileyPlainText = GetSmileyPlainText,
 	UpdateChatBubbleEmojis = UpdateChatBubbleEmojis,
+	ApplyBubbleSettings = ApplyBubbleSettings,
 	DefaultSmileys = DefaultSmileys,
 }
 

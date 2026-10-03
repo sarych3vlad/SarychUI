@@ -85,7 +85,7 @@ local racialSpells = {
     ["None"] = {id = nil, icon = "Interface\\Icons\\inv_misc_questionmark", cd = 0},
 }
 
--- Localized UnitRace() names → racialSpells keys (fallback when raceFile unavailable)
+-- Localized UnitRace() names -> racialSpells keys (fallback when raceFile unavailable)
 local raceTranslation = {
     ["Человек"] = "Human",
     ["Орк"] = "Orc",
@@ -101,7 +101,7 @@ local raceTranslation = {
     ["Дреней"] = "Draenei",
 }
 
--- UnitRace() raceFile tokens (locale-independent) → racialSpells keys
+-- UnitRace() raceFile tokens (locale-independent) -> racialSpells keys
 local raceFileToKey = {
     Human = "Human",
     Orc = "Orc",
@@ -1052,8 +1052,589 @@ local function CleanupDistanceAlphaUpdate()
 	end
 end
 
+--------------------------------------------------------------------
+-- Arena numbers on nameplates (RougeUI ArenaNumbers)
+--------------------------------------------------------------------
+local ARENA_NAME_UNITS = { "arena1", "arena2", "arena3", "arena4", "arena5" }
+local NAMEPLATE_BORDER = "Interface\\Tooltips\\Nameplate-Border"
+local NAMEPLATE_FLASH = "Interface\\TargetingFrame\\UI-TargetingFrame-Flash"
+local arenaPlateFrame
+local activeArenaPlates = {}
+local arenaNameToUnit = {}
+local arenaPlateChildCount = -1
+local arenaNameScanElapsed = 0
+local enpNameHooked = false
+local arenaFrameNameHooked = false
+local arenaNumbersModuleActive = false
+
+local function ArenaNumbersOn()
+	if not arenaNumbersModuleActive then return false end
+	local db = GetDB()
+	if not db or not db.enabled then return false end
+	return db.arenaNumbers == 1 or db.arenaNumbers == true
+end
+
+local function ArenaNameplatesOn()
+	if not ArenaNumbersOn() then return false end
+	local db = GetDB()
+	-- nil means enabled so profiles created before the split keep their old
+	-- nameplate behaviour.
+	return db.arenaNumbersNameplates == nil
+		or db.arenaNumbersNameplates == 1
+		or db.arenaNumbersNameplates == true
+end
+
+local function ArenaFramesOn()
+	if not ArenaNumbersOn() then return false end
+	local db = GetDB()
+	return db.arenaNumbersArenaFrames == nil
+		or db.arenaNumbersArenaFrames == 1
+		or db.arenaNumbersArenaFrames == true
+end
+
+local function WipeArenaNameMap()
+	for k in pairs(arenaNameToUnit) do
+		arenaNameToUnit[k] = nil
+	end
+end
+
+local function RefreshArenaNameMap()
+	WipeArenaNameMap()
+	if select(2, IsInInstance()) ~= "arena" then return end
+	for i = 1, #ARENA_NAME_UNITS do
+		local unit = ARENA_NAME_UNITS[i]
+		if UnitExists(unit) then
+			local name, realm = UnitName(unit)
+			if name then
+				arenaNameToUnit[name] = unit
+				if realm and realm ~= "" then
+					arenaNameToUnit[name .. "-" .. realm] = unit
+				end
+			end
+		end
+	end
+end
+
+local function ArenaIndexForName(name)
+	if not name then return nil end
+	local unit = arenaNameToUnit[name]
+	if not unit and type(name) == "string" then
+		unit = arenaNameToUnit[name:match("^([^-]+)")]
+	end
+	if not unit then return nil end
+	return unit:match("^arena(%d+)$")
+end
+
+local function ArenaIndexForUnitFrame(frame, name)
+	local unit = frame and (frame.unit or frame.UnitToken)
+	local num = type(unit) == "string" and unit:match("^arena(%d+)$")
+	if num then return num end
+
+	local guid = frame and frame.guid
+	if guid then
+		for i = 1, #ARENA_NAME_UNITS do
+			if UnitGUID(ARENA_NAME_UNITS[i]) == guid then
+				return tostring(i)
+			end
+		end
+	end
+
+	num = ArenaIndexForName(name or (frame and frame.UnitName))
+	if num then return num end
+
+	-- Arena units can become available immediately before a nameplate update;
+	-- refresh on demand instead of waiting for the one-second safety scan.
+	RefreshArenaNameMap()
+	return ArenaIndexForName(name or (frame and frame.UnitName))
+end
+
+function SarychUI:GetArenaNameplateDisplayName(frame, name)
+	if not ArenaNameplatesOn() or select(2, IsInInstance()) ~= "arena" then
+		return name
+	end
+	return ArenaIndexForUnitFrame(frame, name) or name
+end
+
+function SarychUI:GetArenaFrameDisplayName(unit, name)
+	if not ArenaFramesOn() or select(2, IsInInstance()) ~= "arena" then
+		return name
+	end
+	local num = type(unit) == "string" and unit:match("^arena(%d+)$")
+	return num or ArenaIndexForName(name) or name
+end
+
+local function IsENPManagedPlate(plate)
+	local unitFrame = plate and plate.UnitFrame
+	if not unitFrame or not unitFrame.Name then return false end
+	local E = _G.SarychUI_ElvUI_NamePlates
+	local NP = E and E.GetModule and E:GetModule("NamePlates", true)
+	if NP and NP.CreatedPlates and NP.CreatedPlates[plate] then
+		return true
+	end
+	local frameName = unitFrame.GetName and unitFrame:GetName()
+	return frameName and frameName:match("^ENP_NamePlate") ~= nil
+end
+
+local function RestorePlateName(plate)
+	if not plate then return end
+	if plate._suiOldName then
+		-- ElvUI owns and deliberately hides the original Blizzard FontString.
+		-- Showing it here was the source of the centered duplicate number/name.
+		if IsENPManagedPlate(plate) then
+			plate._suiOldName:Hide()
+		else
+			plate._suiOldName:SetAlpha(1)
+		end
+	end
+	if plate._suiArenaName then
+		plate._suiArenaName:Hide()
+		plate._suiArenaName:SetText("")
+	end
+	plate._suiArenaFormatted = false
+	plate._suiLastArenaText = nil
+end
+
+local function InitBlizzardPlate(plate)
+	if plate._suiArenaInit then return end
+	if IsENPManagedPlate(plate) then return end
+	local _, border, _, _, _, _, name = plate:GetRegions()
+	if not name or not name.GetObjectType or name:GetObjectType() ~= "FontString" then
+		return
+	end
+	plate._suiArenaInit = true
+	plate._suiOldName = name
+	plate._suiBorder = border
+	local fs = plate:CreateFontString(nil, "ARTWORK")
+	fs:SetFont(STANDARD_TEXT_FONT, 12, "")
+	fs:SetTextColor(1, 1, 1)
+	if border then
+		fs:SetPoint("BOTTOM", border, "TOP", 0, -15)
+	else
+		fs:SetPoint("BOTTOM", plate, "TOP", 0, -15)
+	end
+	fs:Hide()
+	plate._suiArenaName = fs
+end
+
+local function UpdateBlizzardPlate(plate)
+	if IsENPManagedPlate(plate) then
+		RestorePlateName(plate)
+		activeArenaPlates[plate] = nil
+		return
+	end
+	if not plate._suiArenaInit then
+		InitBlizzardPlate(plate)
+	end
+	if not plate._suiOldName or not plate._suiArenaName then return end
+
+	local rawName = plate._suiOldName:GetText()
+	local arenaNum = ArenaNameplatesOn() and select(2, IsInInstance()) == "arena" and ArenaIndexForName(rawName)
+	if arenaNum then
+		plate._suiOldName:SetAlpha(0)
+		if plate._suiLastArenaText ~= arenaNum then
+			plate._suiLastArenaText = arenaNum
+			plate._suiArenaName:SetText(arenaNum)
+		end
+		if not plate._suiArenaFormatted then
+			plate._suiArenaFormatted = true
+			plate._suiArenaName:SetFont(STANDARD_TEXT_FONT, 16, "OUTLINE")
+			plate._suiArenaName:ClearAllPoints()
+			plate._suiArenaName:SetPoint("BOTTOM", plate, "TOP", 0, -15)
+		end
+		if not plate._suiArenaName:IsShown() then
+			plate._suiArenaName:Show()
+		end
+	else
+		RestorePlateName(plate)
+	end
+end
+
+local function IsBlizzardNameplate(frame)
+	if IsENPManagedPlate(frame) then return false end
+	if not frame or frame.GetName and frame:GetName() then
+		return false
+	end
+	local region = select(2, frame:GetRegions())
+	if not region or region.GetObjectType and region:GetObjectType() ~= "Texture" then
+		return false
+	end
+	local tex = region.GetTexture and region:GetTexture()
+	return tex == NAMEPLATE_BORDER or tex == NAMEPLATE_FLASH
+end
+
+local function ApplyENPArenaName(frame)
+	if not frame or not frame.Name then return end
+	local displayName = SarychUI:GetArenaNameplateDisplayName(frame, frame.UnitName)
+	if displayName and displayName ~= frame.Name:GetText() then
+		frame.Name:SetText(displayName)
+	end
+end
+
+local function HookENPArenaNames()
+	if enpNameHooked then return end
+	local E = _G.SarychUI_ElvUI_NamePlates
+	if not E or not E.GetModule then return end
+	local NP = E:GetModule("NamePlates", true)
+	if not NP or not NP.Update_Name then return end
+	enpNameHooked = true
+	hooksecurefunc(NP, "Update_Name", function(_, frame)
+		ApplyENPArenaName(frame)
+	end)
+end
+
+local function RefreshENPArenaNames()
+	local E = _G.SarychUI_ElvUI_NamePlates
+	if not E or not E.GetModule then return end
+	local NP = E:GetModule("NamePlates", true)
+	if not NP then return end
+	if NP.ForEachVisiblePlate and NP.Update_Name then
+		NP:ForEachVisiblePlate("Update_Name")
+	elseif NP.VisiblePlates then
+		for frame in pairs(NP.VisiblePlates) do
+			ApplyENPArenaName(frame)
+		end
+	end
+end
+
+local function UpdateAwesomePlates()
+	if not C_NamePlate or not C_NamePlate.GetNamePlates then return end
+	local plates = C_NamePlate.GetNamePlates()
+	if not plates then return end
+	local replace = ArenaNameplatesOn() and select(2, IsInInstance()) == "arena"
+	for i = 1, #plates do
+		local np = plates[i]
+		local uf = np and np.UnitFrame
+		if uf then
+			local nameFS = uf.name or uf.Name
+			local num = replace and ArenaIndexForUnitFrame(uf, uf.UnitName)
+			if num and nameFS and nameFS.SetText then
+				local current = nameFS:GetText()
+				if current and current ~= "" and current ~= num then
+					uf._suiArenaOriginalName = current
+				end
+				nameFS:SetText(num)
+				uf._suiArenaNumberApplied = true
+			elseif uf._suiArenaNumberApplied and nameFS and nameFS.SetText then
+				local original = uf.UnitName or uf._suiArenaOriginalName
+				if original then nameFS:SetText(original) end
+				uf._suiArenaNumberApplied = nil
+				uf._suiArenaOriginalName = nil
+			end
+		end
+	end
+end
+
+local function ArenaPlateOnUpdate(_, elapsed)
+	if not ArenaNumbersOn() then
+		return
+	end
+
+	if ArenaNameplatesOn() then
+		local childCount = WorldFrame and WorldFrame.GetNumChildren and WorldFrame:GetNumChildren() or 0
+		if childCount ~= arenaPlateChildCount then
+			arenaPlateChildCount = childCount
+			local n = CollectWorldChildren(WorldFrame:GetChildren())
+			for i = 1, n do
+				local plate = worldChildren[i]
+				if plate and not activeArenaPlates[plate] and IsBlizzardNameplate(plate) then
+					activeArenaPlates[plate] = true
+					InitBlizzardPlate(plate)
+				end
+			end
+		end
+	end
+
+	arenaNameScanElapsed = arenaNameScanElapsed + (elapsed or 0)
+	if arenaNameScanElapsed >= 1 then
+		arenaNameScanElapsed = 0
+		RefreshArenaNameMap()
+		RefreshENPArenaNames()
+	end
+
+	if select(2, IsInInstance()) == "arena" then
+		if ArenaNameplatesOn() then
+			for plate in pairs(activeArenaPlates) do
+				if plate.IsShown and plate:IsShown() then
+					UpdateBlizzardPlate(plate)
+				end
+			end
+			UpdateAwesomePlates()
+		end
+	end
+end
+
+local function RestoreAllArenaPlates()
+	for plate in pairs(activeArenaPlates) do
+		RestorePlateName(plate)
+	end
+end
+
+local function GetBlizzardArenaName(frame)
+	if not frame then return nil end
+	if frame.name and frame.name.SetText then return frame.name end
+	if frame.Name and frame.Name.SetText then return frame.Name end
+	local frameName = frame.GetName and frame:GetName()
+	local name = frameName and _G[frameName .. "Name"]
+	return name and name.SetText and name or nil
+end
+
+local function ApplyBlizzardArenaFrameName(frame)
+	if not frame then return end
+	local name = GetBlizzardArenaName(frame)
+	if not name then return end
+	local frameName = frame.GetName and frame:GetName()
+	local unit = frame.unit
+	local num = type(unit) == "string" and unit:match("^arena(%d+)$")
+	if not num and frameName then
+		num = frameName:match("^ArenaEnemyFrame(%d+)$")
+		if num then unit = "arena" .. num end
+	end
+	local shouldNumber = ArenaFramesOn()
+		and select(2, IsInInstance()) == "arena"
+		and num
+
+	if shouldNumber then
+		local current = name:GetText()
+		if current and current ~= "" and current ~= num then
+			frame._suiArenaOriginalName = current
+		end
+		name:SetText(num)
+		frame._suiArenaNumberApplied = true
+	elseif frame._suiArenaNumberApplied then
+		local original = (unit and UnitName(unit)) or frame._suiArenaOriginalName
+		if original then name:SetText(original) end
+		frame._suiArenaNumberApplied = nil
+		frame._suiArenaOriginalName = nil
+	end
+end
+
+local function RefreshBlizzardArenaFrameNames()
+	for i = 1, (MAX_ARENA_ENEMIES or 5) do
+		ApplyBlizzardArenaFrameName(_G["ArenaEnemyFrame" .. i])
+	end
+end
+
+local function HookBlizzardArenaFrameNames()
+	if arenaFrameNameHooked or type(_G.ArenaEnemyFrame_UpdatePlayer) ~= "function" then return end
+	arenaFrameNameHooked = true
+	hooksecurefunc("ArenaEnemyFrame_UpdatePlayer", function(frame)
+		ApplyBlizzardArenaFrameName(frame)
+	end)
+end
+
+local function RefreshGladiusArenaFrameNames()
+	local GX = _G.GladiusEx
+	if not GX or not GX.GetModule then return end
+	local Tags = GX:GetModule("Tags", true)
+	if not Tags or not Tags.Refresh or not Tags.frame then return end
+	for i = 1, 5 do
+		local unit = "arena" .. i
+		if Tags.frame[unit] then
+			Tags:Refresh(unit)
+		end
+	end
+end
+
+local function RefreshAllArenaNumberTargets()
+	RefreshENPArenaNames()
+	UpdateAwesomePlates()
+	RefreshBlizzardArenaFrameNames()
+	RefreshGladiusArenaFrameNames()
+end
+
+--------------------------------------------------------------------
+-- Hide "Group/Raid" titles (RougeUI HideTitles), only in arena
+--------------------------------------------------------------------
+local groupTitlesFrame
+local groupTitlesHooked = false
+
+local function HideGroupTitlesOn()
+	local db = GetDB()
+	if not db or not db.enabled then return false end
+	return db.hideGroupRaidText == 1 or db.hideGroupRaidText == true
+end
+
+local function ShouldHideGroupTitles()
+	return HideGroupTitlesOn() and select(2, IsInInstance()) == "arena"
+end
+
+local function SetTitleAlpha(frame, alpha)
+	if frame and frame.SetAlpha then
+		frame:SetAlpha(alpha)
+	end
+end
+
+local function ApplyGroupTitleVisibility()
+	local hide = ShouldHideGroupTitles()
+	local alpha = hide and 0 or 1
+	SetTitleAlpha(_G.CompactPartyFrameTitle, alpha)
+	if CompactPartyFrame then
+		SetTitleAlpha(CompactPartyFrame.title, alpha)
+	end
+	for i = 1, 8 do
+		SetTitleAlpha(_G["CompactRaidGroup" .. i .. "Title"], alpha)
+	end
+	if PlayerFrameGroupIndicator then
+		if hide then
+			PlayerFrameGroupIndicator:Hide()
+		elseif type(PlayerFrame_UpdateGroupIndicator) == "function" then
+			PlayerFrame_UpdateGroupIndicator()
+		end
+	end
+end
+
+local function HookGroupTitles()
+	if groupTitlesHooked then return end
+	groupTitlesHooked = true
+	if PlayerFrameGroupIndicator then
+		hooksecurefunc(PlayerFrameGroupIndicator, "Show", function(self)
+			if ShouldHideGroupTitles() then
+				self:Hide()
+			end
+		end)
+	end
+	if CompactRaidGroup_GenerateForGroup then
+		hooksecurefunc("CompactRaidGroup_GenerateForGroup", function()
+			ApplyGroupTitleVisibility()
+		end)
+	end
+	if CompactPartyFrame_Generate then
+		hooksecurefunc("CompactPartyFrame_Generate", function()
+			ApplyGroupTitleVisibility()
+		end)
+	end
+end
+
+function module:UpdateGroupTitles()
+	HookGroupTitles()
+	ApplyGroupTitleVisibility()
+	if HideGroupTitlesOn() then
+		if not groupTitlesFrame then
+			groupTitlesFrame = CreateFrame("Frame")
+			groupTitlesFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+			groupTitlesFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+			groupTitlesFrame:SetScript("OnEvent", function()
+				ApplyGroupTitleVisibility()
+			end)
+		end
+		groupTitlesFrame:Show()
+	elseif groupTitlesFrame then
+		groupTitlesFrame:Hide()
+	end
+end
+
+function module:UpdateArenaNameplates()
+	HookENPArenaNames()
+	HookBlizzardArenaFrameNames()
+	RefreshArenaNameMap()
+	if ArenaNumbersOn() then
+		if not arenaPlateFrame then
+			arenaPlateFrame = CreateFrame("Frame")
+			arenaPlateFrame:SetScript("OnUpdate", ArenaPlateOnUpdate)
+			arenaPlateFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+			arenaPlateFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+			arenaPlateFrame:RegisterEvent("ARENA_OPPONENT_UPDATE")
+			arenaPlateFrame:RegisterEvent("UNIT_NAME_UPDATE")
+			arenaPlateFrame:SetScript("OnEvent", function(_, event, unit)
+				-- Blizzard_ArenaUI can be load-on-demand, so its updater may not
+				-- exist yet during SarychUI's initial Enable call.
+				HookBlizzardArenaFrameNames()
+				if event == "UNIT_NAME_UPDATE" and unit
+					and (type(unit) ~= "string" or not unit:match("^arena%d+$")) then
+					return
+				end
+				RefreshArenaNameMap()
+				if select(2, IsInInstance()) ~= "arena" then
+					RestoreAllArenaPlates()
+				end
+				RefreshAllArenaNumberTargets()
+			end)
+		end
+		arenaPlateFrame:Show()
+		arenaPlateChildCount = -1
+		if not ArenaNameplatesOn() then
+			RestoreAllArenaPlates()
+		end
+		RefreshAllArenaNumberTargets()
+	else
+		if arenaPlateFrame then
+			arenaPlateFrame:Hide()
+		end
+		RestoreAllArenaPlates()
+		RefreshAllArenaNumberTargets()
+		WipeArenaNameMap()
+	end
+end
+
+--------------------------------------------------------------------
+-- TAB remapping (RougeUI retab): arena/BG TAB -> enemy players, not pets/mobs
+--------------------------------------------------------------------
+local RETAB_KEY = "TAB"
+local RETAB_BUTTON_NAME = "SarychUITabber"
+local retabButton
+local retabFrame
+local retabModuleActive = false
+
+local function RetabOn()
+	if not retabModuleActive then return false end
+	local db = GetDB()
+	if not db or not db.enabled then return false end
+	return db.retab == 1 or db.retab == true
+end
+
+local function ApplyRetab()
+	if InCombatLockdown() then
+		if retabFrame then
+			retabFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+		end
+		return
+	end
+	if not retabButton then return end
+	local _, instanceType = IsInInstance()
+	if RetabOn() and (instanceType == "arena" or instanceType == "pvp") then
+		SetOverrideBindingClick(retabButton, true, RETAB_KEY, RETAB_BUTTON_NAME)
+	else
+		ClearOverrideBindings(retabButton)
+	end
+end
+
+function module:UpdateRetab()
+	if not retabButton then
+		retabButton = CreateFrame("Button", RETAB_BUTTON_NAME, nil, "SecureActionButtonTemplate")
+		retabButton:RegisterForClicks("AnyDown")
+		retabButton:SetAttribute("type", "macro")
+		if SecureHandlerWrapScript then
+			SecureHandlerWrapScript(retabButton, "OnClick", retabButton, [[
+				if down then
+					self:SetAttribute("macrotext","/targetenemyplayer\n/targetlasttarget [noexists]")
+				end]])
+		end
+	end
+	if not retabFrame then
+		retabFrame = CreateFrame("Frame")
+		retabFrame:SetScript("OnEvent", function(self, event)
+			if event == "PLAYER_REGEN_ENABLED" then
+				self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+			end
+			ApplyRetab()
+		end)
+	end
+	if RetabOn() then
+		retabFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+		retabFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+		retabFrame:Show()
+	else
+		retabFrame:UnregisterEvent("PLAYER_ENTERING_WORLD")
+		retabFrame:UnregisterEvent("ZONE_CHANGED_NEW_AREA")
+	end
+	ApplyRetab()
+end
+
 -- Apply position and scale based on DB and DragMode
 function module:ApplySettings()
+	self:UpdateArenaNameplates()
+	self:UpdateGroupTitles()
+	self:UpdateRetab()
 	if self:IsGladiusExMode() then return end
 	local db = GetDB()
 	if not db or not db.enabled then return end
@@ -1186,6 +1767,11 @@ end
 
 -- Lifecycle
 function module:Enable()
+	arenaNumbersModuleActive = true
+	retabModuleActive = true
+	self:UpdateArenaNameplates()
+	self:UpdateGroupTitles()
+	self:UpdateRetab()
 	if self:IsGladiusExMode() then return end
 	local db = GetDB(); if not db or not db.enabled then return end
 	
@@ -1249,6 +1835,7 @@ function module:Enable()
 end
 
 function module:Disable()
+	arenaNumbersModuleActive = false
 	-- DragMode cleanup (локальный ArenaDragMode)
 	if ArenaDragMode and arenaContainer then
 		ArenaDragMode:Disable(arenaContainer)
@@ -1283,11 +1870,26 @@ function module:Disable()
 	
 	-- Cleanup distance alpha update
 	CleanupDistanceAlphaUpdate()
+
+	if arenaPlateFrame then
+		arenaPlateFrame:Hide()
+	end
+	RestoreAllArenaPlates()
+	RefreshAllArenaNumberTargets()
+	WipeArenaNameMap()
+	if groupTitlesFrame then
+		groupTitlesFrame:Hide()
+	end
+	ApplyGroupTitleVisibility()
+	retabModuleActive = false
+	if retabFrame then
+		retabFrame:UnregisterEvent("PLAYER_ENTERING_WORLD")
+		retabFrame:UnregisterEvent("ZONE_CHANGED_NEW_AREA")
+	end
+	ApplyRetab()
 end
 
 function module:RefreshConfig()
 	self:Disable()
 	self:Enable()
 end
-
-

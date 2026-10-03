@@ -11,59 +11,59 @@
         </Anchors>
         <Layers>
           <Layer level="ARTWORK">
-            <Texture name="$parentBorderTopLeft" file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\RaidFrame\RaidBorder-UpperLeft">
+            <Texture name="$parentBorderTopLeft" file="Interface\AddOns\SarychUI\addons\!!!ClassicAPI\Texture\RaidFrame\RaidBorder-UpperLeft">
               <Size x="32" y="32" />
               <Anchors>
                 <Anchor point="TOPLEFT" x="-5" y="0" />
               </Anchors>
             </Texture>
-            <Texture name="$parentBorderTopRight" file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\RaidFrame\RaidBorder-UpperRight">
+            <Texture name="$parentBorderTopRight" file="Interface\AddOns\SarychUI\addons\!!!ClassicAPI\Texture\RaidFrame\RaidBorder-UpperRight">
               <Size x="32" y="32" />
               <Anchors>
                 <Anchor point="TOPRIGHT" />
               </Anchors>
             </Texture>
-            <Texture name="$parentBorderBottomLeft" file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\RaidFrame\RaidBorder-BottomLeft">
+            <Texture name="$parentBorderBottomLeft" file="Interface\AddOns\SarychUI\addons\!!!ClassicAPI\Texture\RaidFrame\RaidBorder-BottomLeft">
               <Size x="32" y="32" />
               <Anchors>
                 <Anchor point="BOTTOMLEFT" x="-5" y="0" />
               </Anchors>
             </Texture>
-            <Texture name="$parentBorderBottomRight" file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\RaidFrame\RaidBorder-BottomRight">
+            <Texture name="$parentBorderBottomRight" file="Interface\AddOns\SarychUI\addons\!!!ClassicAPI\Texture\RaidFrame\RaidBorder-BottomRight">
               <Size x="32" y="32" />
               <Anchors>
                 <Anchor point="BOTTOMRIGHT" />
               </Anchors>
             </Texture>
-            <Texture name="$parentBorderTop" file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\RaidFrame\RaidBorder-UpperMiddle" horizTile="true">
+            <Texture name="$parentBorderTop" file="Interface\AddOns\SarychUI\addons\!!!ClassicAPI\Texture\RaidFrame\RaidBorder-UpperMiddle" horizTile="true">
               <Size x="0" y="16" />
               <Anchors>
                 <Anchor point="TOPLEFT" relativeTo="$parentBorderTopLeft" relativePoint="TOPRIGHT" x="0" y="1" />
                 <Anchor point="TOPRIGHT" relativeTo="$parentBorderTopRight" relativePoint="TOPLEFT" x="0" y="1" />
               </Anchors>
             </Texture>
-            <Texture name="$parentBorderBottom" file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\RaidFrame\RaidBorder-BottomMiddle" horizTile="true">
+            <Texture name="$parentBorderBottom" file="Interface\AddOns\SarychUI\addons\!!!ClassicAPI\Texture\RaidFrame\RaidBorder-BottomMiddle" horizTile="true">
               <Size x="0" y="16" />
               <Anchors>
                 <Anchor point="BOTTOMLEFT" relativeTo="$parentBorderBottomLeft" relativePoint="BOTTOMRIGHT" x="0" y="-4" />
                 <Anchor point="BOTTOMRIGHT" relativeTo="$parentBorderBottomRight" relativePoint="BOTTOMLEFT" x="0" y="-4" />
               </Anchors>
             </Texture>
-            <Texture name="$parentBorderLeft" file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\RaidFrame\RaidBorder-Left" vertTile="true">
+            <Texture name="$parentBorderLeft" file="Interface\AddOns\SarychUI\addons\!!!ClassicAPI\Texture\RaidFrame\RaidBorder-Left" vertTile="true">
               <Size x="16" y="0" />
               <Anchors>
                 <Anchor point="TOPLEFT" relativeTo="$parentBorderTopLeft" relativePoint="BOTTOMLEFT" x="-1" y="0" />
                 <Anchor point="BOTTOMLEFT" relativeTo="$parentBorderBottomLeft" relativePoint="TOPLEFT" x="-1" y="0" />
               </Anchors>
             </Texture>
-            <Texture name="$parentBorderRight" file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\RaidFrame\RaidBorder-Right" vertTile="true">
+            <Texture name="$parentBorderRight" file="Interface\AddOns\SarychUI\addons\!!!ClassicAPI\Texture\RaidFrame\RaidBorder-Right" vertTile="true">
               <Size x="16" y="0" />
               <Anchors>
                 <Anchor point="TOPRIGHT" relativeTo="$parentBorderTopRight" relativePoint="BOTTOMRIGHT" x="2" y="0" />
                 <Anchor point="BOTTOMRIGHT" relativeTo="$parentBorderBottomRight" relativePoint="TOPRIGHT" x="2" y="0" />
               </Anchors>
             </Texture>
-            <!--Texture name="$parentBg" file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\FrameGeneral\UI-Background-Rock" horizTile="true" vertTile="true">
+            <!--Texture name="$parentBg" file="Interface\AddOns\SarychUI\addons\!!!ClassicAPI\Texture\FrameGeneral\UI-Background-Rock" horizTile="true" vertTile="true">
               <Anchors>
                 <Anchor point="TOPLEFT" relativeTo="$parentBorderTopLeft" x="7" y="-6"/>
                 <Anchor point="BOTTOMRIGHT" relativeTo="$parentBorderBottomRight" x="-7" y="7"/>

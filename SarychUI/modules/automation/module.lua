@@ -89,7 +89,7 @@ local function CanAutoSellGrey()
         if bagsModule.IsEnabled and not bagsModule:IsEnabled() then
             return false
         end
-        -- ElvUI-сумки имеют свою автопродажу; классика и Baud Bag — через Автоматизацию.
+        -- ElvUI-сумки имеют свою автопродажу; классика и Baud Bag - через Автоматизацию.
         if bagsModule.IsElvUIMode and bagsModule:IsElvUIMode() then
             return false
         end

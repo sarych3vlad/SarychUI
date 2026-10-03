@@ -6,7 +6,5 @@
 	<Include file="Lib\Ace3\CallbackHandler-1.0\CallbackHandler-1.0.xml"/>
 	<!-- ChatThrottleLib -->
 	<Script file="Lib\ChatThrottleLib.lua"/>
-	<!-- LibHealComm-4.0 requires LibStub, CallbackHandler-1.0, and ChatThrottleLib -->
-	<Include file="Lib\LibHealComm-4.0\LibHealComm-4.0.xml"/>
 </Ui>
 

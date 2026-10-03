@@ -16,12 +16,8 @@ Coordinator._state = Coordinator._state or {
 }
 
 local STANDALONE_EMBEDDED = {
-	Mapster = true,
 	Postal = true,
 	GladiusEx = true,
-	FindGroup = true,
-	WDM = true,
-	["!Astrolabe"] = true,
 }
 
 local LOOT_EXCLUSIVE_MODE = {
@@ -42,7 +38,6 @@ local LOOT_ADDONS = {
 
 local AREA_ADDON_OWNERS = {
 	map = {
-		mapster = "Mapster",
 		carbonite = "Carbonite",
 	},
 	loot = LOOT_ADDONS,
@@ -142,11 +137,17 @@ function Coordinator:GetActiveFeatureOwner(area)
 		if SarychUI.GetMapMode then
 			return SarychUI:GetMapMode()
 		end
-		return modules.map and modules.map.mapType or "mapster"
+		return modules.map and modules.map.mapType or "sarychui"
 	end
 
 	if area == "bags" then
 		local bags = modules.bags
+		-- Turning the SarychUI bags module off must release the whole bags area.
+		-- Keep the remembered mode for a later re-enable, but do not expose it as
+		-- the active owner while the module is disabled.
+		if not bags or bags.enabled ~= true then
+			return "classic"
+		end
 		return self:NormalizeBagsMode(bags and bags.mode)
 	end
 
@@ -219,7 +220,7 @@ function Coordinator:SyncNameplateModeFromDB()
 	local hi = modules.health_indicators
 	addons.ElvUI_NamePlates = addons.ElvUI_NamePlates or { enabled = true }
 
-	-- Module off → runtime classic, but keep nameplateMode as the user's preferred choice for re-enable.
+	-- Module off -> runtime classic, but keep nameplateMode as the user's preferred choice for re-enable.
 	if hi.enabled == false then
 		addons.ElvUI_NamePlates.enabled = false
 		return
@@ -278,7 +279,7 @@ function Coordinator:SyncLootModeFromDB()
 	end
 
 	addons.pretty_lootalert = addons.pretty_lootalert or { enabled = false }
-	addons.LootClicker = addons.LootClicker or { enabled = true }
+	addons.LootClicker = addons.LootClicker or { enabled = false }
 	addons.LootHistory = addons.LootHistory or { enabled = true }
 
 	if mode == "classic" then
@@ -297,11 +298,11 @@ function Coordinator:SyncBagsModeFromDB()
 	if not modules or not addons then return end
 
 	modules.bags = modules.bags or { enabled = true, mode = "elvui" }
-	-- Bagnon_FT: тултипы/учёт предметов по персонажам — совместим с SarychUI Bags, classic и Bagnon UI.
+	-- Bagnon_FT: тултипы/учёт предметов по персонажам - совместим с SarychUI Bags, classic и Bagnon UI.
 	-- Не входит в bags.mode; включается отдельным тумблером в списке аддонов.
 	addons.Bagnon_FT = addons.Bagnon_FT or { enabled = true }
 	addons.BaudBag = addons.BaudBag or { enabled = false }
-	-- Migrate renamed embed key (ElvUI_Bags → SarychUI_Bags).
+	-- Migrate renamed embed key (ElvUI_Bags -> SarychUI_Bags).
 	if type(addons.ElvUI_Bags) == "table" and type(addons.SarychUI_Bags) ~= "table" then
 		addons.SarychUI_Bags = CopyTable(addons.ElvUI_Bags)
 	end
@@ -314,9 +315,10 @@ function Coordinator:SyncBagsModeFromDB()
 	end
 
 	local owner = self:NormalizeBagsMode(mode)
-	-- Режим сумок — источник истины; флаги аддонов синхронизируются с ним.
-	addons.BaudBag.enabled = (owner == "baudbag")
-	addons.SarychUI_Bags.enabled = (owner == "elvui")
+	local enabled = modules.bags.enabled == true
+	-- Режим сумок - источник истины; флаги аддонов синхронизируются с ним.
+	addons.BaudBag.enabled = enabled and (owner == "baudbag")
+	addons.SarychUI_Bags.enabled = enabled and (owner == "elvui")
 end
 
 function Coordinator:SyncArenaModeFromDB()
@@ -351,25 +353,24 @@ function Coordinator:SyncMapModeFromDB()
 	local addons = AddonsDB()
 	if not modules or not modules.map or not addons then return end
 
-	local mapType = modules.map.mapType or "mapster"
-	addons.Mapster = addons.Mapster or { enabled = true }
+	local mapType = modules.map.mapType or "sarychui"
 	addons.Carbonite = addons.Carbonite or { enabled = false }
+
+	if mapType == "mapster" then
+		mapType = "sarychui"
+		modules.map.mapType = mapType
+	end
 
 	if mapType == "carbonite" then
 		if SarychUI and SarychUI.IsExternalCarboniteAvailable and not SarychUI:IsExternalCarboniteAvailable() then
-			mapType = "mapster"
+			mapType = "sarychui"
 			modules.map.mapType = mapType
 		end
 	end
 
 	if mapType == "carbonite" then
 		addons.Carbonite.enabled = true
-		addons.Mapster.enabled = false
-	elseif mapType == "mapster" then
-		addons.Mapster.enabled = true
-		addons.Carbonite.enabled = false
 	else
-		addons.Mapster.enabled = false
 		addons.Carbonite.enabled = false
 	end
 end
@@ -408,7 +409,7 @@ end
 
 function Coordinator:UpdateBlizzMoveBlocks()
 	local blocks = {}
-	-- Postal дополняет почту (кнопки, Open All), но не позицию окна — MailFrame можно двигать через BlizzMove.
+	-- Postal дополняет почту (кнопки, Open All), но не позицию окна - MailFrame можно двигать через BlizzMove.
 
 	local bagsOwner = self:GetActiveFeatureOwner("bags")
 	if bagsOwner == "elvui" then
@@ -513,9 +514,9 @@ function Coordinator:ApplyAddonRuntimeFlags()
 	local mapOwner = self:GetActiveFeatureOwner("map")
 	if mapOwner == "carbonite" and SarychUI and SarychUI.IsExternalCarboniteAvailable and not SarychUI:IsExternalCarboniteAvailable() then
 		if SarychUI.SetMapType then
-			SarychUI:SetMapType("mapster")
+			SarychUI:SetMapType("sarychui")
 		end
-		mapOwner = "mapster"
+		mapOwner = "sarychui"
 	end
 
 	for mapMode, addonName in pairs(AREA_ADDON_OWNERS.map) do
@@ -620,7 +621,7 @@ function SarychUI:GetCoordinationBlockReason(key)
 end
 
 function Coordinator:GetAddOnArea(addonName)
-	if AREA_ADDON_OWNERS.map[addonName] or addonName == "Mapster" or addonName == "Carbonite" then
+	if AREA_ADDON_OWNERS.map[addonName] or addonName == "Carbonite" then
 		return "map"
 	end
 	if LOOT_ADDONS.pretty == addonName or LOOT_ADDONS.history == addonName or LOOT_ADDONS.clicker == addonName then
@@ -636,7 +637,7 @@ end
 function SarychUI:CanEnableCoordinatedAddOn(addonName)
 	local standalone = Coordinator:GetStandaloneConflicts()
 	if standalone[addonName] and STANDALONE_EMBEDDED[addonName] then
-		return false, format("|cffff0000Включите только один %s|r — отключите standalone в списке аддонов WoW.", addonName)
+		return false, format("|cffff0000Включите только один %s|r - отключите standalone в списке аддонов WoW.", addonName)
 	end
 	if standalone.ElvUI and (addonName == "SarychUI_Bags" or addonName == "ElvUI_NamePlates") then
 		return false, "|cffff0000Встроенный модуль недоступен:|r установлен полный ElvUI."
@@ -680,7 +681,7 @@ function SarychUI:CanEnableCoordinatedAddOn(addonName)
 
 	if area == "mail" and addonName == "Postal" then
 		if standalone.Postal then
-			return false, "|cffff0000Встроенный Postal заблокирован|r — включён standalone Postal."
+			return false, "|cffff0000Встроенный Postal заблокирован|r - включён standalone Postal."
 		end
 		return true
 	end
@@ -715,9 +716,6 @@ function SarychUI:IsCoordinatedAddOnAllowed(addonName)
 		return addons[addonName].enabled == true
 	end
 
-	if addonName == "Mapster" then
-		return Coordinator:GetActiveFeatureOwner("map") == "mapster"
-	end
 	if addonName == "Carbonite" then
 		if not (SarychUI and SarychUI.IsExternalCarboniteAvailable and SarychUI:IsExternalCarboniteAvailable()) then
 			return false
@@ -785,7 +783,7 @@ function SarychUI:PrintConflictsReport()
 		print(format("  %s: |cff00ff00%s|r%s", label, value or "?", extra or ""))
 	end
 
-	print("|cffffd200SarychUI|r — координация функций:")
+	print("|cffffd200SarychUI|r - координация функций:")
 	line("Карта", self:GetActiveFeatureOwner("map"))
 	line("Сумки", self:GetActiveFeatureOwner("bags"))
 	line("Nameplates", self:GetActiveFeatureOwner("nameplates"))

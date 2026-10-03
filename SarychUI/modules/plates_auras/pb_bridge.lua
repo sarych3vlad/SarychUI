@@ -1,5 +1,5 @@
 --[[
-	Non-Awesome plate→GUID→paint (PlateBuffs-style via LibNameplates + CLEU).
+	Non-Awesome plate->GUID->paint (PlateBuffs-style via LibNameplates + CLEU).
 
 	Only adaptation: UpdateAuras needs the WorldFrame root under ENP, so we
 	ResolvePaintPlate before paint/hide.
@@ -11,6 +11,8 @@ if not LibNameplates then
 end
 
 local nametoGUIDs = {}
+local plateToGUID = {}
+local guidToPlate = {}
 local owner = {}
 local enabled = false
 
@@ -44,7 +46,16 @@ local function PlateIsBoss(plate)
 end
 
 local function GetPlateByGUID(guid)
-	return LibNameplates:GetNameplateByGUID(guid)
+	local plate = LibNameplates:GetNameplateByGUID(guid)
+	if plate then
+		return plate
+	end
+	plate = guidToPlate[guid]
+	if plate and plate.IsShown and plate:IsShown() then
+		return plate
+	end
+	guidToPlate[guid] = nil
+	return nil
 end
 
 local function GetPlateByName(name, maxhp)
@@ -73,6 +84,100 @@ local function ResolvePaintPlate(plate)
 	return plate
 end
 
+local function GetIdentityFrame(plate)
+	local root = ResolvePaintPlate(plate)
+	if root and root.UnitFrame then
+		return root.UnitFrame, root
+	end
+	return plate, root
+end
+
+local function RememberPlateGUID(plate, GUID)
+	local root = ResolvePaintPlate(plate)
+	if not root or not GUID then return end
+	local oldGUID = plateToGUID[root]
+	if oldGUID and oldGUID ~= GUID and guidToPlate[oldGUID] == root then
+		guidToPlate[oldGUID] = nil
+	end
+	plateToGUID[root] = GUID
+	guidToPlate[GUID] = root
+end
+
+local function ForgetPlateGUID(plate)
+	local root = ResolvePaintPlate(plate)
+	if not root then return end
+	local GUID = plateToGUID[root]
+	if GUID and guidToPlate[GUID] == root then
+		guidToPlate[GUID] = nil
+	end
+	plateToGUID[root] = nil
+end
+
+-- Prefer exact unit tokens exposed by the nameplate API/ElvUI. LibNameplates on
+-- 3.3.5 often learns a GUID only after mouseover, while these sources are already
+-- available for group units and for clients that expose nameplate unit tokens.
+local function GetDirectPlateUnit(plate, expectedGUID)
+	local identity, root = GetIdentityFrame(plate)
+	local rootUnit = root and root.namePlateUnitToken
+	if rootUnit and UnitExists(rootUnit) then
+		local GUID = UnitGUID(rootUnit)
+		if GUID and (not expectedGUID or GUID == expectedGUID) then
+			return rootUnit
+		end
+	end
+
+	local unit = identity and identity.unit
+	if unit and UnitExists(unit) then
+		local GUID = UnitGUID(unit)
+		if GUID and (not expectedGUID or GUID == expectedGUID) then
+			local expectedName = identity.UnitName or GetPlateName(plate)
+			local unitName = UnitName(unit)
+			if not expectedName or not unitName or expectedName == unitName then
+				return unit
+			end
+		end
+	end
+	return nil
+end
+
+local function GetDirectPlateGUID(plate)
+	local unit = GetDirectPlateUnit(plate)
+	if unit then
+		return UnitGUID(unit), unit
+	end
+	local identity = GetIdentityFrame(plate)
+	local GUID = identity and identity.guid
+	if GUID and type(GUID) == "string" then
+		return GUID, nil
+	end
+	return nil, nil
+end
+
+local function ShortName(name)
+	if not name then return nil end
+	return name:match("^(.-)-") or name
+end
+
+local function FindKnownPlayerGUIDByName(name)
+	name = ShortName(name)
+	if not name then return nil end
+	local LibAI = LibStub("LibAuraInfo-1.0", true)
+	if not LibAI or not LibAI.GUIDData_name then return nil end
+
+	local found
+	for GUID, knownName in pairs(LibAI.GUIDData_name) do
+		local flags = LibAI.GUIDData_flags and LibAI.GUIDData_flags[GUID]
+		if flags and bit and bit.band and bit.band(flags, 0x00000400) ~= 0
+			and ShortName(knownName) == name then
+			if found and found ~= GUID then
+				return nil -- same short name from two realms: never guess a plate
+			end
+			found = GUID
+		end
+	end
+	return found
+end
+
 -- PlateBuffs:HidePlateSpells(plate)
 local function HidePlateSpells(plate)
 	if not plate or not _G.sarPlatesAuras_HidePlateAuras then
@@ -91,6 +196,16 @@ local function AddBuffsToPlate(plate, GUID, unitID)
 	if not plate or not GUID or not _G.UpdateAuras then
 		return
 	end
+	-- A delayed LibAuraInfo callback can arrive after LibNameplates has recycled
+	-- this frame. If the plate exposes its current identity, never paint an old
+	-- GUID onto the new owner.
+	local directGUID, directUnit = GetDirectPlateGUID(plate)
+	if directGUID and directGUID ~= GUID then
+		HidePlateSpells(plate)
+		return
+	end
+	unitID = unitID or directUnit
+	RememberPlateGUID(plate, GUID)
 	_G.UpdateAuras(plate, unitID, GUID)
 end
 
@@ -98,7 +213,7 @@ end
 local function UpdatePlateByGUID(GUID)
 	local plate = GetPlateByGUID(GUID)
 	if plate then
-		AddBuffsToPlate(plate, GUID)
+		AddBuffsToPlate(plate, GUID, GetDirectPlateUnit(plate, GUID))
 		return true
 	end
 	return false
@@ -112,7 +227,7 @@ local function UpdatePlateByName(name, maxhp)
 	end
 	local plate = GetPlateByName(name, maxhp)
 	if plate then
-		AddBuffsToPlate(plate, GUID)
+		AddBuffsToPlate(plate, GUID, GetDirectPlateUnit(plate, GUID))
 		return true
 	end
 	return false
@@ -148,12 +263,14 @@ local function ForceNameplateUpdate(dstGUID)
 	end
 	-- PlateBuffs FlagIsPlayer (0x400)
 	if dstFlags and bit and bit.band and bit.band(dstFlags, 0x00000400) ~= 0 and dstName then
-		local shortName = dstName
-		if shortName:find("-") then
-			shortName = shortName:match("^(.-)-") or shortName
+		local shortName = ShortName(dstName)
+		local uniqueGUID = FindKnownPlayerGUIDByName(shortName)
+		if uniqueGUID == dstGUID then
+			nametoGUIDs[shortName] = dstGUID
+			UpdatePlateByName(shortName)
+		else
+			nametoGUIDs[shortName] = nil
 		end
-		nametoGUIDs[shortName] = dstGUID
-		UpdatePlateByName(shortName)
 	end
 end
 
@@ -184,6 +301,15 @@ local function CollectUnitInfo(unitID)
 		_G.sarPlatesAuras_FindAllAuras(unitID)
 	end
 
+	-- Even in fallback mode an installed nameplate API may expose the exact root.
+	-- Use it as an identity source without switching the aura backend to Awesome.
+	local directPlate = C_NamePlate and C_NamePlate.GetNamePlateForUnit
+		and C_NamePlate.GetNamePlateForUnit(unitID)
+	if directPlate then
+		AddBuffsToPlate(directPlate, GUID, unitID)
+		return
+	end
+
 	if not UpdatePlateByGUID(GUID) and (UnitIsPlayer(unitID) or UnitClassification(unitID) == "worldboss") then
 		UpdatePlateByName(unitName, UnitHealthMax(unitID))
 	end
@@ -191,15 +317,21 @@ end
 
 -- PlateBuffs:AddOurStuffToPlate
 local function AddOurStuffToPlate(plate)
-	local GUID = GetPlateGUID(plate)
+	local GUID, unitID = GetDirectPlateGUID(plate)
+	if not GUID then
+		GUID = GetPlateGUID(plate)
+	end
 	if GUID and type(GUID) == "string" then
-		AddBuffsToPlate(plate, GUID)
+		AddBuffsToPlate(plate, GUID, unitID or GetDirectPlateUnit(plate, GUID))
 		return
 	end
 
 	local plateName = GetPlateName(plate) or "UNKNOWN"
+	if GetPlateType(plate) == "PLAYER" and not nametoGUIDs[plateName] then
+		nametoGUIDs[plateName] = FindKnownPlayerGUIDByName(plateName)
+	end
 	if nametoGUIDs[plateName] and (GetPlateType(plate) == "PLAYER" or PlateIsBoss(plate)) then
-		AddBuffsToPlate(plate, nametoGUIDs[plateName])
+		AddBuffsToPlate(plate, nametoGUIDs[plateName], GetDirectPlateUnit(plate, nametoGUIDs[plateName]))
 		return
 	end
 
@@ -214,7 +346,7 @@ function owner:LibNameplates_NewNameplate(event, plate)
 	AddOurStuffToPlate(plate)
 end
 
--- PlateBuffs:LibNameplates_FoundGUID — always paint the plate Lib passed
+-- PlateBuffs:LibNameplates_FoundGUID - always paint the plate Lib passed
 function owner:LibNameplates_FoundGUID(event, plate, GUID, unitID)
 	if UseAwesomeWotlk() or not IsModuleEnabled() then
 		return
@@ -222,6 +354,7 @@ function owner:LibNameplates_FoundGUID(event, plate, GUID, unitID)
 	if not GUID then
 		return
 	end
+	RememberPlateGUID(plate, GUID)
 	if unitID and UnitExists(unitID) and not (_G.sarPlatesAuras_HasGuidAuras and _G.sarPlatesAuras_HasGuidAuras(GUID)) then
 		CollectUnitInfo(unitID)
 	end
@@ -233,6 +366,7 @@ function owner:LibNameplates_RecycleNameplate(event, plate)
 	if UseAwesomeWotlk() then
 		return
 	end
+	ForgetPlateGUID(plate)
 	HidePlateSpells(plate)
 end
 
@@ -251,6 +385,14 @@ function _G.sarPlatesAuras_PB_Disable()
 		return
 	end
 	LibNameplates.UnregisterAllCallbacks(owner)
+	-- Release every glow/timer owned by fallback before dropping the lookup
+	-- tables. Merely hiding the parent container leaves pooled glow OnUpdates
+	-- alive and can expose a stale border when the plate is reused later.
+	for plate in pairs(plateToGUID) do
+		HidePlateSpells(plate)
+	end
+	wipe(plateToGUID)
+	wipe(guidToPlate)
 	enabled = false
 end
 

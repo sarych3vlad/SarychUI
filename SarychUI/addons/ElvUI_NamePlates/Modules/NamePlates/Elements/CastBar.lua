@@ -157,7 +157,11 @@ end
 -- and match it to the plate by caster GUID/name. SPELL_CAST_START covers normal
 -- casts; SPELL_CAST_SUCCESS (fired at channel start on this client) covers
 -- channels. This fills in the spell name for casters that are NOT the target.
-function NP:COMBAT_LOG_EVENT_UNFILTERED(_, _, subevent, sourceGUID, sourceName, _, _, _, _, spellId, spellName)
+function NP:COMBAT_LOG_EVENT_UNFILTERED(_, _, subevent, sourceGUID, sourceName, sourceFlags, destGUID, destName, destFlags, spellId, spellName)
+	if self.LearnPlayerIdentity then
+		self:LearnPlayerIdentity(sourceGUID, sourceName, sourceFlags)
+		self:LearnPlayerIdentity(destGUID, destName, destFlags)
+	end
 	if subevent ~= "SPELL_CAST_START" and subevent ~= "SPELL_CAST_SUCCESS" then return end
 	local perfStart = SarychUI_PerfDebug and SarychUI_PerfNow and SarychUI_PerfNow() or nil
 	if SarychUI_PerfLog then

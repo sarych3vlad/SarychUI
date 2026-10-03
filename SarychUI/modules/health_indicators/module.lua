@@ -12,7 +12,7 @@ local AUTOLOS_ADDON = "autolos"
 function SarychUI:GetNameplateMode()
 	local modules = self.db and self.db.profile and self.db.profile.modules
 	local hi = modules and modules.health_indicators
-	-- Module disabled → always classic at runtime.
+	-- Module disabled -> always classic at runtime.
 	if hi and hi.enabled == false then
 		return "classic"
 	end

@@ -1,7 +1,30 @@
+local function GetActiveProfileMode()
+	local mode = SarychUI and SarychUI.GetNameplateMode and SarychUI:GetNameplateMode() or "classic"
+	return mode == "elvui" and "elvui" or "classic"
+end
+
 local function GetActiveDisplayProfile()
+	local mode = GetActiveProfileMode()
+	local db = SarychUI and SarychUI.db and SarychUI.db.profile
+		and SarychUI.db.profile.modules and SarychUI.db.profile.modules.plates_auras
+
+	-- Fallback nameplates can be painted before plates_auras:Initialize runs. Read
+	-- the AceDB profile directly first so this early paint gets the same display
+	-- scale as the normal Awesome path.
+	if db and db.profiles and db.profiles[mode] then
+		return db.profiles[mode], "db"
+	end
+
 	local mod = SarychUI and SarychUI:GetModule("plates_auras", true)
 	if mod and mod.GetActiveDisplayProfile then
-		return mod:GetActiveDisplayProfile()
+		local profile = mod:GetActiveDisplayProfile()
+		if profile then return profile, "module" end
+	end
+
+	local defaults = SarychUI and SarychUI.defaults and SarychUI.defaults.profile
+		and SarychUI.defaults.profile.modules and SarychUI.defaults.profile.modules.plates_auras
+	if defaults and defaults.profiles then
+		return defaults.profiles[mode], "defaults"
 	end
 	return nil
 end
@@ -22,14 +45,49 @@ local function UsesElvUILayout()
 	return layout and layout.IsActive and layout.IsActive()
 end
 
-local function GetAuraContainerParent(namePlate)
-	if UsesElvUILayout() then
-		local layout = SarychUI.PlatesAurasElvUI
-		local unitFrame = layout and layout.GetElvUIUnitFrame and layout.GetElvUIUnitFrame(namePlate)
-		if unitFrame then
-			return unitFrame
+local function GetAuraDisplayScale()
+	local mode = GetActiveProfileMode()
+	local profile, profileSource = GetActiveDisplayProfile()
+	local scale = profile and profile.display and tonumber(profile.display.scale)
+	local db = SarychUI and SarychUI.db and SarychUI.db.profile
+		and SarychUI.db.profile.modules and SarychUI.db.profile.modules.plates_auras
+	-- Cover an aura paint that happens just before module:EnsureProfiles can run
+	-- the v7 migration. ApplySettings will persist the same 0.8 moments later.
+	if mode == "elvui" and profileSource == "db" and scale == 1
+		and (tonumber(db and db.profileVersion) or 0) < 7 then
+		return 0.8, "legacy-v7"
+	end
+	if scale and profileSource ~= "defaults" then
+		return scale, profileSource
+	end
+
+	if _G.SAR_PLATES_AURAS_DISPLAY_MODE == mode then
+		scale = tonumber(_G.SAR_PLATES_AURAS_DISPLAY_SCALE)
+		if scale then
+			return scale, "cache"
 		end
 	end
+
+	if scale then
+		return scale, profileSource or "profile"
+	end
+
+	-- This mirrors core/defaults.lua. It is intentionally the final ElvUI
+	-- fallback for the tiny window before AceDB and the module are available.
+	if mode == "elvui" or UsesElvUILayout() then
+		return 0.8, "elvui-default"
+	end
+	return 1, "classic-default"
+end
+
+_G.sarPlatesAuras_GetDisplayScale = GetAuraDisplayScale
+
+local function GetAuraContainerParent(namePlate)
+	-- Always keep SUI aura containers on the real nameplate root. Awesome can
+	-- deliver a plate before ElvUI has built UnitFrame, while the fallback usually
+	-- arrives afterwards. Parenting to UnitFrame therefore made identical SetSize
+	-- values inherit different/timing-dependent scale chains. Anchors may still
+	-- point at ElvUI Health/Name; only ownership is normalized here.
 	return namePlate
 end
 
@@ -170,34 +228,35 @@ local function GetNamePlateForUnit(unitId)
 	return nil
 end
 
+-- Defined after the glow/text helpers. Nameplates can be recycled through the
+-- fallback bridge, so every hide path must clear the whole aura state rather
+-- than only hiding its texture.
+local ResetAuraFrame
+
 local function HidePlateAuras(plate)
 	if not plate then return end
 	plate = NormalizeRootPlate(plate) or plate
 	if plate.controlFrame then
-		if plate.controlFrame.auraIcon then plate.controlFrame.auraIcon:Hide() end
-		if plate.controlFrame.HideBorderEffect then plate.controlFrame.HideBorderEffect() end
+		ResetAuraFrame(plate.controlFrame, false)
 	end
 	if plate.castFrame then
-		if plate.castFrame.auraIcon then plate.castFrame.auraIcon:Hide() end
-		if plate.castFrame.HideBorderEffect then plate.castFrame.HideBorderEffect() end
+		ResetAuraFrame(plate.castFrame, false)
 	end
 	if plate.mobilityFrame then
-		if plate.mobilityFrame.auraIcon then plate.mobilityFrame.auraIcon:Hide() end
-		if plate.mobilityFrame.HideBorderEffect then plate.mobilityFrame.HideBorderEffect() end
+		ResetAuraFrame(plate.mobilityFrame, false)
 	end
 	if plate.otherFrame then
-		if plate.otherFrame.auraIcon then plate.otherFrame.auraIcon:Hide() end
-		if plate.otherFrame.HideBorderEffect then plate.otherFrame.HideBorderEffect() end
+		ResetAuraFrame(plate.otherFrame, false)
 	end
 	if plate.playerFrame and plate.playerFrame.auraIcons then
 		for i = 1, #plate.playerFrame.auraIcons do
 			local auraFrame = plate.playerFrame.auraIcons[i]
 			if auraFrame then
-				if auraFrame.icon then auraFrame.icon:Hide() end
-				if auraFrame.HideBorderEffect then auraFrame.HideBorderEffect() end
+				ResetAuraFrame(auraFrame, true)
 			end
 		end
 	end
+	plate._sarAuraGUID = nil
 end
 _G.sarPlatesAuras_HidePlateAuras = HidePlateAuras
 
@@ -279,7 +338,7 @@ local FindAllAuras
 local UpdatePlateByGUID
 local CollectUnitInfo
 
--- Non-Awesome plate→GUID→paint lives in pb_bridge.lua (PlateBuffs core).
+-- Non-Awesome plate->GUID->paint lives in pb_bridge.lua (PlateBuffs core).
 UpdatePlateByGUID = function(guid)
 	if not guid or UseAwesomeWotlk() then
 		return false
@@ -564,7 +623,7 @@ frame:SetScript("OnEvent", function(self, event, unit)
 end)
 
 -- Non-Awesome plate matching is owned by pb_bridge.lua (PlateBuffs core).
--- Do not register LibNameplates callbacks here — that was the duplicate-paint mess.
+-- Do not register LibNameplates callbacks here - that was the duplicate-paint mess.
 
 -- Use globals directly so settings changes apply immediately
 
@@ -727,6 +786,51 @@ local function ClearAuraText(frame)
     SetStackText(frame, "")
 end
 
+local function ResolveAuraTexture(spellId, texture)
+    if (type(texture) == "string" and texture ~= "")
+        or (type(texture) == "number" and texture > 0) then
+        return texture
+    end
+    if spellId then
+        local _, _, spellTexture = GetSpellInfo(spellId)
+        if (type(spellTexture) == "string" and spellTexture ~= "")
+            or (type(spellTexture) == "number" and spellTexture > 0) then
+            return spellTexture
+        end
+    end
+    return nil
+end
+
+-- Nameplate aura countdowns share Runtime's dispatcher. This replaces one
+-- OnUpdate script per visible aura icon with a single 10 Hz callback.
+local activeCooldownFrames = setmetatable({}, { __mode = "k" })
+
+local function AuraCooldownTick(frame, now)
+    local auraTexture = GetAuraTexture(frame)
+    if not frame.cooldownText or not auraTexture or not auraTexture:IsShown() then
+        activeCooldownFrames[frame] = nil
+        ResetAuraFrame(frame, false)
+        return
+    end
+    local timeLeft = (frame.__sarAuraExpirationTime or 0) - now
+    if timeLeft > 0 then
+        SetCooldownText(frame, FormatTimeLeft(timeLeft))
+    else
+        activeCooldownFrames[frame] = nil
+        ResetAuraFrame(frame, false)
+    end
+end
+
+local function UpdateActiveCooldowns(now)
+    for auraFrame in pairs(activeCooldownFrames) do
+        AuraCooldownTick(auraFrame, now)
+    end
+end
+
+if SarychUI and SarychUI.Runtime then
+    SarychUI.Runtime:RegisterUpdate("plates_auras.cooldowns", COOLDOWN_TEXT_UPDATE_INTERVAL, UpdateActiveCooldowns)
+end
+
 local function UpdateCooldownText(frame, expirationTime, duration, stackCount)
     if not frame.cooldownText then 
         -- Создаем cooldownText если его нет
@@ -745,10 +849,11 @@ local function UpdateCooldownText(frame, expirationTime, duration, stackCount)
     SetStackText(frame, stackText)
 
     local normalizedStack = stackCount or 0
-    local hasOnUpdate = frame:GetScript("OnUpdate") ~= nil
+    local hasOnUpdate = activeCooldownFrames[frame] == true
 
     if not expirationTime or expirationTime == 0 or duration == 0 then
         ClearAuraText(frame)
+        activeCooldownFrames[frame] = nil
         frame:SetScript("OnUpdate", nil)
         frame.__sarAuraExpirationTime = expirationTime
         frame.__sarAuraDuration = duration
@@ -767,49 +872,24 @@ local function UpdateCooldownText(frame, expirationTime, duration, stackCount)
     frame.__sarAuraDuration = duration
     frame.__sarAuraLastStackCount = normalizedStack
 
-    local initialTimeLeft = expirationTime - GetTime()
+    local runtime = SarychUI and SarychUI.Runtime
+    local now = runtime and runtime:GetTimeCached() or GetTime()
+    local initialTimeLeft = expirationTime - now
     if initialTimeLeft > 0 then
         SetCooldownText(frame, FormatTimeLeft(initialTimeLeft))
     else
-        ClearAuraText(frame)
-        frame:SetScript("OnUpdate", nil)
+        ResetAuraFrame(frame, false)
         return
     end
 
-    local function OnUpdate(self, elapsed)
-        self.__sarAuraCooldownElapsed = (self.__sarAuraCooldownElapsed or 0) + (elapsed or 0)
-        if self.__sarAuraCooldownElapsed < COOLDOWN_TEXT_UPDATE_INTERVAL then
-            return
-        end
-        self.__sarAuraCooldownElapsed = 0
-        -- Проверяем, что фрейм и иконка все еще существуют
-        local auraTexture = GetAuraTexture(self)
-        if not self or not self.cooldownText or not auraTexture then
-            self:SetScript("OnUpdate", nil)
-            return
-        end
-
-        if not auraTexture:IsShown() then
-            ClearAuraText(self)
-            self:SetScript("OnUpdate", nil)
-            return
-        end
-
-        local timeLeft = (self.__sarAuraExpirationTime or 0) - GetTime()
-        if timeLeft > 0 then
-            local text = FormatTimeLeft(timeLeft)
-            SetCooldownText(self, text)
-        else
-            ClearAuraText(self)
-            if auraTexture then auraTexture:Hide() end
-            if self.HideGlowEffect then self.HideGlowEffect() end
-            if self.HideBorderEffect then self.HideBorderEffect() end
-            self:SetScript("OnUpdate", nil)
-        end
+    if runtime then
+        frame:SetScript("OnUpdate", nil)
+        activeCooldownFrames[frame] = true
+    else
+        frame:SetScript("OnUpdate", function(self)
+            AuraCooldownTick(self, GetTime())
+        end)
     end
-
-    -- Устанавливаем скрипт
-    frame:SetScript("OnUpdate", OnUpdate)
 end
 
 local function CreateOtherAuraIcons(frame, size)
@@ -877,7 +957,8 @@ local function FindBestAuraFromCache(foundAuras, auraTypes)
 end
 
 local function FindOtherAurasFromCache(foundAuras)
-    local otherAuras = {}
+    local runtime = SarychUI and SarychUI.Runtime
+    local otherAuras = runtime and runtime:AcquireTable("plates-auras") or {}
 
     for spellId, auraData in pairs(foundAuras) do
         if auraData.type == "other" then
@@ -886,17 +967,18 @@ local function FindOtherAurasFromCache(foundAuras)
             -- Проверяем, разрешено ли отображение от других игроков для этого заклинания
             local spellInfo = SPELL_DATA[spellId]
             local allowFromOthers = spellInfo and spellInfo.allowFromOthers == true
+            local iconTexture = ResolveAuraTexture(spellId, auraData.iconTexture)
             
             -- Показываем ауру, если она наложена игроком ИЛИ разрешено от других
-            if isPlayerCaster or allowFromOthers then
-                tinsert(otherAuras, { 
-                    iconTexture = auraData.iconTexture, 
-                    duration = auraData.duration, 
-                    expirationTime = auraData.expirationTime, 
-                    spellId = spellId,
-                    priority = auraData.priority,
-                    stackCount = auraData.stackCount
-                })
+            if iconTexture and (isPlayerCaster or allowFromOthers) then
+                local entry = runtime and runtime:AcquireTable("plates-auras") or {}
+                entry.iconTexture = iconTexture
+                entry.duration = auraData.duration
+                entry.expirationTime = auraData.expirationTime
+                entry.spellId = spellId
+                entry.priority = auraData.priority
+                entry.stackCount = auraData.stackCount
+                tinsert(otherAuras, entry)
             end
         end
     end
@@ -906,6 +988,15 @@ local function FindOtherAurasFromCache(foundAuras)
     end)
 
     return otherAuras
+end
+
+local function ReleaseOtherAuras(otherAuras)
+    local runtime = SarychUI and SarychUI.Runtime
+    if not runtime then return end
+    for i = 1, #otherAuras do
+        runtime:ReleaseTable(otherAuras[i], "plates-auras")
+    end
+    runtime:ReleaseTable(otherAuras, "plates-auras")
 end
 
 local function IsSpellGlowEnabled(spellId)
@@ -931,8 +1022,41 @@ local function HideAuraGlow(frame)
 	end
 end
 
+ResetAuraFrame = function(frame, hideHost)
+	if not frame then
+		return
+	end
+	local auraTexture = GetAuraTexture(frame)
+	if auraTexture then
+		auraTexture:Hide()
+		auraTexture:SetTexture(nil)
+	end
+	HideAuraGlow(frame)
+	-- The normal glow stop owns this texture, but hide it explicitly as a final
+	-- guard against a partially initialized/recycled fallback frame.
+	if frame.border then
+		frame.border:SetAlpha(0)
+		frame.border:Hide()
+	end
+	ClearAuraText(frame)
+	activeCooldownFrames[frame] = nil
+	frame:SetScript("OnUpdate", nil)
+	frame.__sarAuraExpirationTime = nil
+	frame.__sarAuraDuration = nil
+	frame.__sarAuraLastStackCount = nil
+	frame.__sarAuraCooldownElapsed = 0
+	if hideHost then
+		frame:Hide()
+	end
+end
+
 local function ApplyStoredAuraGlow(frame)
 	if not frame then
+		return
+	end
+	local auraTexture = GetAuraTexture(frame)
+	if not auraTexture or not auraTexture:IsShown() or not auraTexture:GetTexture() then
+		HideAuraGlow(frame)
 		return
 	end
 	local spellId = frame._sarGlowSpellId
@@ -977,8 +1101,9 @@ local function UpdateAuraFrameFromCache(namePlate, frame, size, foundAuras, aura
 	
     local bestAura, bestSpellId = FindBestAuraFromCache(foundAuras, auraTypes)
 
-    if bestAura then
-        frame.auraIcon:SetTexture(bestAura.iconTexture)
+    local iconTexture = bestAura and ResolveAuraTexture(bestSpellId, bestAura.iconTexture)
+    if bestAura and iconTexture then
+        frame.auraIcon:SetTexture(iconTexture)
         frame.auraIcon:Show()
         frame._sarGlowSpellId = IsSpellGlowEnabled(bestSpellId) and bestSpellId or nil
         
@@ -991,10 +1116,7 @@ local function UpdateAuraFrameFromCache(namePlate, frame, size, foundAuras, aura
             end
         end
     else
-        frame.auraIcon:Hide()
-        HideAuraGlow(frame)
-        ClearAuraText(frame)
-        frame:SetScript("OnUpdate", nil)
+        ResetAuraFrame(frame, false)
     end
 end
 
@@ -1272,9 +1394,13 @@ end
 
 local function UpdateOtherAurasFromCache(namePlate, foundAuras)
     local otherAuras = FindOtherAurasFromCache(foundAuras)
-    local activeAuraCount = #otherAuras
+    -- The cache can contain more configured "other" auras than the fixed icon
+    -- pool. Never walk past that pool: an interrupted paint used to leave the
+    -- previously active border behind with its texture already hidden.
+    local activeAuraCount = math.min(#otherAuras, MAX_PLAYER_AURAS)
 
     if not namePlate.playerFrame or not namePlate.playerFrame.auraIcons then
+        ReleaseOtherAuras(otherAuras)
         return
     end
     
@@ -1295,16 +1421,13 @@ local function UpdateOtherAurasFromCache(namePlate, foundAuras)
         local auraFrame = namePlate.playerFrame.auraIcons[i]
         if auraFrame and i > activeAuraCount then
             auraFrame:ClearAllPoints()
-            auraFrame:Hide()  -- Скрываем весь фрейм, а не только иконку
-            auraFrame.icon:Hide()
-            ClearAuraText(auraFrame)
-            auraFrame:SetScript("OnUpdate", nil)
-            HideAuraGlow(auraFrame)
+            ResetAuraFrame(auraFrame, true)
         end
     end
 
     if activeAuraCount == 0 then
         UpdateCenterFramesPosition(namePlate)
+        ReleaseOtherAuras(otherAuras)
         return
     end
 
@@ -1331,30 +1454,40 @@ local function UpdateOtherAurasFromCache(namePlate, foundAuras)
             auraFrame:SetPoint("CENTER", namePlate.playerFrame, "CENTER", startX + (i - 1) * stepX, 0)
         end
         
-        auraFrame:Show()  -- Показываем весь фрейм
-        auraFrame.icon:SetTexture(aura.iconTexture)
-        auraFrame.icon:Show()
-        auraFrame._sarGlowSpellId = IsSpellGlowEnabled(aura.spellId) and aura.spellId or nil
+        local iconTexture = ResolveAuraTexture(aura.spellId, aura.iconTexture)
+        if iconTexture then
+            auraFrame:Show()  -- Показываем весь фрейм
+            auraFrame.icon:SetTexture(iconTexture)
+            auraFrame.icon:Show()
+            auraFrame._sarGlowSpellId = IsSpellGlowEnabled(aura.spellId) and aura.spellId or nil
 
-        if aura.duration and aura.duration > 0 and aura.expirationTime then
-            UpdateCooldownText(auraFrame, aura.expirationTime, aura.duration, aura.stackCount)
+            if aura.duration and aura.duration > 0 and aura.expirationTime then
+                UpdateCooldownText(auraFrame, aura.expirationTime, aura.duration, aura.stackCount)
+            else
+                ClearAuraText(auraFrame)
+                auraFrame:SetScript("OnUpdate", nil)
+            end
         else
-            ClearAuraText(auraFrame)
+            ResetAuraFrame(auraFrame, true)
         end
     end
 
     -- Обновляем позиции центральных фреймов
     UpdateCenterFramesPosition(namePlate)
+    ReleaseOtherAuras(otherAuras)
 end
 
 local lastUnitAuraUpdate = {}
 
 local function ShouldUpdateAura(unitId)
-    local lastUpdateTime = lastUnitAuraUpdate[unitId] or 0
-    if (GetTime() - lastUpdateTime) < 0.5 then
-        return false
+    local runtime = SarychUI and SarychUI.Runtime
+    if runtime then
+        return runtime:Throttle("plates_auras.unit." .. tostring(unitId), 0.5)
     end
-    lastUnitAuraUpdate[unitId] = GetTime()
+    local now = GetTime()
+    local lastUpdateTime = lastUnitAuraUpdate[unitId] or 0
+    if (now - lastUpdateTime) < 0.5 then return false end
+    lastUnitAuraUpdate[unitId] = now
     return true
 end
 
@@ -1380,7 +1513,7 @@ function _G.UpdateAuras(namePlate, unitId, forcedGuid)
         end
     else
         -- PlateBuffs bridge always passes forcedGuid (AddBuffsToPlate equivalent).
-        -- Never invent GUID from unit token / name / alpha — that was the wrong-plate mess.
+        -- Never invent GUID from unit token / name / alpha - that was the wrong-plate mess.
         plateGUID = forcedGuid
         if not plateGUID then
             HidePlateAuras(namePlate)
@@ -1404,6 +1537,20 @@ function _G.UpdateAuras(namePlate, unitId, forcedGuid)
     if not plateGUID then
         HidePlateAuras(namePlate)
         return
+    end
+
+    -- LibNameplates reuses the same WorldFrame child for different units. A
+    -- stale border/timer must never cross that ownership boundary.
+    if namePlate._sarAuraGUID and namePlate._sarAuraGUID ~= plateGUID then
+        HidePlateAuras(namePlate)
+    end
+    namePlate._sarAuraGUID = plateGUID
+
+    if not namePlate._sarAuraCleanupHooked and namePlate.HookScript then
+        namePlate._sarAuraCleanupHooked = true
+        namePlate:HookScript("OnHide", function(self)
+            HidePlateAuras(self)
+        end)
     end
     
     -- First, hide all aura icons to ensure disabled spells disappear.
@@ -1439,15 +1586,15 @@ function _G.UpdateAuras(namePlate, unitId, forcedGuid)
     end
 
     -- Get display settings
-    local profile = GetActiveDisplayProfile()
-    local alpha = (profile and profile.display and profile.display.alpha) or 1
-    local scale = (profile and profile.display and profile.display.scale) or 1
+	local profile = GetActiveDisplayProfile()
+	local alpha = (profile and profile.display and profile.display.alpha) or 1
+	local scale = GetAuraDisplayScale()
     
     -- Создаем общий контейнерный фрейм для центральных фреймов
     local containerParent = GetAuraContainerParent(namePlate)
     if not namePlate.centerContainer then
         namePlate.centerContainer = CreateFrame("Frame", nil, containerParent)
-    elseif UsesElvUILayout() and namePlate.centerContainer:GetParent() ~= containerParent then
+    elseif namePlate.centerContainer:GetParent() ~= containerParent then
         namePlate.centerContainer:SetParent(containerParent)
     end
     namePlate.centerContainer:SetSize(ICON_SIZE_CONTROL + ICON_SIZE_CAST + 4, ICON_SIZE_CONTROL)
@@ -1467,6 +1614,11 @@ function _G.UpdateAuras(namePlate, unitId, forcedGuid)
     if not namePlate.controlFrame.auraIcon then
         namePlate.controlFrame.auraIcon = CreateAuraIcon(namePlate.controlFrame, ICON_SIZE_CONTROL)
     end
+    -- Re-apply canonical profile sizes on every paint. Fallback plates can be
+    -- recycled after settings/layout changes, so creation-time sizes are stale.
+    namePlate.controlFrame:SetSize(ICON_SIZE_CONTROL, ICON_SIZE_CONTROL)
+    namePlate.controlFrame.auraIcon:SetSize(ICON_SIZE_CONTROL, ICON_SIZE_CONTROL)
+    if namePlate.controlFrame.UpdateBorderSize then namePlate.controlFrame.UpdateBorderSize() end
     
     -- Убеждаемся, что cooldownText и stackText созданы
     if not namePlate.controlFrame.cooldownText then
@@ -1490,6 +1642,9 @@ function _G.UpdateAuras(namePlate, unitId, forcedGuid)
         namePlate.castFrame:SetPoint("RIGHT", namePlate.centerContainer, "RIGHT", 0, 0)
         namePlate.castFrame.auraIcon = CreateAuraIcon(namePlate.castFrame, ICON_SIZE_CAST)
     end
+    namePlate.castFrame:SetSize(ICON_SIZE_CAST, ICON_SIZE_CAST)
+    namePlate.castFrame.auraIcon:SetSize(ICON_SIZE_CAST, ICON_SIZE_CAST)
+    if namePlate.castFrame.UpdateBorderSize then namePlate.castFrame.UpdateBorderSize() end
     
     -- Убеждаемся, что cooldownText и stackText созданы
     if not namePlate.castFrame.cooldownText then
@@ -1510,7 +1665,7 @@ function _G.UpdateAuras(namePlate, unitId, forcedGuid)
     -- Создаем общий контейнерный фрейм для mobility фреймов
     if not namePlate.mobilityContainer then
         namePlate.mobilityContainer = CreateFrame("Frame", nil, containerParent)
-    elseif UsesElvUILayout() and namePlate.mobilityContainer:GetParent() ~= containerParent then
+    elseif namePlate.mobilityContainer:GetParent() ~= containerParent then
         namePlate.mobilityContainer:SetParent(containerParent)
     end
     namePlate.mobilityContainer:SetSize(ICON_SIZE_MOBILITY + ICON_SIZE_OTHER + 4, ICON_SIZE_MOBILITY)
@@ -1519,7 +1674,7 @@ function _G.UpdateAuras(namePlate, unitId, forcedGuid)
         namePlate.mobilityContainer:SetPoint("LEFT", namePlate, "RIGHT", RightX, RightY)
     end
     namePlate.mobilityContainer:SetAlpha(alpha)
-    namePlate.mobilityContainer:SetScale(scale)
+    ApplyAuraContainerScale(namePlate, namePlate.mobilityContainer, "right", scale)
 
     if not namePlate.mobilityFrame then
         namePlate.mobilityFrame = CreateFrame("Frame", nil, namePlate.mobilityContainer)
@@ -1527,6 +1682,9 @@ function _G.UpdateAuras(namePlate, unitId, forcedGuid)
         namePlate.mobilityFrame:SetPoint("LEFT", namePlate.mobilityContainer, "LEFT", 0, 0)
         namePlate.mobilityFrame.auraIcon = CreateAuraIcon(namePlate.mobilityFrame, ICON_SIZE_MOBILITY)
     end
+    namePlate.mobilityFrame:SetSize(ICON_SIZE_MOBILITY, ICON_SIZE_MOBILITY)
+    namePlate.mobilityFrame.auraIcon:SetSize(ICON_SIZE_MOBILITY, ICON_SIZE_MOBILITY)
+    if namePlate.mobilityFrame.UpdateBorderSize then namePlate.mobilityFrame.UpdateBorderSize() end
     
     -- Убеждаемся, что cooldownText и stackText созданы
     if not namePlate.mobilityFrame.cooldownText then
@@ -1550,6 +1708,9 @@ function _G.UpdateAuras(namePlate, unitId, forcedGuid)
         namePlate.otherFrame:SetPoint("RIGHT", namePlate.mobilityContainer, "RIGHT", 0, 0)
         namePlate.otherFrame.auraIcon = CreateAuraIcon(namePlate.otherFrame, ICON_SIZE_OTHER)
     end
+    namePlate.otherFrame:SetSize(ICON_SIZE_OTHER, ICON_SIZE_OTHER)
+    namePlate.otherFrame.auraIcon:SetSize(ICON_SIZE_OTHER, ICON_SIZE_OTHER)
+    if namePlate.otherFrame.UpdateBorderSize then namePlate.otherFrame.UpdateBorderSize() end
     
     -- Убеждаемся, что cooldownText и stackText созданы
     if not namePlate.otherFrame.cooldownText then
@@ -1568,14 +1729,11 @@ function _G.UpdateAuras(namePlate, unitId, forcedGuid)
     end
 
     if not namePlate.playerFrame then
-        -- Same parent as centerContainer (unitFrame/plate). ElvUI layout owns re-parent/scale.
+        -- Same normalized root parent as the other aura containers.
         namePlate.playerFrame = CreateFrame("Frame", nil, containerParent)
         CreateOtherAuraIcons(namePlate.playerFrame, ICON_SIZE_PLAYER)
     elseif namePlate.playerFrame:GetParent() ~= containerParent then
-        -- ElvUI ApplySlotAnchor may briefly move parent; keep classic path on containerParent.
-        if not UsesElvUILayout() then
-            namePlate.playerFrame:SetParent(containerParent)
-        end
+        namePlate.playerFrame:SetParent(containerParent)
     end
     if not UsesElvUILayout() or IsPlayerAltRight() then
         AnchorPlayerFrame(namePlate)
@@ -1625,6 +1783,21 @@ function _G.UpdateAuras(namePlate, unitId, forcedGuid)
     UpdateCenterFramesPosition(namePlate)
     UpdateMobilityFramesPosition(namePlate)  
 	ApplyAllPlateGlows(namePlate)
+    if C_Timer and C_Timer.After then
+        C_Timer.After(0, function()
+            if namePlate and namePlate.IsShown and namePlate:IsShown() then
+				-- Fallback can paint before ElvUI finishes configuring a recycled
+				-- plate. Run the same final anchor pass Awesome receives after the
+				-- UnitFrame is settled, so size and position share one code path.
+				if UsesElvUILayout() then
+					local layout = SarychUI and SarychUI.PlatesAurasElvUI
+					if layout and layout.UpdateElvUIAuraAnchor then
+						layout.UpdateElvUIAuraAnchor(namePlate, { source = "settled-paint" })
+					end
+				end
+            end
+        end)
+    end
     if SarychUI_PerfSlow then
         SarychUI_PerfSlow("Auras", "UpdateAurasSlow", perfStart, unitId, 3)
     end
@@ -1633,7 +1806,7 @@ end
 function _G.sarPlatesAuras_UpdatePlateLayout(namePlate)
     if not namePlate then return end
     UpdateCenterFramesPosition(namePlate)
-    UpdateMobilityFramesPosition(namePlate)
+	UpdateMobilityFramesPosition(namePlate)
 	ApplyAllPlateGlows(namePlate)
 end
 
@@ -1837,27 +2010,27 @@ local function CleanupOldPlates()
 end
 
 local cleanupFrame = CreateFrame("Frame")
-if SarychUI and SarychUI.RegisterPerfOnUpdate then
-    SarychUI:RegisterPerfOnUpdate("plates_auras.cleanup", cleanupFrame)
-end
-cleanupFrame:SetScript("OnUpdate", function(self, elapsed)
+local function CleanupTick()
     if not IsPlatesAurasModuleEnabled() then
         return
     end
-
-    local interval = 5
-    if SarychUI and SarychUI.Compatibility then
-        interval = SarychUI.Compatibility:GetInterval("platesCleanup", 5, 8)
-    end
-
-    self.elapsed = (self.elapsed or 0) + elapsed
-    if self.elapsed < interval then
-        return
-    end
-    self.elapsed = 0
-
     CleanupOldPlates()
-end)
+end
+
+if SarychUI and SarychUI.Runtime then
+    cleanupFrame:SetScript("OnUpdate", nil)
+    SarychUI.Runtime:RegisterUpdate("plates_auras.cleanup", 5, CleanupTick)
+else
+    cleanupFrame:SetScript("OnUpdate", function(self, elapsed)
+        self.elapsed = (self.elapsed or 0) + elapsed
+        if self.elapsed < 5 then return end
+        self.elapsed = 0
+        CleanupTick()
+    end)
+    if SarychUI and SarychUI.RegisterPerfOnUpdate then
+        SarychUI:RegisterPerfOnUpdate("plates_auras.cleanup", cleanupFrame)
+    end
+end
 
 local f = CreateFrame("Frame")
 
@@ -1889,15 +2062,18 @@ f:SetScript("OnEvent", function(self, event, unitId)
         if SarychUI_PerfLog then
             SarychUI_PerfLog("Auras", "NAME_PLATE_UNIT_ADDED", unitId)
         end
-        -- Only process if AwesomeWotlk mode is enabled
+        -- Awesome paints directly. Fallback still consumes this exact token when
+        -- the API exists, instead of waiting for LibNameplates mouseover discovery.
         if UseAwesomeWotlk() then
             OnNamePlateAdded_Auras(unitId)
+        else
+            CollectUnitInfo(unitId)
         end
     elseif event == "UNIT_AURA" then
         if UseAwesomeWotlk() then
             OnUnitAura(unitId)
         elseif unitId and UnitExists(unitId) then
-            -- PlateBuffs:UNIT_AURA → CollectUnitInfo(unitID) for any existing unit
+            -- PlateBuffs:UNIT_AURA -> CollectUnitInfo(unitID) for any existing unit
             CollectUnitInfo(unitId)
         end
     elseif event == "PLAYER_TARGET_CHANGED" then
@@ -1957,7 +2133,9 @@ end
 
 -- Set scale for all aura frames
 function _G.sarPlatesAuras_SetScale(scale)
-    scale = scale or 1
+    scale = tonumber(scale) or 1
+	_G.SAR_PLATES_AURAS_DISPLAY_MODE = GetActiveProfileMode()
+	_G.SAR_PLATES_AURAS_DISPLAY_SCALE = scale
 
     local profile = GetActiveDisplayProfile()
     if profile then
@@ -1978,9 +2156,10 @@ function _G.sarPlatesAuras_SetScale(scale)
                     source = "set-scale",
                     baseScale = scale,
                 })
-            end
-            if namePlate.mobilityContainer then
-                namePlate.mobilityContainer:SetScale(scale)
+			else
+				if namePlate.centerContainer then namePlate.centerContainer:SetScale(scale) end
+				if namePlate.mobilityContainer then namePlate.mobilityContainer:SetScale(scale) end
+				if namePlate.playerFrame then namePlate.playerFrame:SetScale(scale) end
             end
         end
         return
@@ -2071,7 +2250,7 @@ local function ApplyTestVisualsToPlate(namePlate)
     end
 end
 
--- Layout/sizes/positions only — без UpdateAuras (options sliders)
+-- Layout/sizes/positions only - без UpdateAuras (options sliders)
 function _G.sarPlatesAuras_RerenderVisual()
     local namePlates = GetAllNamePlates()
     if not namePlates or #namePlates == 0 then return end
@@ -2097,7 +2276,7 @@ function _G.sarPlatesAuras_Rerender()
                 _G.UpdateAuras(namePlate, unitId)
             end
         elseif _G.sarPlatesAuras_OnNonAwesomePlate then
-            -- PlateBuffs AddOurStuffToPlate — paints only with Lib GUID
+            -- PlateBuffs AddOurStuffToPlate - paints only with Lib GUID
             _G.sarPlatesAuras_OnNonAwesomePlate(namePlate)
         end
     end

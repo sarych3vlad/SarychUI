@@ -1,4 +1,4 @@
--- SarychUI Frame Module — class icon portraits (players only)
+-- SarychUI Frame Module - class icon portraits (players only)
 -- Toggles: modules.frame.classIconPortraits, modules.frame.classIconPortraitsPlayer
 -- Same UnitIsPlayer gate as UnitFrameLayers HP class coloring (NPCs untouched).
 
@@ -119,9 +119,14 @@ local function OnUnitFramePortraitUpdate(self)
 	if not self or not self.portrait or not self.unit then
 		return
 	end
+	-- UnitFramePortrait_Update is shared with protected BossNTargetFrame.
+	-- SarychUI only owns portrait changes for these three regular unit frames.
+	if self.unit ~= "player" and self.unit ~= "target" and self.unit ~= "focus" then
+		return
+	end
 	if ShouldApplyClassIcon(self.unit) then
 		if not ApplyClassIconToPortrait(self.portrait, self.unit) then
-			-- Class data not ready yet after /reload — keep face portrait.
+			-- Class data not ready yet after /reload - keep face portrait.
 			self.portrait:SetTexCoord(0, 1, 0, 1)
 			if SetPortraitTexture then
 				SetPortraitTexture(self.portrait, self.unit)

@@ -206,7 +206,7 @@ function SarychUI:PrintPerfSummary()
 	if optSession and optSession.totalMs then
 		print(string.format("  options open last total: %.2f ms", optSession.totalMs))
 	elseif optSession and optSession.startedAt then
-		print("  options open: сессия активна (ещё не завершена) — /sui perfoptions summary")
+		print("  options open: сессия активна (ещё не завершена) - /sui perfoptions summary")
 	end
 
 	print(string.format("  tracked OnUpdate hooks: %d active / %d registered",
@@ -230,7 +230,7 @@ function SarychUI:PrintPerfSummary()
 	if _G.SarychUI_DebugPerf then flags[#flags + 1] = "SarychUI_DebugPerf (startup)" end
 	if _G.SarychUI_DebugOptionsPerf then flags[#flags + 1] = "SarychUI_DebugOptionsPerf (open)" end
 	if _G.SarychUI_DebugPerf and not _G.SarychUI_DebugOptionsPerf then
-		print("  hint: для замера open настроек нужен SarychUI_DebugOptionsPerf → /sui perfoptions")
+		print("  hint: для замера open настроек нужен SarychUI_DebugOptionsPerf -> /sui perfoptions")
 	end
 	if _G.SarychUI_DebugCombatOptions then flags[#flags + 1] = "SarychUI_DebugCombatOptions" end
 	if flags[1] then
@@ -258,7 +258,7 @@ function SarychUI:RunPerfReport()
 		else
 			print(PERF_PREFIX .. " options open: сессия не записана.")
 			print(PERF_PREFIX .. " Для замера открытия настроек: |cff00ff00/sui perfoptions|r (откроет окно и замерит)")
-			print(PERF_PREFIX .. " или: |cff00ff00/sui perfoptions on|r → |cff00ff00/sui|r → |cff00ff00/sui perfoptions summary|r")
+			print(PERF_PREFIX .. " или: |cff00ff00/sui perfoptions on|r -> |cff00ff00/sui|r -> |cff00ff00/sui perfoptions summary|r")
 		end
 	end
 end

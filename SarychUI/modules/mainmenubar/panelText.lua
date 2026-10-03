@@ -20,6 +20,10 @@ end
 
 local module = getModule()
 
+-- Never cache addon data directly on protected Blizzard action buttons. Even
+-- custom fields can carry insecure values into later secure update paths.
+local hotkeyByButton = setmetatable({}, { __mode = "k" })
+
 -- Animation control now handled by SarychUI.CombatAnimations
 
 local BAR_PREFIXES = {
@@ -85,11 +89,11 @@ end
 function module:ApplyHotkeyAlpha(button)
     if not button then return end
 
-    local hotkey = button.__sarHotKey
+    local hotkey = hotkeyByButton[button]
     if hotkey == nil then
         local name = button.GetName and button:GetName()
         hotkey = name and _G[name .. "HotKey"] or false
-        button.__sarHotKey = hotkey
+        hotkeyByButton[button] = hotkey
     end
     if not hotkey then return end
 
@@ -396,4 +400,3 @@ function module:ShowAllMacroNames()
 end
 
 -- Combat events now handled by SarychUI.CombatAnimations
-

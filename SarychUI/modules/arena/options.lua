@@ -34,6 +34,11 @@ end
 
 local function NotifyArenaPreview(key, value, clear)
 	local preview = SarychUI and SarychUI.ArenaPreview
+	if type(key) == "string" and key:find("^arenaNumbers") then
+		preview = SarychUI and SarychUI.ArenaNumbersPreview
+	elseif key == "hideGroupRaidText" then
+		preview = SarychUI and SarychUI.ArenaGroupTitlesPreview
+	end
 	if not preview then return end
 	if clear and key and preview.ClearLiveValue then
 		preview:ClearLiveValue(key)
@@ -120,7 +125,7 @@ function module:GetOptions()
 		desc = "Настройка фреймов арены",
 		childGroups = "tab",
 		args = {
-			-- General tab — same layout pattern as Bags → Общее
+			-- General tab - same layout pattern as Bags -> Общее
 			general = {
 				type = "group",
 				name = L and (L["General"] or "Общее") or "Общее",
@@ -170,7 +175,7 @@ function module:GetOptions()
 							frameType = {
 								type = "select",
 								name = "",
-								desc = L and (L["Arena Frame Type Desc"] or "GladiusEx — встроенные фреймы GladiusEx. Классические WoW — стандартный модуль арены SarychUI.") or "GladiusEx — встроенные фреймы GladiusEx. Классические WoW — стандартный модуль арены SarychUI.",
+								desc = L and (L["Arena Frame Type Desc"] or "GladiusEx - встроенные фреймы GladiusEx. Классические WoW - стандартный модуль арены SarychUI.") or "GladiusEx - встроенные фреймы GladiusEx. Классические WoW - стандартный модуль арены SarychUI.",
 								order = 1,
 								values = {
 									classic = L and (L["Classic WoW Arena Frames"] or "Классические WoW") or "Классические WoW",
@@ -600,8 +605,173 @@ function module:GetOptions()
 					},
 				},
 			},
+
+			extra = {
+				type = "group",
+				name = L and (L["Extra"] or "Дополнительно") or "Дополнительно",
+				order = 3,
+				disabled = function()
+					local db = GetDB()
+					return not (db and db.enabled)
+				end,
+				args = {
+					arenaNumbersPreview = {
+						type = "description",
+						name = "",
+						order = 0,
+						width = "full",
+						suiArenaNumbersPreview = true,
+					},
+					arenaNumbersBox = {
+						type = "group",
+						name = "Заменять имена на номера",
+						desc = "Добавлено по просьбе: Hannahmckay",
+						order = 1,
+						inline = true,
+						suiHelpIcon = true,
+						args = {
+							arenaNumbers = {
+								type = "toggle",
+								name = "Включить",
+								desc = "Включает замену имён противников на номера arena1-5. Ниже можно отдельно выбрать неймплейты и арена-фреймы.",
+								order = 1,
+								width = "full",
+								suiPreviewKey = "arenaNumbers",
+								get = function()
+									local db = GetDB()
+									return db and (db.arenaNumbers == 1 or db.arenaNumbers == true)
+								end,
+								set = function(_, value)
+									local db = GetDB(); if not db then return end
+									db.arenaNumbers = value and 1 or 0
+									local m = SarychUI.modules[moduleName]
+									if m and m.UpdateArenaNameplates then
+										m:UpdateArenaNameplates()
+									end
+									NotifyArenaPreview("arenaNumbers", value and 1 or 0)
+									RefreshArenaOptions()
+								end,
+							},
+							arenaNumbersNameplates = {
+								type = "toggle",
+								name = "Заменять на неймплейтах",
+								desc = "На арене заменяет имя над неймплейтом противника на его номер arena1-5.",
+								order = 2,
+								width = "full",
+								suiPreviewKey = "arenaNumbersNameplates",
+								disabled = function()
+									local db = GetDB()
+									return not (db and (db.arenaNumbers == 1 or db.arenaNumbers == true))
+								end,
+								get = function()
+									local db = GetDB()
+									return db and (db.arenaNumbersNameplates == nil
+										or db.arenaNumbersNameplates == 1 or db.arenaNumbersNameplates == true)
+								end,
+								set = function(_, value)
+									local db = GetDB(); if not db then return end
+									db.arenaNumbersNameplates = value and 1 or 0
+									local m = SarychUI.modules[moduleName]
+									if m and m.UpdateArenaNameplates then
+										m:UpdateArenaNameplates()
+									end
+									NotifyArenaPreview("arenaNumbersNameplates", value and 1 or 0)
+								end,
+							},
+							arenaNumbersArenaFrames = {
+								type = "toggle",
+								name = "Заменять на арена-фреймах",
+								desc = "На арене заменяет имена на номера в стандартных арена-фреймах и во встроенном GladiusEx.",
+								order = 3,
+								width = "full",
+								suiPreviewKey = "arenaNumbersArenaFrames",
+								disabled = function()
+									local db = GetDB()
+									return not (db and (db.arenaNumbers == 1 or db.arenaNumbers == true))
+								end,
+								get = function()
+									local db = GetDB()
+									return db and (db.arenaNumbersArenaFrames == nil
+										or db.arenaNumbersArenaFrames == 1 or db.arenaNumbersArenaFrames == true)
+								end,
+								set = function(_, value)
+									local db = GetDB(); if not db then return end
+									db.arenaNumbersArenaFrames = value and 1 or 0
+									local m = SarychUI.modules[moduleName]
+									if m and m.UpdateArenaNameplates then
+										m:UpdateArenaNameplates()
+									end
+									NotifyArenaPreview("arenaNumbersArenaFrames", value and 1 or 0)
+								end,
+							},
+						},
+					},
+					groupTitlesPreview = {
+						type = "description",
+						name = "",
+						order = 2,
+						width = "full",
+						suiArenaGroupTitlesPreview = true,
+					},
+					hideGroupRaidBox = {
+						type = "group",
+						name = "Скрыть текст «Группа/рейд»",
+						order = 3,
+						inline = true,
+						args = {
+							hideGroupRaidText = {
+								type = "toggle",
+								name = "Включить",
+								desc = "На арене скрывает надписи «Группа» и «Рейд» над рамками персонажей. Вне арены текст не трогает.",
+								order = 1,
+								width = "full",
+								suiPreviewKey = "hideGroupRaidText",
+								get = function()
+									local db = GetDB()
+									return db and (db.hideGroupRaidText == 1 or db.hideGroupRaidText == true)
+								end,
+								set = function(_, value)
+									local db = GetDB(); if not db then return end
+									db.hideGroupRaidText = value and 1 or 0
+									local m = SarychUI.modules[moduleName]
+									if m and m.UpdateGroupTitles then
+										m:UpdateGroupTitles()
+									end
+									NotifyArenaPreview("hideGroupRaidText", value and 1 or 0)
+								end,
+							},
+						},
+					},
+					retabBox = {
+						type = "group",
+						name = "Переназначение TAB",
+						desc = "Добавлено по просьбе: Hannahmckay",
+						order = 4,
+						inline = true,
+						args = {
+							retab = {
+								type = "toggle",
+								name = "Включить",
+								desc = "На арене и на поле боя TAB выбирает вражеских игроков, а не мобов.",
+								order = 1,
+								width = "full",
+								get = function()
+									local db = GetDB()
+									return db and (db.retab == 1 or db.retab == true)
+								end,
+								set = function(_, value)
+									local db = GetDB(); if not db then return end
+									db.retab = value and 1 or 0
+									local m = SarychUI.modules[moduleName]
+									if m and m.UpdateRetab then
+										m:UpdateRetab()
+									end
+								end,
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 end
-
-

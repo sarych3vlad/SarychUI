@@ -1,36 +1,40 @@
 MAX_RAID_GROUPS = 8;
 
+local _;
+local PLAYER_ZONE_TYPE;
+local PLAYER_REGEN_ENABLED_AWAIT;
+
+local GetBattlefieldInstanceRunTime = GetBattlefieldInstanceRunTime
+
 local frameCreationSpecifiers = {
-    raid = { mapping = UnitGUID, setUpFunc = DefaultCompactUnitFrameSetup, updateList = "normal"},
+    raid = { setUpFunc = DefaultCompactUnitFrameSetup, updateList = "normal"},
     pet =  { setUpFunc = DefaultCompactMiniFrameSetup, updateList = "mini" },
-    flagged = { mapping = UnitGUID, setUpFunc = DefaultCompactUnitFrameSetup, updateList = "normal"	},
+    flagged = { mapping = UnitGUID, setUpFunc = DefaultCompactUnitFrameSetup, updateList = "normal" },
     target = { setUpFunc = DefaultCompactMiniFrameSetup, updateList = "mini" },
 }
 
---Widget Handlers
--- Function to check if addon is enabled
-local function IsEnabled()
-	if CompactRaidFrameEnabled == false then
-		return false;
-	end
-	if SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.addons and SarychUI.db.profile.addons.CompactRaidFrame then
-		return SarychUI.db.profile.addons.CompactRaidFrame.enabled == true;
-	end
-	return CompactRaidFrameEnabled == true;
+local function CompactRaidFrameContainer_PetLock(frame)
+    return (PLAYER_ZONE_TYPE == "arena" and frame.unit and GetBattlefieldInstanceRunTime() > 60000 and strsub(frame.unit, 1, 7) == "raidpet")
 end
 
+local function CompactRaidFrameContainer_PetInUse(frameReservation, unit)
+    local frame = CompactRaidFrameReservation_GetFrame(frameReservation, unit);
+    return frame and frame.inUse;
+end
+
+--Widget Handlers
 function CompactRaidFrameContainer_OnLoad(self)
-	if not IsEnabled() then
-		self:Hide()
-		self._suiNeedsInit = true
-		return
-	end
-	if self._suiInitialized then
-		return
-	end
-	self._suiNeedsInit = nil
-	self._suiInitialized = true
-    FlowContainer_Initialize(self)
+    if CompactRaidFrameEnabled == false then
+        self:Hide()
+        self._suiNeedsInit = true
+        return
+    end
+    if self._suiInitialized then
+        return
+    end
+    self._suiNeedsInit = nil
+    self._suiInitialized = true
+    FlowContainer_Initialize(self);
 
     self:SetClampRectInsets(0, 200 - self:GetWidth(), 10, 0);
 
@@ -45,27 +49,32 @@ function CompactRaidFrameContainer_OnLoad(self)
 
     CompactRaidFrameContainer_UpdateDisplayedUnits(self);
 
-    self:RegisterEvent("PARTY_MEMBERS_CHANGED");
-    self:RegisterEvent("UNIT_PET");
+    self:RegisterEvent("PLAYER_REGEN_ENABLED");
     self:RegisterEvent("PLAYER_ENTERING_WORLD");
+    self:RegisterEvent("GROUP_ROSTER_UPDATE");
+    self:RegisterEvent("UNIT_PET");
 
     local unitFrameReleaseFunc = function(frame)
-        CompactUnitFrame_SetUnit(frame, nil);
+        if ( not CompactRaidFrameContainer_PetLock(frame) ) then
+            CompactUnitFrame_SetUnit(frame, nil);
+        end
     end;
     self.frameReservations = {
-        raid	= CompactRaidFrameReservation_NewManager(unitFrameReleaseFunc);
-        pet		= CompactRaidFrameReservation_NewManager(unitFrameReleaseFunc);
-        flagged	= CompactRaidFrameReservation_NewManager(unitFrameReleaseFunc);	--For Main Tank/Assist units
-        target	= CompactRaidFrameReservation_NewManager(unitFrameReleaseFunc);	--Target of target for Main Tank/Main Assist
+        raid    = CompactRaidFrameReservation_NewManager(unitFrameReleaseFunc);
+        pet     = CompactRaidFrameReservation_NewManager(unitFrameReleaseFunc);
+        flagged = CompactRaidFrameReservation_NewManager(unitFrameReleaseFunc); --For Main Tank/Assist units
+        target  = CompactRaidFrameReservation_NewManager(unitFrameReleaseFunc); --Target of target for Main Tank/Main Assist
     }
 
     self.frameUpdateList = {
-        normal = {},	--Groups are also in this normal list.
+        normal = {},    --Groups are also in this normal list.
         mini = {},
         group = {},
     }
     self.unitFrameUnusedFunc = function(frame)
-            frame.inUse = false;
+            if ( not CompactRaidFrameContainer_PetLock(frame) ) then
+                frame.inUse = false;
+            end
         end;
 
     self.displayPets = true;
@@ -73,25 +82,27 @@ function CompactRaidFrameContainer_OnLoad(self)
 end
 
 function CompactRaidFrameContainer_OnEvent(self, event, ...)
-    if ( InCombatLockdown() ) then
-        self:RegisterEvent("PLAYER_REGEN_ENABLED");
-        return;
-    end
-
-    if ( event == "PARTY_MEMBERS_CHANGED" or event == "PLAYER_ENTERING_WORLD" ) then
-        CompactRaidFrameContainer_UpdateDisplayedUnits(self);
-        CompactRaidFrameContainer_TryUpdate(self);
-    elseif ( event == "UNIT_PET" ) then
-        if ( self.displayPets ) then
-            local unit = ...;
-            if ( unit == "player" or strsub(unit, 1, 4) == "raid" or strsub(unit, 1, 5) == "party" ) then
-                CompactRaidFrameContainer_TryUpdate(self);
+    if ( event == "PLAYER_REGEN_ENABLED" ) then
+        if ( PLAYER_REGEN_ENABLED_AWAIT ) then
+            PLAYER_REGEN_ENABLED_AWAIT = nil;
+            CompactRaidFrameContainer_OnEvent(self, "GROUP_ROSTER_UPDATE");
+        end
+    elseif ( event == "PLAYER_ENTERING_WORLD" ) then
+        _, PLAYER_ZONE_TYPE = IsInInstance();
+    else
+        if ( InCombatLockdown() ) then
+            PLAYER_REGEN_ENABLED_AWAIT = true;
+        elseif ( event == "GROUP_ROSTER_UPDATE" ) then
+            CompactRaidFrameContainer_UpdateDisplayedUnits(self);
+            CompactRaidFrameContainer_TryUpdate(self);
+        elseif ( event == "UNIT_PET" ) then
+            if ( self.displayPets ) then
+                local unit = ...;
+                if ( unit == "player" or strsub(unit, 1, 4) == "raid" or strsub(unit, 1, 5) == "party" ) then
+                    CompactRaidFrameContainer_TryUpdate(self);
+                end
             end
         end
-    elseif ( event == "PLAYER_REGEN_ENABLED" ) then
-        CompactRaidFrameContainer_UpdateDisplayedUnits(self);
-        CompactRaidFrameContainer_TryUpdate(self);
-        self:UnregisterEvent("PLAYER_REGEN_ENABLED");
     end
 end
 
@@ -144,6 +155,9 @@ function CompactRaidFrameContainer_SetBorderShown(self, showBorder)
 end
 
 function CompactRaidFrameContainer_ApplyToFrames(self, updateSpecifier, func, ...)
+    if ( not self or not self.frameUpdateList ) then
+        return;
+    end
     for specifier, list in pairs(self.frameUpdateList) do
         if ( updateSpecifier == "all" or specifier == updateSpecifier ) then
             for i=1, #list do
@@ -191,7 +205,7 @@ function CompactRaidFrameContainer_LayoutFrames(self)
     end
     FlowContainer_RemoveAllObjects(self);
 
-    FlowContainer_PauseUpdates(self);	--We don't want to update it every time we add an item.
+    FlowContainer_PauseUpdates(self);   --We don't want to update it every time we add an item.
 
 
     if ( self.displayFlaggedMembers ) then
@@ -274,8 +288,8 @@ end
 
 function CompactRaidFrameContainer_AddPlayers(self)
     --First, sort the players we're going to use
-    assert(self.flowSortFunc);	--No sort function defined! Call CompactRaidFrameContainer_SetFlowSortFunction.
-    assert(self.flowFilterFunc);	--No filter function defined! Call CompactRaidFrameContainer_SetFlowFilterFunction.
+    assert(self.flowSortFunc);  --No sort function defined! Call CompactRaidFrameContainer_SetFlowSortFunction.
+    assert(self.flowFilterFunc);    --No filter function defined! Call CompactRaidFrameContainer_SetFlowFilterFunction.
 
     table.sort(self.units, self.flowSortFunc);
 
@@ -291,9 +305,10 @@ end
 
 function CompactRaidFrameContainer_AddPets(self)
     if ( IsInRaid() ) then
+        local frameReservations = self.frameReservations["pet"]
         for i=1, MAX_RAID_MEMBERS do
             local unit = "raidpet"..i;
-            if ( UnitExists(unit) ) then
+            if ( UnitExists(unit) or (PLAYER_ZONE_TYPE == "arena" and CompactRaidFrameContainer_PetInUse(frameReservations, unit)) ) then
                 CompactRaidFrameContainer_AddUnitFrame(self, unit, "pet");
             end
         end
@@ -322,7 +337,7 @@ function CompactRaidFrameContainer_AddFlaggedUnits(self)
             local unit = "raid"..i;
             local name, rank, subgroup, level, class, fileName, zone, online, isDead, role, isML = GetRaidRosterInfo(i);
             if ( role == desiredRole ) then
-                FlowContainer_BeginAtomicAdd(self);	--We want each unit to be right next to its target and target of target.
+                FlowContainer_BeginAtomicAdd(self); --We want each unit to be right next to its target and target of target.
 
                 CompactRaidFrameContainer_AddUnitFrame(self, unit, "flagged");
 
@@ -377,12 +392,11 @@ function CompactRaidFrameContainer_GetUnitFrame(self, unit, frameType)
         frame = CreateFrame("Button", "CompactRaidFrame"..unitFramesCreated, self, "CompactUnitFrameTemplate");
         frame.applyFunc = applyFunc;
         CompactUnitFrame_SetUpFrame(frame, info.setUpFunc);
-        CompactUnitFrame_SetUpdateAllEvent(frame, "PARTY_MEMBERS_CHANGED");
+        CompactUnitFrame_SetUpdateAllEvent(frame, "GROUP_ROSTER_UPDATE");
         frame.unusedFunc = self.unitFrameUnusedFunc;
         tinsert(self.frameUpdateList[info.updateList], frame);
         CompactRaidFrameReservation_RegisterReservation(self.frameReservations[frameType], frame, mapping);
 
-        RegisterStateDriver(frame, "visibility", "[group:party] show; [group:raid] show; [nogroup:party] hide");
         RegisterUnitWatch(frame);
     end
 
@@ -396,7 +410,7 @@ function CompactRaidFrameContainer_ReleaseAllReservedFrames(self)
     end
 end
 
-function RaidUtil_GetUsedGroups(tab)	--Fills out the table with which groups have people.
+function RaidUtil_GetUsedGroups(tab)    --Fills out the table with which groups have people.
     for i=1, MAX_RAID_GROUPS do
         tab[i] = false;
     end

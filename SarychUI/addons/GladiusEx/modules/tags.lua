@@ -953,9 +953,18 @@ function Tags:GetTagOptionTable(options, unit, tag, order)
 end
 
 function Tags:GetBuiltinTags()
+	local function displayName(unit)
+		local name = UnitName(unit) or unit
+		local SUI = _G.SarychUI
+		if SUI and SUI.GetArenaFrameDisplayName then
+			return SUI:GetArenaFrameDisplayName(unit, name) or name
+		end
+		return name
+	end
+
     return {
         ["name"] = function(unit)
-            return UnitName(unit) or unit
+            return displayName(unit)
         end,
         ["name:status"] = function(unit)
             if not UnitExists(unit) then
@@ -965,7 +974,7 @@ function Tags:GetBuiltinTags()
             elseif UnitIsDeadOrGhost(unit) then
                 return L["DEAD"]
             else
-                return UnitName(unit) or unit
+                return displayName(unit)
             end
         end,
         ["class"] = function(unit)

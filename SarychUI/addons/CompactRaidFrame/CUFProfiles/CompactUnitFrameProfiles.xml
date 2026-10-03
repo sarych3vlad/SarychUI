@@ -4,7 +4,7 @@
   <Script file="CompactUnitFrameProfiles.lua" />
   <Script file="CUFProfilesAPI.lua" />
 
-  <Frame name="CompactUnitFrameProfilesDropdownTemplate" inherits="UIDropDownMenuTemplate" virtual="true">
+  <Frame name="CompactUnitFrameProfilesDropdownTemplate" inherits="C_UIDropDownMenuTemplate" virtual="true">
     <Layers>
       <Layer level="BACKGROUND">
         <FontString name="$parentLabel" inherits="GameFontNormalSmall" parentKey="label">
@@ -75,11 +75,11 @@
         end
       </OnLeave>
     </Scripts>
-    <NormalTexture file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\Buttons\UI-CheckBox-Up" />
-    <PushedTexture file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\Buttons\UI-CheckBox-Down" />
-    <HighlightTexture file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\Buttons\UI-CheckBox-Highlight" alphaMode="ADD" />
-    <CheckedTexture file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\Buttons\UI-CheckBox-Check" />
-    <DisabledCheckedTexture file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\Buttons\UI-CheckBox-Check-Disabled" />
+    <NormalTexture file="Interface\Buttons\UI-CheckBox-Up" />
+    <PushedTexture file="Interface\Buttons\UI-CheckBox-Down" />
+    <HighlightTexture file="Interface\Buttons\UI-CheckBox-Highlight" alphaMode="ADD" />
+    <CheckedTexture file="Interface\Buttons\UI-CheckBox-Check" />
+    <DisabledCheckedTexture file="Interface\Buttons\UI-CheckBox-Check-Disabled" />
   </CheckButton>
   <Slider name="CompactUnitFrameProfilesSliderTemplate" inherits="HorizontalSliderTemplate" virtual="true">
     <Size x="144" y="17" />
@@ -145,10 +145,10 @@
     </Frames>
     <Scripts>
       <OnShow>
-        UIDropDownMenu_DisableDropDown(CompactRaidFrameManagerDisplayFrameProfileSelector);
+        C_UIDropDownMenu_DisableDropDown(CompactRaidFrameManagerDisplayFrameProfileSelector);
       </OnShow>
       <OnHide>
-        UIDropDownMenu_EnableDropDown(CompactRaidFrameManagerDisplayFrameProfileSelector);
+        C_UIDropDownMenu_EnableDropDown(CompactRaidFrameManagerDisplayFrameProfileSelector);
         self:Hide();  --If the parent is hidden, we'll cancel this popup.
       </OnHide>
     </Scripts>
@@ -176,7 +176,7 @@
       </Layer>
     </Layers>
     <Frames>
-      <Frame name="$parentProfileSelector" inherits="UIDropDownMenuTemplate">
+      <Frame name="$parentProfileSelector" inherits="C_UIDropDownMenuTemplate">
         <Anchors>
           <Anchor point="TOPLEFT" relativeTo="$parentTitle" relativePoint="BOTTOMLEFT" x="-15" y="-20" />
         </Anchors>
@@ -184,7 +184,7 @@
           <OnShow function="CompactUnitFrameProfilesProfileSelector_SetUp" />
         </Scripts>
       </Frame>
-      <Button name="$parentSaveButton" inherits="UIPanelButtonTemplate" text="SAVE">
+      <Button name="$parentSaveButton" inherits="UIPanelButtonTemplate2" text="SAVE">
         <Size x="115" y="21" />
         <Anchors>
           <Anchor point="TOPLEFT" relativeTo="$parentProfileSelector" relativePoint="BOTTOMLEFT" x="18" y="5" />
@@ -196,7 +196,7 @@
           </OnClick>
         </Scripts>
       </Button>
-      <Button name="$parentDeleteButton" inherits="UIPanelButtonTemplate" text="DELETE">
+      <Button name="$parentDeleteButton" inherits="UIPanelButtonTemplate2" text="DELETE">
         <Anchors>
           <Anchor point="TOPRIGHT" relativeTo="$parentProfileSelector" relativePoint="BOTTOMRIGHT" x="-15" y="5" />
           <Anchor point="BOTTOMLEFT" relativeTo="$parentSaveButton" relativePoint="BOTTOMRIGHT" x="3" y="0" />
@@ -264,7 +264,7 @@
             </Anchors>
             <Layers>
               <Layer level="BACKGROUND">
-                <Texture name="$parentLeft" file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\ChatFrame\UI-ChatInputBorder-Left2">
+                <Texture name="$parentLeft" file="Interface\ChatFrame\UI-ChatInputBorder-Left2">
                   <Size>
                     <AbsDimension x="32" y="32" />
                   </Size>
@@ -272,7 +272,7 @@
                     <Anchor point="LEFT" x="-10" y="0" />
                   </Anchors>
                 </Texture>
-                <Texture name="$parentRight" file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\ChatFrame\UI-ChatInputBorder-Right2">
+                <Texture name="$parentRight" file="Interface\ChatFrame\UI-ChatInputBorder-Right2">
                   <Size>
                     <AbsDimension x="32" y="32" />
                   </Size>
@@ -280,7 +280,7 @@
                     <Anchor point="RIGHT" x="10" y="0" />
                   </Anchors>
                 </Texture>
-                <Texture name="$parentMid" file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\ChatFrame\UI-ChatInputBorder-Mid2" horizTile="true">
+                <Texture name="$parentMid" file="Interface\ChatFrame\UI-ChatInputBorder-Mid2" horizTile="true">
                   <Size>
                     <AbsDimension x="0" y="32" />
                   </Size>
@@ -312,7 +312,7 @@
             </Scripts>
             <FontString inherits="ChatFontNormal" />
           </EditBox>
-          <Frame name="$parentBaseProfileSelector" inherits="UIDropDownMenuTemplate">
+          <Frame name="$parentBaseProfileSelector" inherits="C_UIDropDownMenuTemplate">
             <Anchors>
               <Anchor point="BOTTOM" x="0" y="60" />
             </Anchors>
@@ -329,7 +329,7 @@
               <OnShow function="CompactUnitFrameProfilesNewProfileDialogBaseProfileSelector_SetUp" />
             </Scripts>
           </Frame>
-          <Button name="$parentCreateButton" frameLevel="15" inherits="UIPanelButtonTemplate" text="CREATE_COMPACT_UNIT_FRAME_PROFILE" parentKey="createButton">
+          <Button name="$parentCreateButton" frameLevel="15" inherits="UIPanelButtonTemplate2" text="CREATE_COMPACT_UNIT_FRAME_PROFILE" parentKey="createButton">
             <Size x="115" y="21" />
             <Anchors>
               <Anchor point="BOTTOMRIGHT" relativePoint="BOTTOM" x="-5" y="15" />
@@ -343,7 +343,7 @@
               </OnClick>
             </Scripts>
           </Button>
-          <Button name="$parentCancelButton" frameLevel="15" inherits="UIPanelButtonTemplate" text="CANCEL">
+          <Button name="$parentCancelButton" frameLevel="15" inherits="UIPanelButtonTemplate2" text="CANCEL">
             <Size x="115" y="21" />
             <Anchors>
               <Anchor point="BOTTOMLEFT" relativePoint="BOTTOM" x="5" y="15" />
@@ -370,7 +370,7 @@
           </Layer>
         </Layers>
         <Frames>
-          <Button name="$parentDeleteButton" inherits="UIPanelButtonTemplate" text="DELETE">
+          <Button name="$parentDeleteButton" inherits="UIPanelButtonTemplate2" text="DELETE">
             <Size x="115" y="21" />
             <Anchors>
               <Anchor point="BOTTOMRIGHT" relativePoint="BOTTOM" x="-5" y="15" />
@@ -389,7 +389,7 @@
               </OnClick>
             </Scripts>
           </Button>
-          <Button name="$parentCancelButton" inherits="UIPanelButtonTemplate" text="CANCEL">
+          <Button name="$parentCancelButton" inherits="UIPanelButtonTemplate2" text="CANCEL">
             <Size x="115" y="21" />
             <Anchors>
               <Anchor point="BOTTOMLEFT" relativePoint="BOTTOM" x="5" y="15" />
@@ -416,7 +416,7 @@
           </Layer>
         </Layers>
         <Frames>
-          <Button name="$parentDontSaveButton" inherits="UIPanelButtonTemplate" text="DONT_SAVE">
+          <Button name="$parentDontSaveButton" inherits="UIPanelButtonTemplate2" text="DONT_SAVE">
             <Size x="115" y="21" />
             <Anchors>
               <Anchor point="BOTTOM" relativePoint="BOTTOM" x="0" y="15" />
@@ -430,7 +430,7 @@
               </OnClick>
             </Scripts>
           </Button>
-          <Button name="$parentSaveButton" inherits="UIPanelButtonTemplate" text="SAVE">
+          <Button name="$parentSaveButton" inherits="UIPanelButtonTemplate2" text="SAVE">
             <Size x="115" y="21" />
             <Anchors>
               <Anchor point="BOTTOMRIGHT" relativeTo="$parentDontSaveButton" relativePoint="BOTTOMLEFT" x="-5" y="0" />
@@ -444,7 +444,7 @@
               </OnClick>
             </Scripts>
           </Button>
-          <Button name="$parentCancelButton" inherits="UIPanelButtonTemplate" text="CANCEL">
+          <Button name="$parentCancelButton" inherits="UIPanelButtonTemplate2" text="CANCEL">
             <Size x="115" y="21" />
             <Anchors>
               <Anchor point="BOTTOMLEFT" relativeTo="$parentDontSaveButton" relativePoint="BOTTOMRIGHT" x="5" y="0" />
@@ -529,19 +529,9 @@
               </OnLoad>
             </Scripts>
           </Frame>
-          <CheckButton name="$parentDisplayIncomingHeals" inherits="CompactUnitFrameProfilesCheckButtonTemplate">
-            <Anchors>
-              <Anchor point="TOPLEFT" relativeTo="$parentKeepGroupsTogether" relativePoint="BOTTOMLEFT" x="0" y="-50" />
-            </Anchors>
-            <Scripts>
-              <OnLoad>
-                CompactUnitFrameProfilesCheckButton_InitializeWidget(self, "displayHealPrediction");
-              </OnLoad>
-            </Scripts>
-          </CheckButton>
           <CheckButton name="$parentDisplayPowerBar" inherits="CompactUnitFrameProfilesCheckButtonTemplate">
             <Anchors>
-              <Anchor point="TOPLEFT" relativeTo="$parentDisplayIncomingHeals" relativePoint="BOTTOMLEFT" x="0" y="-5" />
+              <Anchor point="TOPLEFT" relativeTo="$parentKeepGroupsTogether" relativePoint="BOTTOMLEFT" x="0" y="-50" />
             </Anchors>
             <Scripts>
               <OnLoad>
@@ -737,25 +727,9 @@
             </Scripts>
           </CheckButton>
 
-          <CheckButton name="$parentAutoActivateSpec1" inherits="CompactUnitFrameProfilesCheckButtonTemplate" parentKey="AutoActivateSpecs1" id="1">
-            <Anchors>
-              <Anchor point="TOPLEFT" relativeTo="$parentAutoActivate40Players" relativePoint="BOTTOMLEFT" x="0" y="-15" />
-            </Anchors>
-            <Scripts>
-              <OnLoad function="CompactUnitFrameAutoActivateSpec_OnLoad" />
-            </Scripts>
-          </CheckButton>
-          <CheckButton name="$parentAutoActivateSpec2" inherits="CompactUnitFrameProfilesCheckButtonTemplate" parentKey="AutoActivateSpecs2" id="2">
-            <Anchors>
-              <Anchor point="TOPLEFT" relativeTo="$parentAutoActivateSpec1" relativePoint="BOTTOMLEFT" x="0" y="0" />
-            </Anchors>
-            <Scripts>
-              <OnLoad function="CompactUnitFrameAutoActivateSpec_OnLoad" />
-            </Scripts>
-          </CheckButton>
           <CheckButton name="$parentAutoActivatePvP" inherits="CompactUnitFrameProfilesCheckButtonTemplate" parentKey="AutoActivatePvP">
             <Anchors>
-              <Anchor point="TOPLEFT" relativeTo="$parentAutoActivateSpec2" relativePoint="BOTTOMLEFT" x="0" y="-15" />
+              <Anchor point="TOPLEFT" relativeTo="$parentAutoActivate40Players" relativePoint="BOTTOMLEFT" x="0" y="-15" />
             </Anchors>
             <Scripts>
               <OnLoad>
@@ -774,7 +748,7 @@
             </Scripts>
           </CheckButton>
 
-          <Button name="$parentResetPositionButton" inherits="UIPanelButtonTemplate" text="RESET_POSITION">
+          <Button name="$parentResetPositionButton" inherits="UIPanelButtonTemplate2" text="RESET_POSITION">
             <Size x="160" y="21" />
             <Anchors>
               <Anchor point="BOTTOMRIGHT" x="-5" y="5" />
@@ -794,7 +768,6 @@
     </Frames>
     <Scripts>
       <OnLoad function="CompactUnitFrameProfiles_OnLoad" />
-      <OnEvent function="CompactUnitFrameProfiles_OnEvent" />
     </Scripts>
   </Frame>
 </Ui>

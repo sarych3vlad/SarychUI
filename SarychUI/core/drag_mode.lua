@@ -281,8 +281,8 @@ local function CreateDragFrame(frameId, frame, settings)
             data.attachmentPoint = attachmentPoint
             data.attachmentRelativePoint = attachmentRelativePoint
             
-            -- Сохраняем РЕАЛЬНУЮ позицию фрейма в пространстве крепления (TOPRIGHT/CENTER/…).
-            -- Нельзя брать raw GetPoint после StartMoving — WoW часто переякорит в BOTTOMLEFT.
+            -- Сохраняем РЕАЛЬНУЮ позицию фрейма в пространстве крепления (TOPRIGHT/CENTER/...).
+            -- Нельзя брать raw GetPoint после StartMoving - WoW часто переякорит в BOTTOMLEFT.
             local startX, startY = FramePointOffsets(frame, attachmentPoint)
             
             -- ВАЖНО: Сохраняем позицию ПОСЛЕ всех вычислений
@@ -355,7 +355,7 @@ local function CreateDragFrame(frameId, frame, settings)
                     data._settleUpdater = nil
                 end
                 
-                -- Крепление и экранная метрика — как у фреймов (CENTER): delta в
+                -- Крепление и экранная метрика - как у фреймов (CENTER): delta в
                 -- пространстве якоря, без raw GetPoint после StartMoving.
                 local attachmentPoint = data.attachmentPoint or "CENTER"
                 local attachmentRelativePoint = data.attachmentRelativePoint or attachmentPoint

@@ -1,4 +1,4 @@
--- SarychUI Options Window — Details-like shell (root / header / nav / content / footer).
+-- SarychUI Options Window - Details-like shell (root / header / nav / content / footer).
 local SUI = SarychUI
 local T = SUI.OptionsTheme
 SUI.OptionsWindow = SUI.OptionsWindow or {}
@@ -267,7 +267,7 @@ function OW:CreateContent()
 
 	local scroll = CreateFrame("ScrollFrame", nil, content)
 	scroll:SetPoint("TOPLEFT", 8, -8)
-	scroll:SetPoint("BOTTOMRIGHT", -8, 6)
+	scroll:SetPoint("BOTTOMRIGHT", -8, 6 + (self._contentBottomInset or 0))
 	scroll:SetFrameLevel((content:GetFrameLevel() or 1) + 1)
 	self._scrollTopWithTabs = -(8 + sz.tabH + 4)
 	self._scrollTopWithSubTabs = -(8 + sz.tabH + 2 + sz.tabH + 4)
@@ -449,7 +449,7 @@ function OW:ClearTabBarNotice()
 	end
 end
 
--- Left-side notice on the tab bar (e.g. "Модуль выключен…") when tabs are hidden.
+-- Left-side notice on the tab bar (e.g. "Модуль выключен...") when tabs are hidden.
 function OW:SetTabBarNotice(text)
 	local bar = self.tabBar
 	if not bar then return end
@@ -573,7 +573,7 @@ function OW:SetTabBarExtra(optOrList)
 		local name = opt.name
 		if type(name) == "function" then
 			local ok, v = pcall(name)
-			name = ok and v or "…"
+			name = ok and v or "..."
 		end
 		name = tostring(name or "")
 		if SarychUI and SarychUI.T then
@@ -664,7 +664,7 @@ function OW:HideTabs()
 	if self.contentScroll then
 		self.contentScroll:ClearAllPoints()
 		self.contentScroll:SetPoint("TOPLEFT", 8, self._scrollTopNoTabs or -8)
-		self.contentScroll:SetPoint("BOTTOMRIGHT", -8, 6)
+		self.contentScroll:SetPoint("BOTTOMRIGHT", -8, 6 + (self._contentBottomInset or 0))
 	end
 end
 
@@ -686,7 +686,74 @@ function OW:ApplyContentScrollTop(hasTabs, hasSubTabs)
 	end
 	self.contentScroll:ClearAllPoints()
 	self.contentScroll:SetPoint("TOPLEFT", 8, top)
-	self.contentScroll:SetPoint("BOTTOMRIGHT", -8, 6)
+	self.contentScroll:SetPoint("BOTTOMRIGHT", -8, 6 + (self._contentBottomInset or 0))
+end
+
+function OW:ClearContentBottomNote(skipScrollUpdate)
+	local host = self.contentBottomNote
+	if host then
+		host:SetScript("OnSizeChanged", nil)
+		host:Hide()
+		host:ClearAllPoints()
+		host:SetParent(nil)
+	end
+	self.contentBottomNote = nil
+	self._contentBottomInset = 0
+
+	if not skipScrollUpdate and self.contentScroll and self.ApplyContentScrollTop then
+		self:ApplyContentScrollTop(
+			self.tabBar and self.tabBar:IsShown(),
+			self.subTabBar and self.subTabBar:IsShown()
+		)
+	end
+end
+
+function OW:SetContentBottomNote(text)
+	if not self.content then return end
+	self:ClearContentBottomNote(true)
+
+	local host = CreateFrame("Frame", nil, self.content)
+	host:SetPoint("BOTTOMLEFT", self.content, "BOTTOMLEFT", 8, 6)
+	host:SetPoint("BOTTOMRIGHT", self.content, "BOTTOMRIGHT", -8, 6)
+	host:SetFrameLevel((self.content:GetFrameLevel() or 1) + 14)
+	T:ApplyFlat(host, T.colors.panelBg or T.colors.contentBg, T.colors.borderSoft)
+
+	local label = host:CreateFontString(nil, "OVERLAY", T.fonts.small)
+	label:SetPoint("TOPLEFT", host, "TOPLEFT", 8, -6)
+	label:SetJustifyH("LEFT")
+	label:SetJustifyV("TOP")
+	label:SetWordWrap(true)
+	if label.SetNonSpaceWrap then
+		label:SetNonSpaceWrap(true)
+	end
+	label:SetText(text or "")
+	T:SetTextColor(label, "textDim")
+	host.label = label
+
+	local window = self
+	local function MeasureNote(self, width)
+		if self._suiMeasuring then return end
+		if not width or width < 80 then
+			width = (window.content and window.content:GetWidth() or 420) - 16
+		end
+		self._suiMeasuring = true
+		label:SetWidth(math.max(40, width - 16))
+		local height = math.max(26, (label:GetStringHeight() or 14) + 12)
+		self:SetHeight(height)
+		window._contentBottomInset = height + 8
+		window:ApplyContentScrollTop(
+			window.tabBar and window.tabBar:IsShown(),
+			window.subTabBar and window.subTabBar:IsShown()
+		)
+		self._suiMeasuring = nil
+	end
+
+	host:SetScript("OnSizeChanged", function(self, width)
+		MeasureNote(self, width)
+	end)
+	self.contentBottomNote = host
+	MeasureNote(host, host:GetWidth())
+	host:Show()
 end
 
 function OW:SetTabs(tabs, activeKey, onSelect, tabBarExtraOpt)
@@ -707,7 +774,7 @@ function OW:SetTabs(tabs, activeKey, onSelect, tabBarExtraOpt)
 		end
 	end
 
-	-- No tabs and no right-side toggles → hide the whole bar.
+	-- No tabs and no right-side toggles -> hide the whole bar.
 	if (not tabs or #tabs == 0) and not hasExtras then
 		self:HideTabs()
 		return
@@ -835,7 +902,7 @@ function OW:RenderInlineSubTabs(parent, y, tabs, activeKey, onSelect)
 	local buttons = {}
 	-- Inline tabs live inside the scroll child, so ClearContent destroys them.
 	-- Capture the key on click, then switch next frame. Do not coalesce via a
-	-- shared pending slot — that swallowed clicks when ClearContent raced OnUpdate.
+	-- shared pending slot - that swallowed clicks when ClearContent raced OnUpdate.
 	local wrappedSelect = onSelect
 	if type(onSelect) == "function" then
 		wrappedSelect = function(tabKey)
@@ -933,7 +1000,7 @@ function OW:RefreshFooterCredit()
 	if not credit then
 		return
 	end
-	local ver = (SUI and SUI.version) or "1.0.0"
+	local ver = (SUI and SUI.version) or "1.1.0"
 	local author = (SarychUI and SarychUI.T and SarychUI:T("Автор:")) or "Автор:"
 	credit:SetText(author .. " Сарыч / WotLK 3.3.5 / " .. tostring(ver))
 end
@@ -1013,6 +1080,9 @@ function OW:ClearContent()
 	end
 
 	self._inlineSubTabPending = nil
+	if self.ClearContentBottomNote then
+		self:ClearContentBottomNote()
+	end
 	if self.SetContentScrollLocked then
 		self:SetContentScrollLocked(false)
 	end
@@ -1027,6 +1097,8 @@ function OW:ClearContent()
 		SUI.BossEmotePreview,
 		SUI.FrameHitPreview,
 		SUI.ArenaPreview,
+		SUI.ArenaNumbersPreview,
+		SUI.ArenaGroupTitlesPreview,
 		SUI.AurasPreview,
 		SUI.MinimapPreview,
 		SUI.CombatIndicatorPreview,

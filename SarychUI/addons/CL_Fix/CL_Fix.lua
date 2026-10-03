@@ -17,10 +17,6 @@ local function fCLFix(self,elapsed)
 		return
 	end
 
-	if SarychUI and SarychUI.Compatibility and SarychUI.Compatibility:ShouldSkipCombatLogClear() then
-		return
-	end
-	
     tCLFix = tCLFix + elapsed
     if tCLFix >= 10 then --time (in seconds) it takes before it executes the command on line 6
 		CombatLogClearEntries()
@@ -35,9 +31,7 @@ CL_Fix.fCLFix = fCLFix
 
 -- Set script only if enabled
 if IsEnabled() then
-	if not (SarychUI and SarychUI.Compatibility and SarychUI.Compatibility:ShouldSkipCombatLogClear()) then
-		f:SetScript("OnUpdate", fCLFix)
-	end
+	f:SetScript("OnUpdate", fCLFix)
 else
 	f:SetScript("OnUpdate", nil)
 end

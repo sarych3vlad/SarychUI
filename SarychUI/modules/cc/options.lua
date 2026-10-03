@@ -189,8 +189,8 @@ function module:GetOptions()
                             },
                             fontSizeMedium = {
                                 type = "range",
-                                name = L and (L["Font_Size_Medium"] or "Размер текста (1–10 мин)") or "Размер текста (1–10 мин)",
-                                desc = L and (L["Font_Size_Medium_Desc"] or "Размер текста для 1:00–9:59 и ≥10 минут") or "Размер текста для 1:00–9:59 и ≥10 минут",
+                                name = L and (L["Font_Size_Medium"] or "Размер текста (1-10 мин)") or "Размер текста (1-10 мин)",
+                                desc = L and (L["Font_Size_Medium_Desc"] or "Размер текста для 1:00-9:59 и >=10 минут") or "Размер текста для 1:00-9:59 и >=10 минут",
                                 min = 6, max = 32, step = 1,
                                 order = 4,
                                 width = "full",
@@ -202,7 +202,7 @@ function module:GetOptions()
                             fontSizeLarge = {
                                 type = "range",
                                 name = L and (L["Font_Size_Large"] or "Размер текста (>10 мин)") or "Размер текста (>10 мин)",
-                                desc = L and (L["Font_Size_Large_Desc"] or "Размер текста для значений в минутах ≥ 10") or "Размер текста для значений в минутах ≥ 10",
+                                desc = L and (L["Font_Size_Large_Desc"] or "Размер текста для значений в минутах >= 10") or "Размер текста для значений в минутах >= 10",
                                 min = 6, max = 32, step = 1,
                                 order = 5,
                                 width = "full",
@@ -357,7 +357,7 @@ function module:GetOptions()
                     countdownBox = {
                         type = "group",
                         name = "Обратный отсчёт",
-                        desc = "Таймеры обратного отсчёта:\n• При приглашениях — на окне приглашения в группу/рейд и в диалоге готовности подземелья (LFG).\n• До открытия дверей — в центре экрана перед стартом арены или поля боя.",
+                        desc = "Таймеры обратного отсчёта:\n* При приглашениях - на окне приглашения в группу/рейд и в диалоге готовности подземелья (LFG).\n* До открытия дверей - в центре экрана перед стартом арены или поля боя.",
                         order = 2,
                         inline = true,
                         args = {

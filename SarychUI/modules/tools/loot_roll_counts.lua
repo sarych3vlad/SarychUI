@@ -546,7 +546,7 @@ local function ParseRuRollChoice(msg)
 	return playerName, itemToken, rollType
 end
 
--- Пас: отдельное сообщение, не "Разыгрывается: …"
+-- Пас: отдельное сообщение, не "Разыгрывается: ..."
 local function ParseRuPassDecline(msg)
 	if not msg then return end
 

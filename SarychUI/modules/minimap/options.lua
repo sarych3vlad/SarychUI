@@ -145,7 +145,7 @@ function module:_BuildAddonButtonIconOptionsImpl()
 				managed = {
 					type = "toggle",
 					name = "Управлять через SarychUI",
-					desc = "SarychUI задаёт угол и отключает перетаскивание",
+					desc = "SarychUI задаёт угол; кнопку можно двигать на миникарте",
 					order = 1,
 					width = "full",
 					get = function()
@@ -174,7 +174,8 @@ function module:_BuildAddonButtonIconOptionsImpl()
 				angle = {
 					type = "range",
 					name = "Угол",
-					desc = "0° = справа, 90° = сверху, 180° = слева, 270° = снизу",
+					suiExternalSyncKey = "minimap.angle." .. buttonID,
+					desc = "0 = справа, 90 = сверху, 180 = слева, 270 = снизу. Можно перетащить кнопку на миникарте.",
 					order = 3,
 					min = 0,
 					max = 359,
@@ -202,7 +203,7 @@ end
 function module:GetOptions()
 	local db = self.addon.db.profile.modules[moduleName]
 	local savedButtonCount = CountSavedAddonButtons(db)
-	-- Если кнопки уже есть в профиле — сразу показываем настройки угла.
+	-- Если кнопки уже есть в профиле - сразу показываем настройки угла.
 	if savedButtonCount > 0 then
 		self._addonButtonOptionsExpanded = true
 	end
@@ -603,7 +604,7 @@ function module:GetOptions()
 						args = {
 							leftClickEnabled = {
 								type = "toggle",
-								name = "Shift + Левая кнопка мыши — |cFFFFD700Установить метку|r",
+								name = "Shift + Левая кнопка мыши - |cFFFFD700Установить метку|r",
 								order = 1, width = "full",
 								get = function() return self.addon.db.profile.modules[moduleName].leftClickEnabled == 1 end,
 								set = function(_, value)
@@ -612,7 +613,7 @@ function module:GetOptions()
 							},
 							rightClickEnabled = {
 								type = "toggle",
-								name = "Правая кнопка мыши — |cFFFFD700Открыть календарь|r",
+								name = "Правая кнопка мыши - |cFFFFD700Открыть календарь|r",
 								order = 2, width = "full",
 								get = function() return self.addon.db.profile.modules[moduleName].rightClickEnabled == 1 end,
 								set = function(_, value)
@@ -621,7 +622,7 @@ function module:GetOptions()
 							},
 							middleClickEnabled = {
 								type = "toggle",
-								name = "Средняя кнопка (клик колесом) мыши — |cFFFFD700Меню отслеживания|r",
+								name = "Средняя кнопка (клик колесом) мыши - |cFFFFD700Меню отслеживания|r",
 								order = 3, width = "full",
 								get = function() return self.addon.db.profile.modules[moduleName].middleClickEnabled == 1 end,
 								set = function(_, value)
@@ -630,7 +631,7 @@ function module:GetOptions()
 							},
 							wheelEnabled = {
 								type = "toggle",
-								name = "Прокрутка колеса мыши — |cFFFFD700Приблизить и отдалить|r",
+								name = "Прокрутка колеса мыши - |cFFFFD700Приблизить и отдалить|r",
 								order = 4, width = "full",
 								get = function() return self.addon.db.profile.modules[moduleName].wheelEnabled == 1 end,
 								set = function(_, value)

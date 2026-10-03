@@ -121,6 +121,8 @@ local basekeys = {
 	suiBossEmotePreview = optbool,
 	suiFrameHitPreview = optbool,
 	suiArenaPreview = optbool,
+	suiArenaNumbersPreview = optbool,
+	suiArenaGroupTitlesPreview = optbool,
 	suiAurasPreview = optbool,
 	suiMinimapPreview = optbool,
 	suiCombatIndicatorPreview = optbool,
@@ -162,6 +164,7 @@ local typedkeys = {
 		-- SarychUI custom renderer.
 		suiTwoPane = optbool,
 		suiSelectWithButton = optbool,
+		suiSelectWithColor = optbool,
 		suiOneRowAdd = optbool,
 		suiCompactListRow = optbool,
 		suiTwoCol = optbool,

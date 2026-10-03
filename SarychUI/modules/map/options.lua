@@ -40,13 +40,13 @@ local function GetMapMode()
 		return SarychUI:GetMapMode()
 	end
 	local db = DB()
-	return db and db.mapType or "mapster"
+	return db and db.mapType or "sarychui"
 end
 
 local function GetMapTypeValues()
 	local values = {
 		classic = L and (L["Classic WoW Map"] or "Классическая карта WoW") or "Классическая карта WoW",
-		mapster = "Mapster",
+		sarychui = L and (L["SarychUI Maps"] or "Карта SarychUI") or "Карта SarychUI",
 	}
 	if SarychUI and SarychUI.IsExternalCarboniteAvailable and SarychUI:IsExternalCarboniteAvailable() then
 		values.carbonite = "Carbonite"
@@ -68,19 +68,10 @@ local function SetMapType(mapType)
 	if not addons or not mapDb then return end
 
 	mapDb.mapType = mapType
-	if mapType == "mapster" then
-		addons.Mapster = addons.Mapster or {}
-		addons.Mapster.enabled = true
-		addons.Carbonite = addons.Carbonite or {}
-		addons.Carbonite.enabled = false
-	elseif mapType == "carbonite" then
-		addons.Mapster = addons.Mapster or {}
-		addons.Mapster.enabled = false
+	if mapType == "carbonite" then
 		addons.Carbonite = addons.Carbonite or {}
 		addons.Carbonite.enabled = true
 	else
-		addons.Mapster = addons.Mapster or {}
-		addons.Mapster.enabled = false
 		addons.Carbonite = addons.Carbonite or {}
 		addons.Carbonite.enabled = false
 	end
@@ -91,20 +82,33 @@ local function IsModuleEnabled()
 	return db and db.enabled ~= false
 end
 
+local function IsSarychUIMap()
+	return IsModuleEnabled() and GetMapMode() == "sarychui"
+end
+
 local function OpenMapSettings()
 	local mode = GetMapMode()
-	if mode == "mapster" then
-		if SarychUI and SarychUI.OpenMapsterConfig then
-			SarychUI:OpenMapsterConfig()
-		elseif SlashCmdList and SlashCmdList["MAPSTER"] then
-			SlashCmdList["MAPSTER"]("")
-		end
-	elseif mode == "carbonite" then
+	if mode == "carbonite" then
 		if SarychUI and SarychUI.OpenCarboniteConfig then
 			SarychUI:OpenCarboniteConfig()
 		elseif _G.Nx and _G.Nx.Opt and _G.Nx.Opt.Ope then
 			_G.Nx.Opt:Ope()
 		end
+		return
+	end
+	if mode == "sarychui" then
+		local OC = SarychUI and SarychUI.OptionsCore
+		if OC and OC.SelectTab then
+			OC:SelectTab("appearance")
+		end
+	end
+end
+
+local function RefreshNativeMap()
+	if SarychUI.Maps and SarychUI.Maps.Refresh then
+		SarychUI.Maps:Refresh()
+	elseif module.Refresh then
+		module:Refresh()
 	end
 end
 
@@ -141,13 +145,13 @@ function module:GetOptions()
 							db.enabled = value
 							if value then
 								local restoreType = preferredType
-								if restoreType ~= "mapster" and restoreType ~= "carbonite" and restoreType ~= "classic" then
-									restoreType = "mapster"
+								if restoreType ~= "sarychui" and restoreType ~= "carbonite" and restoreType ~= "classic" then
+									restoreType = "sarychui"
 								end
 								if restoreType == "carbonite"
 									and SarychUI and SarychUI.IsExternalCarboniteAvailable
 									and not SarychUI:IsExternalCarboniteAvailable() then
-									restoreType = "mapster"
+									restoreType = "sarychui"
 								end
 								db.mapType = restoreType
 								SetMapType(restoreType)
@@ -194,7 +198,7 @@ function module:GetOptions()
 							mapType = {
 								type = "select",
 								name = "",
-								desc = L and (L["Map Type Desc"] or "Выберите, какой аддон карты использовать.") or "Выберите, какой аддон карты использовать.",
+								desc = L and (L["Map Type Desc"] or "Выберите, какую карту использовать.") or "Выберите, какую карту использовать.",
 								order = 1,
 								values = GetMapTypeValues,
 								get = function()
@@ -220,25 +224,21 @@ function module:GetOptions()
 								type = "execute",
 								name = L and (L["Settings"] or "Настройки") or "Настройки",
 								desc = function()
-									local mode = GetMapMode()
-									if mode == "mapster" then
-										return L and (L["Open Mapster Settings Desc"] or "Открыть окно настроек Mapster (/mapster).") or "Открыть окно настроек Mapster (/mapster)."
-									end
-									if mode == "carbonite" then
+									if GetMapMode() == "carbonite" then
 										return L and (L["Open Carbonite Settings Desc"] or "Открыть окно настроек Carbonite (/carb options).") or "Открыть окно настроек Carbonite (/carb options)."
 									end
-									return L and (L["Map Settings Unavailable"] or "Для классической карты отдельные настройки недоступны.") or "Для классической карты отдельные настройки недоступны."
+									return L and (L["SarychUI Maps Button Desc"] or "Открыть настройки SarychUI -> Карта.") or "Открыть настройки SarychUI -> Карта."
 								end,
 								order = 2,
 								hidden = function()
 									local mode = GetMapMode()
-									if mode == "classic" then
-										return true
+									if mode == "sarychui" then
+										return not IsSarychUIMap()
 									end
 									if mode == "carbonite" then
 										return not (SarychUI and SarychUI.IsExternalCarboniteAvailable and SarychUI:IsExternalCarboniteAvailable())
 									end
-									return false
+									return true
 								end,
 								func = OpenMapSettings,
 							},
@@ -246,9 +246,177 @@ function module:GetOptions()
 					},
 					modeHint = {
 						type = "description",
-						name = "|cFFFFD700Внимание:|r После применения потребуется перезагрузка интерфейса.",
-						order = 20,
+						name = "|cFFFFD700Внимание:|r После смены типа карты потребуется перезагрузка интерфейса.",
+						order = 30,
 						width = "full",
+					},
+					creditNote = {
+						type = "description",
+						name = L and L["SarychUI Maps Credit"]
+							or "|cFFFFD700Пометка:|r Модуль разработан благодаря предложению |cff1784d1Hannahmckay|r обратить внимание на Leatrix Maps 3.3.5 от 5Buttons.\n\nSarychUI Maps объединяет идеи и возможности Mapster, Leatrix Maps и WDM в единой реализации для SarychUI.",
+						order = 31,
+						width = "full",
+						suiStickyBottom = true,
+						hidden = function()
+							return GetMapMode() ~= "sarychui"
+						end,
+					},
+				},
+			},
+			appearance = {
+				type = "group",
+				name = L and (L["Settings"] or "Настройки") or "Настройки",
+				order = 2,
+				hidden = function()
+					return not IsSarychUIMap()
+				end,
+				args = {
+					panButton = {
+						type = "select",
+						name = L and (L["Map Pan Button"] or "Перемещение карты") or "Перемещение карты",
+						desc = L and (L["Map Pan Button Desc"] or "Кнопка мыши для перемещения увеличенной карты. Колёсико масштабирует независимо.") or "Кнопка мыши для перемещения увеличенной карты. Колёсико масштабирует независимо.",
+						order = 1,
+						width = "double",
+						values = {
+							left = L and (L["Left Mouse Button"] or "Левая кнопка мыши") or "Левая кнопка мыши",
+							middle = L and (L["Middle Mouse Button"] or "Средняя кнопка мыши") or "Средняя кнопка мыши",
+							right = L and (L["Right Mouse Button"] or "Правая кнопка мыши") or "Правая кнопка мыши",
+						},
+						get = function()
+							local db = DB()
+							return (db and db.panButton) or "middle"
+						end,
+						set = function(_, value)
+							local db = DB()
+							if not db then return end
+							db.panButton = value
+							RefreshNativeMap()
+						end,
+					},
+					panSpeed = {
+						type = "range",
+						name = L and (L["Map Pan Speed"] or "Чувствительность перемещения") or "Чувствительность перемещения",
+						desc = L and (L["Map Pan Speed Desc"] or "Насколько сильно сдвигается карта при перетаскивании с зажатой кнопкой перемещения.") or "Насколько сильно сдвигается карта при перетаскивании с зажатой кнопкой перемещения.",
+						order = 2,
+						width = "full",
+						min = 0.15,
+						max = 1.5,
+						step = 0.05,
+						get = function()
+							local db = DB()
+							return (db and db.panSpeed) or 0.9
+						end,
+						set = function(_, value)
+							local db = DB()
+							if not db then return end
+							db.panSpeed = value
+						end,
+					},
+					zoneInfo = {
+						type = "toggle",
+						name = L and (L["Map Zone Info"] or "Информация о зоне") or "Информация о зоне",
+						desc = L and (L["Map Zone Info Desc"] or "Рекомендуемый уровень, рыбалка, территория и список подземелий на карте мира.") or "Рекомендуемый уровень, рыбалка, территория и список подземелий на карте мира.",
+						order = 3,
+						width = "full",
+						get = function()
+							local db = DB()
+							return not db or db.zoneInfo ~= false
+						end,
+						set = function(_, value)
+							local db = DB()
+							if not db then return end
+							db.zoneInfo = value and true or false
+							RefreshNativeMap()
+						end,
+					},
+					resetLayout = {
+						type = "toggle",
+						name = L and (L["Map Reset Layout"] or "Не запоминать положение") or "Не запоминать положение",
+						desc = L and (L["Map Reset Layout Desc"] or "Каждое открытие карты сбрасывает положение и масштаб на значения по умолчанию.") or "Каждое открытие карты сбрасывает положение и масштаб на значения по умолчанию.",
+						order = 4,
+						width = "full",
+						get = function()
+							local db = DB()
+							return db and db.resetLayout == true
+						end,
+						set = function(_, value)
+							local db = DB()
+							if not db then return end
+							db.resetLayout = value and true or false
+							if SarychUI.Maps and SarychUI.Maps.worldmap then
+								SarychUI.Maps.worldmap:SetScale()
+								SarychUI.Maps.worldmap:SetPosition()
+							end
+							RefreshNativeMap()
+						end,
+					},
+					fadeOnMove = {
+						type = "toggle",
+						name = L and (L["Map Fade On Move"] or "Прозрачность при движении") or "Прозрачность при движении",
+						desc = L and (L["Map Fade On Move Desc"] or "Карта становится прозрачнее, пока персонаж идёт. Наведение мыши возвращает обычную непрозрачность.") or "Карта становится прозрачнее, пока персонаж идёт. Наведение мыши возвращает обычную непрозрачность.",
+						order = 5,
+						width = "full",
+						get = function()
+							local db = DB()
+							return not db or db.fadeOnMove ~= false
+						end,
+						set = function(_, value)
+							local db = DB()
+							if not db then return end
+							db.fadeOnMove = value and true or false
+							RefreshNativeMap()
+						end,
+					},
+					fogStyle = {
+						type = "select",
+						name = L and (L["Map Fog Style"] or "Стиль тумана") or "Стиль тумана",
+						desc = L and (L["Map Fog Style Desc"] or "Цвет неисследованных областей после раскрытия тумана войны.") or "Цвет неисследованных областей после раскрытия тумана войны.",
+						order = 6,
+						width = "double",
+						values = {
+							standard = L and (L["Map Fog Style Standard"] or "Стандартный") or "Стандартный",
+							leatrix = L and (L["Map Fog Style Leatrix"] or "Стиль тумана Leatrix") or "Стиль тумана Leatrix",
+						},
+						get = function()
+							local db = DB()
+							return (db and db.fogStyle) or "leatrix"
+						end,
+						set = function(_, value)
+							local db = DB()
+							if not db then return end
+							if value ~= "standard" then
+								value = "leatrix"
+							end
+							db.fogStyle = value
+							if value == "standard" then
+								db.fogTintR, db.fogTintG, db.fogTintB = 0.623, 0.623, 0.623
+							else
+								db.fogTintR, db.fogTintG, db.fogTintB = 0.6, 0.6, 1
+							end
+							RefreshNativeMap()
+						end,
+					},
+					fogTransparency = {
+						type = "range",
+						name = L and (L["Map Fog Transparency"] or "Прозрачность тумана войны") or "Прозрачность тумана войны",
+						desc = L and (L["Map Fog Transparency Desc"] or "Насколько прозрачны неисследованные области после раскрытия тумана войны.") or "Насколько прозрачны неисследованные области после раскрытия тумана войны.",
+						order = 7,
+						width = "full",
+						min = 0,
+						max = 1,
+						step = 0.05,
+						isPercent = true,
+						get = function()
+							local db = DB()
+							local alpha = (db and db.fogTintA) or 1
+							return 1 - alpha
+						end,
+						set = function(_, value)
+							local db = DB()
+							if not db then return end
+							db.fogTintA = 1 - (value or 0)
+							RefreshNativeMap()
+						end,
 					},
 				},
 			},

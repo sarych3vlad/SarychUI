@@ -201,7 +201,7 @@ local function EnsureReloadPopup()
 		end
 	end)
 
-	-- Esc closes without reload (triggers OnHide → onCancel).
+	-- Esc closes without reload (triggers OnHide -> onCancel).
 	tinsert(UISpecialFrames, "SarychUIReloadPopup")
 
 	reloadPopup = f
@@ -318,8 +318,18 @@ end
 local function FadeInENPConfig(ENP)
 	local nativeFrame = GetENPConfigNativeFrame(ENP)
 	if not nativeFrame then return end
-	nativeFrame:SetAlpha(0)
-	FadeNativeFrame(nativeFrame, 0, 1, NAMEPLATES_FADE_IN)
+	-- Closing /sui schedules a deferred cleanup which cancels SarychUI fade
+	-- drivers. Do not leave the separate ENP window at alpha 0 while that
+	-- cleanup is racing with its first frame.
+	if nativeFrame.SetAlpha then
+		nativeFrame:SetAlpha(1)
+	end
+	if nativeFrame.Show then
+		nativeFrame:Show()
+	end
+	if nativeFrame.Raise then
+		nativeFrame:Raise()
+	end
 end
 
 local function GetENPEngine()
@@ -501,29 +511,6 @@ local function OpenGladiusExConfigWindow()
 	return opened
 end
 
-local function GetMapsterConfigNativeFrame()
-	local ACD = LibStub and LibStub("AceConfigDialog-3.0", true)
-	if not ACD or not ACD.OpenFrames then return end
-
-	local open = ACD.OpenFrames[MAPSTER_CONFIG_APP]
-	return open and open.frame
-end
-
-local function OpenMapsterConfigWindow()
-	local ACD = LibStub and LibStub("AceConfigDialog-3.0", true)
-	if not ACD then return false end
-
-	ACD:Open(MAPSTER_CONFIG_APP)
-
-	local nativeFrame = GetMapsterConfigNativeFrame()
-	if nativeFrame then
-		nativeFrame:SetAlpha(0)
-		FadeNativeFrame(nativeFrame, 0, 1, NAMEPLATES_FADE_IN)
-	end
-
-	return true
-end
-
 function SarychUI:OpenGladiusExConfig()
 	RunAfterFrames(function()
 		if UnitAffectingCombat and UnitAffectingCombat("player") then
@@ -582,8 +569,7 @@ end
 
 local function OpenENPConfigWindow(ENP)
 	local opened
-	SarychUI._NamePlatesConfigFadeIn = true
-	-- Prefer ElvUI AceConfigDialog (private AceGUI pool) — not the Cooltip ENPOptionsCore shell.
+	-- Prefer ElvUI AceConfigDialog (private AceGUI pool) - not the Cooltip ENPOptionsCore shell.
 	if ENP.ForceOpenOptionsUI then
 		opened = ENP:ForceOpenOptionsUI()
 	elseif ENP.OpenOptionsUI then
@@ -592,11 +578,9 @@ local function OpenENPConfigWindow(ENP)
 		ENP:ToggleOptionsUI()
 		opened = true
 	else
-		SarychUI._NamePlatesConfigFadeIn = nil
 		print("|cffffd200SarychUI:|r No ENP open function found.")
 		return false
 	end
-	SarychUI._NamePlatesConfigFadeIn = nil
 
 	if opened then
 		FadeInENPConfig(ENP)
@@ -656,33 +640,9 @@ function SarychUI:OpenEmbeddedNamePlatesConfig()
 end
 
 function SarychUI:OpenMapsterConfig()
-	RunAfterFrames(function()
-		if UnitAffectingCombat and UnitAffectingCombat("player") then
-			SarychUI:Print("Options are unavailable in combat.")
-			return
-		end
-
-		local nativeFrame = GetSarychUIConfigNativeFrame()
-		local function openMapsterConfig()
-			SarychUI:CloseOptions()
-			RunAfterFrames(function()
-				if not OpenMapsterConfigWindow() then
-					print("|cffffd200SarychUI:|r Failed to open Mapster settings.")
-				end
-			end, 1)
-		end
-
-		if nativeFrame and nativeFrame.IsShown and nativeFrame:IsShown() then
-			if SarychUI.CleanupOptionsUI then
-				SarychUI:CleanupOptionsUI()
-			end
-			local startAlpha = nativeFrame:GetAlpha()
-			if startAlpha <= 0 then startAlpha = 1 end
-			FadeNativeFrame(nativeFrame, startAlpha, 0, NAMEPLATES_FADE_OUT, openMapsterConfig)
-		else
-			openMapsterConfig()
-		end
-	end, 1)
+	if self.OpenOptions then
+		self:OpenOptions()
+	end
 end
 
 function SarychUI:OpenCarboniteConfig()
@@ -1106,6 +1066,17 @@ local options = {
 								end
 							end,
 						},
+						thanks = {
+							type = "description",
+							name = function()
+								if L and L["SarychUI Thanks"] then
+									return L["SarychUI Thanks"]
+								end
+								return SarychUI:T("|cFFFFD700Благодарности:|r Hannahmckay, Dismoral (Евгений), gluconaft, Vuren, rtr_, bezdomen, textenter")
+							end,
+							order = 3,
+							width = "full",
+						},
 					},
 				},
 				quick = {
@@ -1155,7 +1126,7 @@ local options = {
 								applyGraphicsButton = {
 									type = "execute",
 									name = "Применить рекомендованные настройки графики",
-									desc = "Рекомендуемая графика (цель 2K / 240 Hz). Если монитор слабее — возьмётся его максимум разрешения и герцовки.",
+									desc = "Рекомендуемая графика (цель 2K / 240 Hz). Если монитор слабее - возьмётся его максимум разрешения и герцовки.",
 									order = 2,
 									width = "full",
 									suiTooltip = function()
@@ -1163,7 +1134,7 @@ local options = {
 									end,
 									func = function()
 										SarychUI:ShowReloadPopup(
-											"Применить рекомендованные настройки графики?\n\nТребуется полный перезапуск игры (не только /reload).\nЕсли монитор не тянет 2K/240 Hz — будет выставлено максимальное доступное разрешение и герцовка.",
+											"Применить рекомендованные настройки графики?\n\nТребуется полный перезапуск игры (не только /reload).\nЕсли монитор не тянет 2K/240 Hz - будет выставлено максимальное доступное разрешение и герцовка.",
 											nil,
 											function()
 												SarychUI:ApplyQuickGraphicsSettings()
@@ -1217,13 +1188,13 @@ local options = {
 
 		system = {
 			type = "group",
-			name = "Система",
+			name = L["System"] or "Система",
 			order = 4,
 			childGroups = "tab",
 			args = {
 				overview = {
 					type = "group",
-					name = "Обзор",
+					name = L["System_Overview"] or "Обзор",
 					order = 0,
 					args = {
 						dllHeader = {
@@ -1234,8 +1205,7 @@ local options = {
 							width = "full",
 							hidden = function()
 								local compat = SarychUI.Compatibility
-								-- Hide the searching header once all rows have a final answer
-								-- (detected or not_detected) — same as when all three are found.
+								-- Hide the searching header once both optional API rows have a final answer.
 								return compat and compat.AreAllDllStatusesResolved and compat:AreAllDllStatusesResolved()
 							end,
 						},
@@ -1251,17 +1221,46 @@ local options = {
 							order = 2,
 							width = "full",
 						},
+						lockdownDebugBox = {
+							type = "group",
+							name = L["Lockdown_Debug_Group"] or "Поиск ошибок",
+							order = 3,
+							inline = true,
+							args = {
+								lockdownErrorSearch = {
+									type = "toggle",
+									name = L["Lockdown_Debug_Enable"] or "Включить поиск ошибок блокировки",
+									desc = L["Lockdown_Debug_Desc"] or "Выводит в чат защищённую функцию и стек вызовов при ADDON_ACTION_BLOCKED/ADDON_ACTION_FORBIDDEN. При выключении диагностические сообщения не печатаются.",
+									order = 1,
+									width = "full",
+									get = function()
+										if SarychUI.IsLockdownErrorSearchEnabled then
+											return SarychUI:IsLockdownErrorSearchEnabled()
+										end
+										local system = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.system
+										return system and (system.lockdownErrorSearch == true or system.lockdownErrorSearch == 1) or false
+									end,
+									set = function(_, value)
+										if SarychUI.SetLockdownErrorSearchEnabled then
+											SarychUI:SetLockdownErrorSearchEnabled(value)
+										else
+											SarychUI.db.profile.system = SarychUI.db.profile.system or {}
+											SarychUI.db.profile.system.lockdownErrorSearch = value and true or false
+										end
+									end,
+								},
+							},
+						},
 					},
 				},
 				speedyLoad = {
 					type = "group",
-					name = "Быстрая загрузка",
+					name = L["Runtime_SpeedyLoadTab"] or "Быстрая загрузка",
 					order = 1,
-					-- Enable toggle pinned to the right of the tab bar (same pattern as module «Включить»).
 					suiTabBarExtra = {
 						type = "toggle",
-						name = "Включить",
-						desc = L["Runtime_SpeedyLoad"] or "Оптимизация экрана загрузки",
+						name = L["Enable"] or "Включить",
+						desc = L["Runtime_SpeedyLoad_Desc"] or "Временно подавляет шумные события только во время экрана загрузки.",
 						get = function()
 							local db = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.system
 							local v = db and db.enableSpeedyLoad
@@ -1271,28 +1270,38 @@ local options = {
 							if not SarychUI.db.profile.system then
 								SarychUI.db.profile.system = {}
 							end
-							SarychUI.db.profile.system.enableSpeedyLoad = val and 1 or 0
-							local tools = (SarychUI.GetModule and SarychUI:GetModule("tools"))
-								or (SarychUI.modules and SarychUI.modules.tools)
-							if tools and tools.ApplySpeedyLoad then
-								tools:ApplySpeedyLoad()
-							end
+							SarychUI.db.profile.system.enableSpeedyLoad = val and true or false
+							if SarychUI.Runtime then SarychUI.Runtime:RefreshSpeedyLoad() end
 							if SarychUI.NotifySarychUIOptionsChange then
 								SarychUI:NotifySarychUIOptionsChange()
 							end
 						end,
 					},
 					args = {
+						summary = {
+							type = "description",
+							name = function()
+								local runtime = SarychUI.Runtime
+								if not runtime then return "|cff808080" .. (L["Runtime_NotLoaded"] or "Модуль Runtime не загружен") .. "|r" end
+								local d = runtime:GetSpeedyDiagnostics()
+								local state = d.enabled and "|cff00ff00" .. (L["Enabled"] or "Включено") .. "|r"
+									or "|cffaaaaaa" .. (L["Disabled"] or "Выключено") .. "|r"
+								local mode = d.mode == "aggressive" and (L["Runtime_SpeedyLoadAggressive"] or "Агрессивный")
+									or (L["Runtime_SpeedyLoadSafe"] or "Безопасный")
+								return string.format("|cff00ccffSpeedyLoad|r — %s\n%s: |cffffff00%s|r  •  %s: |cffffff00%d|r  •  %s: |cffffff00%d|r",
+									state,
+									L["Runtime_SpeedyLoadMode"] or "Режим", mode,
+									L["Runtime_SpeedyLoadEvents"] or "Подавляемых событий", d.eventCount or 0,
+									L["Runtime_SpeedyLoadCycles"] or "Циклов", d.cycles or 0)
+							end,
+							order = 1,
+							width = "full",
+						},
 						speedyLoadBox = {
 							type = "group",
-							name = L["Runtime_SpeedyLoadMode"] or "Режим загрузки",
-							order = 1,
+							name = L["Runtime_SpeedyLoadSettings"] or "Поведение во время загрузки",
+							order = 2,
 							inline = true,
-							hidden = function()
-								local db = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.system
-								local v = db and db.enableSpeedyLoad
-								return not (v == 1 or v == true)
-							end,
 							args = {
 								speedyLoadMode = {
 									type = "select",
@@ -1312,55 +1321,62 @@ local options = {
 											SarychUI.db.profile.system = {}
 										end
 										SarychUI.db.profile.system.speedyLoadMode = val
-										local tools = SarychUI.modules and SarychUI.modules.tools
-										if tools and tools.ApplySpeedyLoad then
-											tools:ApplySpeedyLoad()
-										end
-									end,
+									if SarychUI.Runtime then SarychUI.Runtime:RefreshSpeedyLoad() end
+								end,
+							},
+								postGC = {
+									type = "toggle",
+									name = L["Runtime_SpeedyLoadPostGC"] or "Шаг GC после загрузки",
+									desc = L["Runtime_SpeedyLoadPostGC_Desc"] or "Выполняет один усиленный инкрементальный шаг GC после возвращения в мир.",
+									order = 2,
+									width = "full",
+									get = function() return SarychUI.db.profile.system.speedyLoadPostGC ~= false end,
+									set = function(_, value) SarychUI.db.profile.system.speedyLoadPostGC = value and true or false end,
+								},
+								refreshUI = {
+									type = "toggle",
+									name = L["Runtime_SpeedyLoadRefreshUI"] or "Обновить портреты после загрузки",
+									desc = L["Runtime_SpeedyLoadRefreshUI_Desc"] or "Несколько раз обновляет портреты юнитов после восстановления событий.",
+									order = 3,
+									width = "full",
+									get = function() return SarychUI.db.profile.system.speedyLoadRefreshUI ~= false end,
+									set = function(_, value) SarychUI.db.profile.system.speedyLoadRefreshUI = value and true or false end,
 								},
 							},
 						},
 						speedyLoadNote = {
 							type = "description",
-							name = "|cFFFFD700Пометка:|r SpeedyLoad ускоряет вход в мир: на время загрузки временно отключает лишние игровые события, затем возвращает их. Агрессивный режим затрагивает больше событий (ауры, сумки, кулдауны) и по умолчанию выключен.",
-							order = 2,
-							width = "full",
-							hidden = function()
-								local db = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.system
-								local v = db and db.enableSpeedyLoad
-								return not (v == 1 or v == true)
+							name = function()
+								return "|cFFFFD700" .. (L["Runtime_Note"] or "Примечание:") .. "|r "
+									.. (L["Runtime_SpeedyLoad_Note"] or "Безопасный режим подавляет только события без обязательных аргументов. Агрессивный добавляет ауры, сумки и кулдауны и может конфликтовать со старыми аддонами; события всегда восстанавливаются при входе в мир или отключении функции.")
 							end,
+							order = 3,
+							width = "full",
+						},
+						restoreNow = {
+							type = "execute",
+							name = L["Runtime_SpeedyLoadRestore"] or "Восстановить события сейчас",
+							desc = L["Runtime_SpeedyLoadRestore_Desc"] or "Принудительно возвращает все события, временно снятые SpeedyLoad.",
+							order = 4,
+							func = function() if SarychUI.Runtime then SarychUI.Runtime:RestoreSpeedyLoad() end end,
 						},
 					},
 				},
 				luaOptimize = {
 					type = "group",
-					name = L["Runtime_LuaOptimize"] or "Оптимизация Lua",
+					name = L["Runtime_LuaOptimize"] or "Менеджер Lua",
 					order = 1.5,
 					suiTabBarExtra = {
 						type = "toggle",
 						name = L["Enable"] or "Включить",
-						desc = function()
-							local runtime = SarychUI.Runtime
-							if runtime and runtime:IsBlockedByLuaBoost() then
-								return L["Runtime_BlockedByLuaBoost"]
-							end
-							return L["Runtime_EnableGC_Desc"] or "Умное управление Lua и защита от лишних обновлений StatusBar."
-						end,
-						disabled = function()
-							local runtime = SarychUI.Runtime
-							return runtime and runtime:IsBlockedByLuaBoost()
-						end,
+						desc = L["Runtime_Master_Desc"] or "Включает нативные оптимизации Lua SarychUI и Smart GC Manager.",
 						get = function()
-							local runtime = SarychUI.Runtime
-							if runtime and runtime:IsBlockedByLuaBoost() then return false end
 							local cfg = SarychUI.db and SarychUI.db.profile
 								and SarychUI.db.profile.system and SarychUI.db.profile.system.runtime
 							return cfg and cfg.enabled == true
 						end,
 						set = function(_, value)
 							local runtime = SarychUI.Runtime
-							if runtime and runtime:IsBlockedByLuaBoost() then return end
 							local system = SarychUI.db.profile.system
 							if not system.runtime then system.runtime = {} end
 							system.runtime.enabled = value and true or false
@@ -1378,30 +1394,36 @@ local options = {
 								if not runtime then
 									return "|cff808080" .. (L["Runtime_NotLoaded"] or "Модуль не загружен") .. "|r"
 								end
-								if runtime:IsBlockedByLuaBoost() then
-									return "|cffff8800" .. (L["Runtime_BlockedByLuaBoost"] or "!LuaBoost управляет оптимизацией Lua.") .. "|r"
-								end
 								local d = runtime:GetDiagnostics()
-								local controllerColor = d.gcController == "SarychUI" and "|cff00ff00"
-									or (d.gcController == "DLL" and "|cff55aaff" or "|cffaaaaaa")
+								local controllerColor = d.gcController ~= "Blizzard" and "|cff00ff00" or "|cffaaaaaa"
 								local cacheState
-								if not d.gcEnabled then
-									cacheState = L["Runtime_UICacheDisabled"] or "отключён"
-								elseif d.dllActive then
-									cacheState = L["Runtime_UICacheDLL"] or "обрабатывается DLL"
-								elseif d.uiCacheActive then
+								if d.uiCacheActive then
 									cacheState = string.format((L["Runtime_UICacheActive"] or "активен, пропущено %d повторов"), d.uiCacheSkipped or 0)
 								elseif d.uiCacheEnabled == false then
 									cacheState = L["Runtime_UICacheDisabled"] or "отключён"
 								else
 									cacheState = L["Runtime_UICacheWaiting"] or "ожидает активации"
 								end
+								local dllState = d.dllState == runtime.WOW_OPTIMIZE_SUPPORTED
+									and (L["Runtime_DLLSupported"] or "совместима")
+									or (d.dllState == runtime.WOW_OPTIMIZE_INCOMPATIBLE
+										and (L["Runtime_DLLIncompatible"] or "несовместима")
+										or (L["Runtime_DLLNotFound"] or "не обнаружена"))
+								if d.dllVersion then dllState = dllState .. " (v" .. tostring(d.dllVersion) .. ")" end
+								local stepping = d.sarychGcStepping and (L["Runtime_State_Active"] or "активен")
+									or (d.backend == "wow_optimize" and (L["Runtime_State_Delegated"] or "делегирован DLL")
+										or (L["Runtime_State_Disabled"] or "отключён"))
 								return string.format(
-									"|cff00ccffSarychUI Runtime v%s|r\n%s: %s%s|r  •  %s: |cffffff00%s|r  •  %s: |cffffff00%.1f MB|r\n%s: |cffffff00%s|r",
+									"|cff00ccffSarychUI Runtime v%s|r\n%s: |cff00ff00%s|r  •  wow_optimize.dll: |cffffff00%s|r  •  %s: |cffffff00%s|r\n%s: %s%s|r  •  SarychUI GC: |cffffff00%s|r  •  %s: |cffffff00%.1f MB|r\nFPS: |cffffff00%.1f|r  •  Frame: |cffffff00%.2f ms|r  •  %s: |cffffff00%d|r\n%s: |cffffff00%s|r",
 									tostring(d.version or "?"),
+									L["Runtime_Backend"] or "Runtime Backend", tostring(d.backendLabel or "?"),
+									dllState,
+									L["Runtime_Allocator"] or "Allocator", tostring(d.allocator or "WoW default"),
 									L["Runtime_Controller"] or "Контроллер GC", controllerColor, tostring(d.gcController or "?"),
-									L["Runtime_Mode"] or "Режим", tostring(d.gcMode or "?"),
+									stepping,
 									L["Runtime_Memory"] or "Память Lua", d.memoryMB or 0,
+									d.fps or 0, d.frameMs or 0,
+									L["Runtime_DispatcherCallbacks"] or "Задач диспетчера", d.updateCount or 0,
 									L["Runtime_UICache"] or "Кэш StatusBar", cacheState)
 							end,
 							order = 1,
@@ -1409,12 +1431,10 @@ local options = {
 						},
 						controls = {
 							type = "group",
-							name = L["Runtime_Settings"] or "Режим работы",
-							order = 5,
+							name = L["Runtime_SmartGC"] or "Smart GC Manager",
+							order = 2,
 							inline = true,
 							hidden = function()
-								local runtime = SarychUI.Runtime
-								if runtime and runtime:IsBlockedByLuaBoost() then return true end
 								local cfg = SarychUI.db and SarychUI.db.profile
 									and SarychUI.db.profile.system and SarychUI.db.profile.system.runtime
 								return not (cfg and cfg.enabled == true)
@@ -1430,27 +1450,95 @@ local options = {
 										light = L["Runtime_Preset_Light"] or "Лёгкий",
 										standard = L["Runtime_Preset_Standard"] or "Стандартный",
 										heavy = L["Runtime_Preset_Heavy"] or "Тяжёлый",
+										custom = L["Runtime_Preset_Custom"] or "Пользовательский",
 									},
 									get = function()
 										local cfg = SarychUI.db.profile.system.runtime
 										return (cfg and cfg.preset) or "standard"
 									end,
 									set = function(_, value)
-										if SarychUI.Runtime then
+										if value ~= "custom" and SarychUI.Runtime then
 											SarychUI.Runtime:ApplyPreset(value)
 										end
 									end,
+								},
+								gcEnabled = {
+									type = "toggle",
+									name = L["Runtime_EnableGC"] or "Включить Smart GC Manager",
+									desc = L["Runtime_EnableGC_Desc"] or "Пошаговая сборка мусора по режимам Normal / Combat / Idle / Loading.",
+									order = 2,
+									width = "full",
+									disabled = function()
+										return SarychUI.Runtime and SarychUI.Runtime:DoesDLLOwnGC()
+									end,
+									get = function() return SarychUI.db.profile.system.runtime.gcEnabled ~= false end,
+									set = function(_, value)
+										if SarychUI.Runtime then
+											SarychUI.Runtime:SetGCSettings({ gcEnabled = value })
+											SarychUI.Runtime:Refresh()
+										end
+									end,
+								},
+								stepNormal = {
+									type = "range", name = L["Runtime_StepNormal"] or "GC step (обычный), KB",
+									order = 3, min = 0, max = 500, step = 5,
+									get = function() return SarychUI.db.profile.system.runtime.frameStepKB or 50 end,
+									set = function(_, value) if SarychUI.Runtime then SarychUI.Runtime:SetGCSettings({ frameStepKB = value, preset = "custom" }) end end,
+								},
+								stepCombat = {
+									type = "range", name = L["Runtime_StepCombat"] or "GC step (бой), KB",
+									order = 4, min = 0, max = 200, step = 5,
+									get = function() return SarychUI.db.profile.system.runtime.combatStepKB or 15 end,
+									set = function(_, value) if SarychUI.Runtime then SarychUI.Runtime:SetGCSettings({ combatStepKB = value, preset = "custom" }) end end,
+								},
+								stepIdle = {
+									type = "range", name = L["Runtime_StepIdle"] or "GC step (простой), KB",
+									order = 5, min = 0, max = 1000, step = 10,
+									get = function() return SarychUI.db.profile.system.runtime.idleStepKB or 150 end,
+									set = function(_, value) if SarychUI.Runtime then SarychUI.Runtime:SetGCSettings({ idleStepKB = value, preset = "custom" }) end end,
+								},
+								stepLoading = {
+									type = "range", name = L["Runtime_StepLoading"] or "GC step (загрузка), KB",
+									order = 6, min = 0, max = 1500, step = 10,
+									get = function() return SarychUI.db.profile.system.runtime.loadingStepKB or 300 end,
+									set = function(_, value) if SarychUI.Runtime then SarychUI.Runtime:SetGCSettings({ loadingStepKB = value, preset = "custom" }) end end,
+								},
+								emergency = {
+									type = "toggle",
+									name = L["Runtime_EmergencyGC"] or "Emergency GC",
+									desc = L["Runtime_EmergencyGC_Desc"] or "Разрешает полную очистку вне боя и загрузки при превышении порога памяти.",
+									order = 7, width = "full",
+									disabled = function() return SarychUI.Runtime and SarychUI.Runtime:DoesDLLOwnGC() end,
+									get = function() return SarychUI.db.profile.system.runtime.emergencyGCEnabled ~= false end,
+									set = function(_, value) if SarychUI.Runtime then SarychUI.Runtime:SetGCSettings({ emergencyGCEnabled = value }) end end,
+								},
+								emergencyMB = {
+									type = "range", name = L["Runtime_EmergencyMB"] or "Порог аварийной очистки, MB",
+									order = 8, min = 100, max = 1000, step = 25,
+									disabled = function() return SarychUI.Runtime and SarychUI.Runtime:DoesDLLOwnGC() end,
+									get = function() return SarychUI.db.profile.system.runtime.fullCollectThresholdMB or 300 end,
+									set = function(_, value) if SarychUI.Runtime then SarychUI.Runtime:SetGCSettings({ fullCollectThresholdMB = value, preset = "custom" }) end end,
+								},
+								idleTimeout = {
+									type = "range", name = L["Runtime_IdleTimeout"] or "Время до Idle, сек",
+									order = 9, min = 5, max = 60, step = 1,
+									get = function() return SarychUI.db.profile.system.runtime.idleTimeout or 15 end,
+									set = function(_, value) if SarychUI.Runtime then SarychUI.Runtime:SetGCSettings({ idleTimeout = value, preset = "custom" }) end end,
+								},
+								forceGC = {
+									type = "execute", name = L["Runtime_ForceGC"] or "Полная очистка сейчас",
+									desc = L["Runtime_ForceGC_Desc"] or "Запускает полную очистку вне боя.",
+									order = 10,
+									disabled = function() return UnitAffectingCombat and UnitAffectingCombat("player") end,
+									func = function() if SarychUI.Runtime then SarychUI.Runtime:ForceGC("options", false) end end,
 								},
 								uiCache = {
 									type = "toggle",
 									name = L["Runtime_UICache"] or "Кэш повторных обновлений StatusBar",
 									desc = L["Runtime_UICache_Desc"] or "Не отправляет движку одинаковые значения полос здоровья, ресурсов и прогресса повторно.",
-									order = 2,
+									order = 11,
 									width = "full",
-									hidden = function()
-										local runtime = SarychUI.Runtime
-										return runtime and runtime:IsDllGcActive()
-									end,
+									disabled = function() return SarychUI.Runtime and SarychUI.Runtime:IsDLLUICacheActive() end,
 									get = function()
 										local cfg = SarychUI.db.profile.system.runtime
 										return not cfg or cfg.uiCacheEnabled ~= false
@@ -1463,76 +1551,105 @@ local options = {
 								},
 								note = {
 									type = "description",
-									name = L["Runtime_AutomaticNote"] or "Шаги для боя, простоя и загрузки выбираются профилем автоматически. Аварийный порог сам повышается, если полная очистка заняла слишком много времени.",
-									order = 3,
+									name = function()
+										if SarychUI.Runtime and SarychUI.Runtime:DoesDLLOwnGC() then
+											return L["Runtime_DLLObserverNote"] or "GC делегирован wow_optimize.dll. SarychUI передаёт профиль и состояние, но не выполняет собственные GC steps."
+										end
+										return L["Runtime_AutomaticNote"] or "Шаги для боя, простоя и загрузки выбираются профилем автоматически. Аварийный порог сам повышается, если полная очистка заняла слишком много времени."
+									end,
+									order = 12,
 									width = "full",
 								},
 							},
 						},
-						compatStatus = {
-							type = "description",
-							name = function()
-								local compat = SarychUI.Compatibility
-								if not compat then
-									return (L["WowOptimize_Compat"] or "wow_optimize.dll") .. ": |cff808080не загружен|r"
-								end
-								local active = compat:IsWowOptimizeActive()
-								if not active then
-									return (L["WowOptimize_Compat"] or "wow_optimize.dll") .. ": |cffff8800Неактивен|r"
-								end
-								local mode = compat.GetMode and compat:GetMode() or "auto"
-								if mode == "auto" then
-									return (L["WowOptimize_Compat"] or "wow_optimize.dll") .. ": |cff00ff00Активен (авто)|r"
-								end
-								return (L["WowOptimize_Compat"] or "wow_optimize.dll") .. ": |cff00ff00Активен|r"
-							end,
-							order = 2,
-							width = "full",
-						},
-						compatBox = {
+						services = {
 							type = "group",
-							name = L["WowOptimize_Mode"] or "Режим совместимости",
+							name = L["Runtime_Services"] or "Сервисы Runtime",
 							order = 3,
 							inline = true,
 							args = {
-								wowOptimize = {
-									type = "select",
-									name = L["WowOptimize_Compat"] or "wow_optimize.dll",
-									desc = L["WowOptimize_Mode_Desc"] or "Авто — обнаружение по глобалам DLL (LUABOOST_DLL_*). Включено — принудительно. Выключено — обычный SarychUI.",
+								serviceStatus = {
+									type = "description",
+									name = function()
+										local d = SarychUI.Runtime and SarychUI.Runtime:GetDiagnostics()
+										if not d then return "" end
+										return string.format("%s: |cffffff00%d|r  •  %s: |cffffff00%d/%d/%d/%d|r  •  %s: |cffffff00%d|r  •  %s: |cffffff00%d|r\n%s: |cffffff00%.1f%%|r  •  %s: |cffffff00%.1f%%|r",
+											L["Runtime_DispatcherCallbacks"] or "Задач диспетчера", d.updateCount or 0,
+											L["Runtime_TablePoolStats"] or "Pool (взято/возвращено/создано/доступно)", d.poolAcquired or 0, d.poolReleased or 0, d.poolCreated or 0, d.poolAvailable or 0,
+											L["Runtime_ThrottleBlocked"] or "Throttle подавил", d.throttleBlocked or 0,
+											L["Runtime_CacheFrame"] or "Номер кадра", d.frameNumber or 0,
+											L["Runtime_DispatcherAvoided"] or "Сканирований кадров исключено", d.dispatchSkipRate or 0,
+											L["Runtime_UICacheHitRate"] or "Эффективность StatusBar cache", d.uiCacheHitRate or 0)
+									end,
 									order = 1,
 									width = "full",
-									values = {
-										auto = L["WowOptimize_Mode_Auto"] or "Авто",
-										enabled = L["WowOptimize_Mode_Enabled"] or "Включено",
-										disabled = L["WowOptimize_Mode_Disabled"] or "Выключено",
-									},
-									get = function()
-										local db = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.compatibility
-										return (db and db.wowOptimize) or "auto"
-									end,
-									set = function(_, value)
-										if not SarychUI.db.profile.compatibility then
-											SarychUI.db.profile.compatibility = {}
-										end
-										SarychUI.db.profile.compatibility.wowOptimize = value
-										if SarychUI.Compatibility then
-											SarychUI.Compatibility:Refresh(true)
-										end
-										if SarychUI.Runtime and SarychUI.Runtime.Refresh then
-											SarychUI.Runtime:Refresh()
-										end
-										if SarychUI.NotifySarychUIOptionsChange then
-											SarychUI:NotifySarychUIOptionsChange()
-										end
-									end,
+								},
+								tablePool = {
+									type = "toggle", name = L["Runtime_TablePool"] or "Table Pool",
+									desc = L["Runtime_TablePool_Desc"] or "Переиспользует временные таблицы диспетчера, аур и неймплейтов.",
+									order = 2, width = "full",
+									get = function() return SarychUI.db.profile.system.runtime.tablePoolEnabled ~= false end,
+									set = function(_, value) SarychUI.db.profile.system.runtime.tablePoolEnabled = value and true or false end,
+								},
+								poolMax = {
+									type = "range", name = L["Runtime_TablePoolMax"] or "Лимит таблиц в pool",
+									order = 3, min = 25, max = 1000, step = 25,
+									get = function() return SarychUI.db.profile.system.runtime.poolMax or 300 end,
+									set = function(_, value) SarychUI.db.profile.system.runtime.poolMax = value end,
+								},
+								sharedThrottle = {
+									type = "toggle", name = L["Runtime_SharedThrottle"] or "Shared Throttle",
+									desc = L["Runtime_SharedThrottle_Desc"] or "Объединяет ограничение частоты для повторяющихся обновлений SarychUI.",
+									order = 4, width = "full",
+									get = function() return SarychUI.db.profile.system.runtime.sharedThrottleEnabled ~= false end,
+									set = function(_, value) SarychUI.db.profile.system.runtime.sharedThrottleEnabled = value and true or false end,
+								},
+								cachedTime = {
+									type = "toggle", name = L["Runtime_CachedTime"] or "Cached Time / Frame Number",
+									desc = L["Runtime_CachedTime_Desc"] or "Использует одно значение GetTime() на кадр для внутренних горячих путей.",
+									order = 5, width = "full",
+									get = function() return SarychUI.db.profile.system.runtime.cachedTimeEnabled ~= false end,
+									set = function(_, value) SarychUI.db.profile.system.runtime.cachedTimeEnabled = value and true or false end,
 								},
 							},
 						},
-						compatNote = {
-							type = "description",
-							name = "|cFFFFD700Пометка:|r " .. (L["WowOptimize_Compat_Desc"] or "Необязательный режим совместимости с wow_optimize.dll. При активном режиме SarychUI не дублирует GC/combat log fix и смягчает тяжёлые Lua-сканы nameplates и chat bubbles."),
+						diagnostics = {
+							type = "group",
+							name = L["Runtime_Diagnostics"] or "Диагностика",
 							order = 4,
-							width = "full",
+							inline = true,
+							args = {
+								help = {
+									type = "description",
+									name = L["Runtime_Diagnostics_Desc"] or "Замеры запускаются вручную и не создают постоянной нагрузки. Команды: /sui perfoptions fps | events | memory | onupdate | runtime",
+									order = 1, width = "full",
+								},
+								runtimeReport = {
+									type = "execute", name = L["Runtime_Diag_Summary"] or "Сводка Runtime", order = 2,
+									func = function() if SarychUI.Runtime then SarychUI.Runtime:PrintDiagnostics() end end,
+								},
+								fps = {
+									type = "execute", name = L["Runtime_Diag_FPS"] or "FPS / frametime (10 сек)", order = 3,
+									func = function() if SarychUI.Runtime then SarychUI.Runtime:StartFPSProfile(10) end end,
+								},
+								events = {
+									type = "execute", name = L["Runtime_Diag_Events"] or "Частота событий (10 сек)", order = 4,
+									func = function() if SarychUI.Runtime then SarychUI.Runtime:StartEventProfile(10) end end,
+								},
+								memory = {
+									type = "execute", name = L["Runtime_Diag_Memory"] or "Рост памяти аддонов (30 сек)", order = 5,
+									func = function() if SarychUI.Runtime then SarychUI.Runtime:StartMemoryProfile(30) end end,
+								},
+								onUpdate = {
+									type = "execute", name = L["Runtime_Diag_OnUpdate"] or "Список OnUpdate", order = 6,
+									func = function() if SarychUI.Runtime then SarychUI.Runtime:PrintOnUpdateList(30) end end,
+								},
+								dllProbe = {
+									type = "execute", name = L["Runtime_Diag_DLL"] or "Диагностика DLL", order = 7,
+									desc = L["Runtime_Diag_DLL_Desc"] or "Выводит сырые маркеры и ответы API wow_optimize.dll в чат.",
+									func = function() if SarychUI.Runtime then SarychUI.Runtime:PrintDLLProbe() end end,
+								},
+							},
 						},
 					},
 				},
@@ -1855,7 +1972,7 @@ function SarychUI:BuildOptionsTable()
 		if self.CustomizeProfileOptions then
 			self:CustomizeProfileOptions(profileOpts)
 		end
-		profileOpts.name = "Профили"
+		profileOpts.name = self:T("Профили")
 		profileOpts.order = 3
 		if options.args.general and options.args.general.args then
 			options.args.general.args.profiles = profileOpts
@@ -1870,7 +1987,7 @@ function SarychUI:BuildOptionsTable()
 end
 
 -- Build the options tree and hidden window after login so the first /sui
--- is already laid out. Not a delayed show — Open() still works if this
+-- is already laid out. Not a delayed show - Open() still works if this
 -- has not finished yet.
 function SarychUI:WarmupOptionsUI()
 	if self._optionsWarmed then
@@ -1983,7 +2100,7 @@ function SarychUI:NotifySarychUIOptionsChange()
 		self:DebugCombatOptions("NotifySarychUIOptionsChange deferred")
 		return
 	end
-	-- Never rebuild options while a slider/edit is busy — that kills drag capture
+	-- Never rebuild options while a slider/edit is busy - that kills drag capture
 	-- and steals edit focus mid-typing (e.g. "-514").
 	if self._optionsSliderDragging or self._optionsTextEditing
 		or (SarychUI.IsOptionsInteractBusy and SarychUI.IsOptionsInteractBusy()) then
@@ -2105,7 +2222,7 @@ function SarychUI:_AddAddOnOptionsImpl()
 		options.args.addons.args.ported.args = {}
 	end
 
-	-- Add ported addons to "Список" tab (sorted by visible name A→Я,
+	-- Add ported addons to "Список" tab (sorted by visible name A->Я,
 	-- except grouped addons which the two-pane list pins under a header).
 	local addonEntries = {}
 	local ADDON_LIST_HIDDEN = {
@@ -2114,15 +2231,15 @@ function SarychUI:_AddAddOnOptionsImpl()
 		SarychUI_Bags = true,
 	}
 	local ADDON_LIST_GROUPS = {
-		Mapster = { group = "Карты", rank = 1, order = 1 },
-		["!Astrolabe"] = { group = "Карты", rank = 1, order = 2 },
-		WDM = { group = "Карты", rank = 1, order = 3 },
-		Cromulent = { group = "Карты", rank = 1, order = 4 },
 		["!!!ClassicAPI"] = { group = "Системные", rank = 2, order = 1 },
 		AddonList = { group = "Системные", rank = 2, order = 2 },
 		autolos = { group = "Системные", rank = 2, order = 3 },
 		CL_Fix = { group = "Системные", rank = 2, order = 4 },
 		FlashWindow = { group = "Системные", rank = 2, order = 5 },
+		CompactRaidFrame = { group = "Рейдовые фреймы", rank = 3, order = 1 },
+		CompactRaidFrame_HealEx = { group = "Рейдовые фреймы", rank = 3, order = 2 },
+		EnhancedRaidFrames = { group = "Рейдовые фреймы", rank = 3, order = 3 },
+		OmniCD = { group = "Рейдовые фреймы", rank = 3, order = 4 },
 	}
 
 	local function GetAddOnDisplayName(optionGroup, key)
@@ -2134,7 +2251,7 @@ function SarychUI:_AddAddOnOptionsImpl()
 
 	if self.addons then
 		for name, addon in pairs(self.addons) do
-			-- Bags/arena engines stay in Сумки / Арена, not in Аддоны → Список.
+			-- Bags/arena engines stay in Сумки / Арена, not in Аддоны -> Список.
 			if not ADDON_LIST_HIDDEN[name] then
 			addonCount = addonCount + 1
 			local optionGroup
@@ -2647,9 +2764,9 @@ local function GetActionBarDiffLine()
 		return nil
 	end
 	local function bar(v)
-		return (v == 1) and "Вкл" or "Выкл"
+		return (v == 1) and SarychUI:T("Вкл") or SarychUI:T("Выкл")
 	end
-	return string.format(
+	return SarychUI:T(
 		"Панели команд 1-4: %s/%s/%s/%s -> %s/%s/%s/%s",
 		bar(cur1), bar(cur2), bar(cur3), bar(cur4),
 		bar(want1), bar(want2), bar(want3), bar(want4)
@@ -2671,7 +2788,7 @@ function SarychUI:GetQuickSettingsTooltipLines()
 		if ok and current ~= nil and CVarDiffers(cvar, desired) then
 			diffs[#diffs + 1] = string.format(
 				"%s: %s -> %s",
-				label,
+				self:T(label),
 				FormatQuickValue(current),
 				FormatQuickValue(desired)
 			)
@@ -2684,23 +2801,23 @@ function SarychUI:GetQuickSettingsTooltipLines()
 	end
 
 	if #diffs == 0 then
-		lines[#lines + 1] = { "Быстрые настройки", ORANGE[1], ORANGE[2], ORANGE[3] }
-		lines[#lines + 1] = { "Всё уже применено — менять нечего.", GREEN[1], GREEN[2], GREEN[3] }
+		lines[#lines + 1] = { self:T("Быстрые настройки"), ORANGE[1], ORANGE[2], ORANGE[3] }
+		lines[#lines + 1] = { self:T("Всё уже применено - менять нечего."), GREEN[1], GREEN[2], GREEN[3] }
 		return lines
 	end
 
-	lines[#lines + 1] = { "Будут изменены:", ORANGE[1], ORANGE[2], ORANGE[3] }
+	lines[#lines + 1] = { self:T("Будут изменены:"), ORANGE[1], ORANGE[2], ORANGE[3] }
 	local maxShow = 14
 	for i = 1, math.min(#diffs, maxShow) do
 		lines[#lines + 1] = { diffs[i], ORANGE[1], ORANGE[2], ORANGE[3] }
 	end
 	if #diffs > maxShow then
 		lines[#lines + 1] = {
-			string.format("...и ещё %d", #diffs - maxShow),
+			self:T("...и ещё %d", #diffs - maxShow),
 			ORANGE_DIM[1], ORANGE_DIM[2], ORANGE_DIM[3]
 		}
 	end
-	lines[#lines + 1] = { "Также применятся настройки чата.", ORANGE_DIM[1], ORANGE_DIM[2], ORANGE_DIM[3] }
+	lines[#lines + 1] = { self:T("Также применятся настройки чата."), ORANGE_DIM[1], ORANGE_DIM[2], ORANGE_DIM[3] }
 	return lines
 end
 
@@ -2719,7 +2836,7 @@ function SarychUI:GetQuickGraphicsTooltipLines()
 		if ok and current ~= nil and CVarDiffers(cvar, desired) then
 			diffs[#diffs + 1] = string.format(
 				"%s: %s -> %s",
-				label,
+				self:T(label),
 				FormatQuickValue(current),
 				FormatQuickValue(desired)
 			)
@@ -2727,27 +2844,27 @@ function SarychUI:GetQuickGraphicsTooltipLines()
 	end
 
 	if #diffs == 0 then
-		lines[#lines + 1] = { "Рекомендованная графика", ORANGE[1], ORANGE[2], ORANGE[3] }
-		lines[#lines + 1] = { "Уже совпадает с целевыми значениями.", GREEN[1], GREEN[2], GREEN[3] }
+		lines[#lines + 1] = { self:T("Рекомендованная графика"), ORANGE[1], ORANGE[2], ORANGE[3] }
+		lines[#lines + 1] = { self:T("Уже совпадает с целевыми значениями."), GREEN[1], GREEN[2], GREEN[3] }
 		return lines
 	end
 
-	lines[#lines + 1] = { "Будут изменены:", ORANGE[1], ORANGE[2], ORANGE[3] }
+	lines[#lines + 1] = { self:T("Будут изменены:"), ORANGE[1], ORANGE[2], ORANGE[3] }
 	local maxShow = 14
 	for i = 1, math.min(#diffs, maxShow) do
 		lines[#lines + 1] = { diffs[i], ORANGE[1], ORANGE[2], ORANGE[3] }
 	end
 	if #diffs > maxShow then
 		lines[#lines + 1] = {
-			string.format("...и ещё %d", #diffs - maxShow),
+			self:T("...и ещё %d", #diffs - maxShow),
 			ORANGE_DIM[1], ORANGE_DIM[2], ORANGE_DIM[3]
 		}
 	end
 	lines[#lines + 1] = {
-		string.format("Цель: %s @ %s Hz (или макс. монитора).", resolved.gxResolution, resolved.gxRefresh),
+		self:T("Цель: %s @ %s Hz (или макс. монитора).", resolved.gxResolution, resolved.gxRefresh),
 		ORANGE_DIM[1], ORANGE_DIM[2], ORANGE_DIM[3]
 	}
-	lines[#lines + 1] = { "Нужен полный перезапуск игры.", ORANGE_DIM[1], ORANGE_DIM[2], ORANGE_DIM[3] }
+	lines[#lines + 1] = { self:T("Нужен полный перезапуск игры."), ORANGE_DIM[1], ORANGE_DIM[2], ORANGE_DIM[3] }
 	return lines
 end
 
@@ -2777,11 +2894,16 @@ function SarychUI:ApplyQuickSettings()
 		MoveViewOutStart(50000)
 	end
 
+	-- Reset Blizzard chat windows first, then apply the SarychUI chat layout.
+	if FCF_ResetChatWindows then
+		FCF_ResetChatWindows()
+	end
+
 	-- Apply chat settings
 	self:ApplyQuickChatSettings()
 
 	-- Notify user
-	print("|cffffd200SarychUI:|r Быстрые настройки применены.")
+	print(self:T("|cffffd200SarychUI:|r Быстрые настройки применены."))
 
 	-- Show reload confirmation popup
 	if SarychUI.ShowReloadPopup then
@@ -2796,7 +2918,7 @@ function SarychUI:ApplyQuickGraphicsSettings()
 		local cvar = entry[2]
 		SafeSetCVar(cvar, GetGraphicsCVarDesired(cvar, resolved))
 	end
-	print(string.format(
+	print(self:T(
 		"|cffffd200SarychUI:|r Графика применена (%s @ %s Hz). Нужен полный перезапуск игры.",
 		tostring(resolved.gxResolution),
 		tostring(resolved.gxRefresh)

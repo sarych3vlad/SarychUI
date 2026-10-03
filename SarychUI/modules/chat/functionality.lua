@@ -205,7 +205,7 @@ local function ExtractChatBracketTag(fmt)
 end
 
 -- Empty / missing = keep Blizzard channel tag (do NOT invent [P]/[G]).
--- Never replace with "": that strips |h display text → raw "|Hchannel:PARTY".
+-- Never replace with "": that strips |h display text -> raw "|Hchannel:PARTY".
 local function ResolveChannelAbbrev(key)
     local db = SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules and SarychUI.db.profile.modules.chat
     local v = db and db[key]
@@ -314,7 +314,7 @@ local function RefreshChannelShorteningCache()
     for _, def in ipairs(staticDefs) do
         local rep = ResolveChannelAbbrev(def.key)
         if not rep then
-            -- leave Blizzard tag ([Группа] / [Party], …)
+            -- leave Blizzard tag ([Группа] / [Party], ...)
         else
             local tag
             for _, gname in ipairs(def.globals) do
@@ -627,7 +627,7 @@ end)
         tryScroll()
     end
 
-    -- When scroll range changes after SetText, Blizzard resets to top — snap back down while opening.
+    -- When scroll range changes after SetText, Blizzard resets to top - snap back down while opening.
     scroll:HookScript("OnScrollRangeChanged", function(self)
         if frame._suiSnapToBottom and frame:IsShown() then
             SnapScrollToBottom(self)
@@ -1052,6 +1052,13 @@ local function ClearTranslitSlashCommands()
     SLASH_OTKAZALIAS1 = nil
 end
 
+local function IsTranslitAliasesOn()
+    if not IsToolsModuleEnabled() then
+        return false
+    end
+    return (tonumber(ToolsSetting("translitAliasesEnabled", 1)) or 0) == 1
+end
+
 -- Функция применения транслит-алиасов
 local function ApplyTranslitAliases(forceEnabled)
     if not IsToolsModuleEnabled() then
@@ -1071,8 +1078,7 @@ local function ApplyTranslitAliases(forceEnabled)
         -- /reload alias
         SLASH_RELOADALIAS1 = "/кудщфв"
         SlashCmdList["RELOADALIAS"] = function()
-            if not IsToolsModuleEnabled() then return end
-            if (tonumber(ToolsSetting("translitAliasesEnabled", 1)) or 0) ~= 1 then return end
+            if not IsTranslitAliasesOn() then return end
             ReloadUI()
         end
         if hash_SlashCmdList then hash_SlashCmdList["/кудщфв"] = "RELOADALIAS" end
@@ -1080,8 +1086,7 @@ local function ApplyTranslitAliases(forceEnabled)
         -- /fstack alias
         SLASH_FSTACKALIAS1 = "/аыефсл"
         SlashCmdList["FSTACKALIAS"] = function()
-            if not IsToolsModuleEnabled() then return end
-            if (tonumber(ToolsSetting("translitAliasesEnabled", 1)) or 0) ~= 1 then return end
+            if not IsTranslitAliasesOn() then return end
             local fn = SlashCmdList and SlashCmdList["FRAMESTACK"]
             if type(fn) == "function" then fn() end
         end
@@ -1089,17 +1094,12 @@ local function ApplyTranslitAliases(forceEnabled)
 
         -- /отказ alias via translit "/jnrfp"
         SLASH_OTKAZALIAS1 = "/jnrfp"
-        SlashCmdList["OTKAZALIAS"] = function()
-            if not IsToolsModuleEnabled() then return end
-            if (tonumber(ToolsSetting("translitAliasesEnabled", 1)) or 0) ~= 1 then return end
-            local editBox = (ChatEdit_ChooseBoxForSend and ChatEdit_ChooseBoxForSend()) or _G["ChatFrame1EditBox"]
+        SlashCmdList["OTKAZALIAS"] = function(msg)
+            if not IsTranslitAliasesOn() then return end
+            local extra = (type(msg) == "string" and msg ~= "") and (" " .. msg) or ""
+            local editBox = (ChatEdit_ChooseBoxForSend and ChatEdit_ChooseBoxForSend()) or _G.ChatFrame1EditBox
             if not editBox then return end
-            if ChatEdit_ActivateChat then
-                ChatEdit_ActivateChat(editBox)
-            else
-                editBox:Show()
-            end
-            editBox:SetText("/отказ")
+            editBox:SetText("/отказ" .. extra)
             if ChatEdit_SendText then
                 ChatEdit_SendText(editBox, 0)
             end
@@ -1122,7 +1122,7 @@ local function ClearClearChatSlashCommands()
     SLASH_SARYCHUICLEARCHAT3 = nil
 end
 
--- Команды /clear, /claer и «раскладочный» /сдуфк — очистка всех стандартных окон чата
+-- Команды /clear, /claer и «раскладочный» /сдуфк - очистка всех стандартных окон чата
 local function ApplyClearChatSlashCommands(forceEnabled)
     if not IsToolsModuleEnabled() then
         ClearClearChatSlashCommands()

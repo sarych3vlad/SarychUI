@@ -1,94 +1,63 @@
-NUM_WORLD_RAID_MARKERS = 8;
 NUM_RAID_ICONS = 8;
-
-WORLD_RAID_MARKER_ORDER = {};
-WORLD_RAID_MARKER_ORDER[1] = 8;
-WORLD_RAID_MARKER_ORDER[2] = 4;
-WORLD_RAID_MARKER_ORDER[3] = 1;
-WORLD_RAID_MARKER_ORDER[4] = 7;
-WORLD_RAID_MARKER_ORDER[5] = 2;
-WORLD_RAID_MARKER_ORDER[6] = 3;
-WORLD_RAID_MARKER_ORDER[7] = 6;
-WORLD_RAID_MARKER_ORDER[8] = 5;
 
 MINIMUM_RAID_CONTAINER_HEIGHT = 72;
 local RESIZE_HORIZONTAL_OUTSETS = 4;
 local RESIZE_VERTICAL_OUTSETS = 7;
 
--- Fallback for UnitGroupRoles if not loaded yet
-if not UnitGroupRoles then
-    function UnitGroupRoles(unit)
-        -- Try to get role from UnitGroupRolesAssigned first
-        local isTank, isHealer, isDamage = UnitGroupRolesAssigned(unit);
-        if isTank then
-            return "TANK";
-        elseif isHealer then
-            return "HEALER";
-        elseif isDamage then
-            return "DAMAGER";
-        end
-        
-        -- Fallback to class-based role
-        local _, class = UnitClass(unit);
-        if class == "HUNTER" or class == "ROGUE" or class == "MAGE" or class == "WARLOCK" then
-            return "DAMAGER";
-        end
-        
-        -- Try LibGroupTalents if available
-        if LibStub then
-            local LibGT = LibStub:GetLibrary("LibGroupTalents-1.0", true);
-            if LibGT then
-                local role = LibGT:GetUnitRole(unit);
-                if role == "tank" then
-                    return "TANK";
-                elseif role == "healer" then
-                    return "HEALER";
-                elseif role == "melee" or role == "caster" then
-                    return "DAMAGER";
-                end
-            end
-        end
-        
-        return "NONE";
-    end
-end
+local UnitGroupRolesAssigned = C_UnitGroupRolesAssigned;
+local PLAYER_REGEN_ENABLED_AWAIT;
 
--- Function to check if addon is enabled
-local function IsEnabled()
-	if CompactRaidFrameEnabled == false then
-		return false;
-	end
-	if SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.addons and SarychUI.db.profile.addons.CompactRaidFrame then
-		return SarychUI.db.profile.addons.CompactRaidFrame.enabled == true;
-	end
-	return CompactRaidFrameEnabled == true;
+local function  CompactRaidFrameManager_Toggle_OnLoad(self)
+    local toggleButton = self.toggleButton;
+
+    toggleButton:SetAttribute("_onclick", [=[
+        local toggleButtonShown = self:GetAttribute("toggleButtonShown");
+        local displayFrame = self:GetFrameRef("displayFrame");
+        local X;
+
+        if ( toggleButtonShown ) then
+            displayFrame:Hide();
+            X = -182;
+        else
+            displayFrame:Show();
+            X = -7;
+        end
+
+        self:GetParent():SetPoint("TOPLEFT", UIParent, "TOPLEFT", X, -140);
+        self:SetAttribute("toggleButtonShown", not toggleButtonShown);
+    ]=]);
+
+    toggleButton:SetFrameRef("displayFrame", self.displayFrame);
+    toggleButton:GetNormalTexture():SetDrawLayer("OVERLAY");
 end
 
 function CompactRaidFrameManager_OnLoad(self)
-	if not IsEnabled() then
-		self:Hide()
-		self._suiNeedsInit = true
-		return
-	end
-	if self._suiInitialized then
-		return
-	end
-	self._suiNeedsInit = nil
-	self._suiInitialized = true
+    if CompactRaidFrameEnabled == false then
+        self:Hide()
+        self._suiNeedsInit = true
+        return
+    end
+    if self._suiInitialized then
+        return
+    end
+    self._suiNeedsInit = nil
+    self._suiInitialized = true
     self.container = CompactRaidFrameContainer;
     self.container:SetParent(self);
 
     self:RegisterEvent("DISPLAY_SIZE_CHANGED");
     self:RegisterEvent("UI_SCALE_CHANGED");
-    self:RegisterEvent("PARTY_MEMBERS_CHANGED");
+    self:RegisterEvent("GROUP_ROSTER_UPDATE");
     self:RegisterEvent("UNIT_FLAGS");
     self:RegisterEvent("PLAYER_FLAGS_CHANGED");
     self:RegisterEvent("PLAYER_ENTERING_WORLD");
     self:RegisterEvent("PARTY_LEADER_CHANGED");
     self:RegisterEvent("RAID_TARGET_UPDATE");
     self:RegisterEvent("PLAYER_TARGET_CHANGED");
+    self:RegisterEvent("PLAYER_REGEN_ENABLED");
+    self:RegisterEvent("PLAYER_ROLES_ASSIGNED");
 
-    RegisterStateDriver(self, "visibility", "[group:party] show; [group:raid] show; [nogroup:party] hide");
+    RegisterStateDriver(self, "visibility", "[group]show;hide");
 
     self.containerResizeFrame:SetMinResize(self.container:GetWidth(), MINIMUM_RAID_CONTAINER_HEIGHT + RESIZE_VERTICAL_OUTSETS * 2 + 1);
     self.dynamicContainerPosition = true;
@@ -99,8 +68,10 @@ function CompactRaidFrameManager_OnLoad(self)
     CompactRaidFrameManager_ResizeFrame_Reanchor(self);
     CompactRaidFrameManager_AttachPartyFrames(self);
 
-    CompactRaidFrameManager_RegisterCallback(self);
     CompactRaidFrameManager_Collapse(self);
+
+    -- CompactRaidFrameManager_Toggle
+    CompactRaidFrameManager_Toggle_OnLoad(self)
 
     --Set up the options flow container
     FlowContainer_Initialize(self.displayFrame.optionsFlowContainer);
@@ -108,48 +79,45 @@ end
 
 local settings = { --[["Managed",]] "Locked", "SortMode", "KeepGroupsTogether", "DisplayPets", "DisplayMainTankAndAssist", "IsShown", "ShowBorders" };
 function CompactRaidFrameManager_OnEvent(self, event, ...)
-    if ( event ~= "RAID_TARGET_UPDATE" and InCombatLockdown() ) then
-        self:RegisterEvent("PLAYER_REGEN_ENABLED");
-        return;
-    end
-
     if ( event == "PLAYER_REGEN_ENABLED" ) then
-        CompactRaidFrameManager_UpdateShown(self);
-        CompactRaidFrameManager_UpdateDisplayCounts(self);
-        CompactRaidFrameManager_UpdateOptionsFlowContainer(self);
+        if ( PLAYER_REGEN_ENABLED_AWAIT ) then
+            PLAYER_REGEN_ENABLED_AWAIT = nil;
+            RaidOptionsFrame_UpdatePartyFrames();
+            CompactRaidFrameManager_OnEvent(self, "PLAYER_ENTERING_WORLD");
+        end
+    elseif ( event == "RAID_TARGET_UPDATE" or event == "PLAYER_TARGET_CHANGED" ) then
         CompactRaidFrameManager_UpdateRaidIcons();
-        self:UnregisterEvent("PLAYER_REGEN_ENABLED");
-    elseif ( event == "DISPLAY_SIZE_CHANGED" or event == "UI_SCALE_CHANGED" ) then
-        CompactRaidFrameManager_UpdateContainerBounds(self);
-    elseif ( event == "PARTY_MEMBERS_CHANGED" or event == "UPDATE_ACTIVE_BATTLEFIELD" ) then
-        RaidOptionsFrame_UpdatePartyFrames();
-        CompactRaidFrameManager_UpdateShown(self);
-        CompactRaidFrameManager_UpdateDisplayCounts(self);
-        CompactRaidFrameManager_UpdateLabel(self);
-        CompactRaidFrameManager_UpdateContainerLockVisibility(self);
-    elseif ( event == "UNIT_FLAGS" or event == "PLAYER_FLAGS_CHANGED" ) then
-        CompactRaidFrameManager_UpdateDisplayCounts(self);
-    elseif ( event == "PLAYER_ENTERING_WORLD" ) then
-        CompactRaidFrameManager_UpdateShown(self);
-        CompactRaidFrameManager_UpdateDisplayCounts(self);
-        CompactRaidFrameManager_UpdateOptionsFlowContainer(self);
-        CompactRaidFrameManager_UpdateRaidIcons();
-    elseif ( event == "PARTY_LEADER_CHANGED" ) then
-        CompactRaidFrameManager_UpdateOptionsFlowContainer(self);
-    elseif ( event == "RAID_TARGET_UPDATE" ) then
-        CompactRaidFrameManager_UpdateRaidIcons();
-    elseif ( event == "PLAYER_TARGET_CHANGED" ) then
-        CompactRaidFrameManager_UpdateRaidIcons();
+    else
+        if ( InCombatLockdown() ) then
+            PLAYER_REGEN_ENABLED_AWAIT = true;
+        elseif ( event == "DISPLAY_SIZE_CHANGED" or event == "UI_SCALE_CHANGED" ) then
+            CompactRaidFrameManager_UpdateContainerBounds(self);
+        elseif ( event == "GROUP_ROSTER_UPDATE" ) then -- or UPDATE_ACTIVE_BATTLEFIELD
+            RaidOptionsFrame_UpdatePartyFrames();
+            CompactRaidFrameManager_UpdateShown(self);
+            CompactRaidFrameManager_UpdateDisplayCounts(self);
+            CompactRaidFrameManager_UpdateLabel(self);
+            CompactRaidFrameManager_UpdateContainerLockVisibility(self);
+        elseif ( event == "UNIT_FLAGS" or event == "PLAYER_FLAGS_CHANGED" or event == "PLAYER_ROLES_ASSIGNED" ) then
+            CompactRaidFrameManager_UpdateDisplayCounts(self);
+        elseif ( event == "PLAYER_ENTERING_WORLD" ) then
+            CompactRaidFrameManager_UpdateShown(self);
+            CompactRaidFrameManager_UpdateDisplayCounts(self);
+            CompactRaidFrameManager_UpdateOptionsFlowContainer(self);
+            CompactRaidFrameManager_UpdateRaidIcons();
+        elseif ( event == "PARTY_LEADER_CHANGED" ) then
+            CompactRaidFrameManager_UpdateOptionsFlowContainer(self);
+        end
     end
 end
 
 function CompactRaidFrameManagerDisplayFrameProfileSelector_SetUp(self)
-    UIDropDownMenu_SetWidth(self, 165);
-    UIDropDownMenu_Initialize(self, CompactRaidFrameManagerDisplayFrameProfileSelector_Initialize);
+    C_UIDropDownMenu_SetWidth(self, 165);
+    C_UIDropDownMenu_Initialize(self, CompactRaidFrameManagerDisplayFrameProfileSelector_Initialize);
 end
 
 function CompactRaidFrameManagerDisplayFrameProfileSelector_Initialize()
-    local info = UIDropDownMenu_CreateInfo();
+    local info = C_UIDropDownMenu_CreateInfo();
 
     for i=1, GetNumRaidProfiles() do
         local name = GetRaidProfileName(i);
@@ -159,7 +127,7 @@ function CompactRaidFrameManagerDisplayFrameProfileSelector_Initialize()
         info.disabled  = UnitAffectingCombat("player");
         info.checked = GetActiveRaidProfile() == info.value;
         info.isRadio = true;
-        UIDropDownMenu_AddButton(info);
+        C_UIDropDownMenu_AddButton(info);
     end
 end
 
@@ -169,6 +137,9 @@ function CompactRaidFrameManagerDisplayFrameProfileSelector_OnClick(self)
 end
 
 function CompactRaidFrameManager_UpdateShown(self)
+    if ( not self or self._suiNeedsInit or not self.container ) then
+        return;
+    end
     if ( GetDisplayedAllyFrames() ) then
         self:Show();
     else
@@ -278,60 +249,14 @@ function CompactRaidFrameManager_UpdateOptionsFlowContainer(self)
 
     --Then, we update which specific buttons are enabled.
 
-    --Raid leaders and assistants and leaders of non-dungeon finder parties may initiate a role poll. and
-    if ( IsInGroup() and not HasLFGRestrictions() and (UnitIsGroupLeader("player") or UnitIsGroupAssistant("player")) ) then
-        self.displayFrame.leaderOptions.rolePollButton:Enable();
-        self.displayFrame.leaderOptions.rolePollButton:SetAlpha(1);
-    else
-        self.displayFrame.leaderOptions.rolePollButton:Disable();
-        self.displayFrame.leaderOptions.rolePollButton:SetAlpha(0.5);
-    end
-
     --Any sort of leader may initiate a ready check.
     if ( IsInGroup() and (UnitIsGroupLeader("player") or UnitIsGroupAssistant("player")) ) then
         self.displayFrame.leaderOptions.readyCheckButton:Enable();
         self.displayFrame.leaderOptions.readyCheckButton:SetAlpha(1);
-        self.displayFrame.leaderOptions.countdownButton:Enable(); 
-        self.displayFrame.leaderOptions.countdownButton:SetAlpha(1);
     else
         self.displayFrame.leaderOptions.readyCheckButton:Disable();
         self.displayFrame.leaderOptions.readyCheckButton:SetAlpha(0.5);
-        self.displayFrame.leaderOptions.countdownButton:Disable(); 
-        self.displayFrame.leaderOptions.countdownButton:SetAlpha(0.5);
     end
-end
-
-local function RaidWorldMarker_OnClick(self, arg1, arg2, checked)
-    if ( checked ) then
-        -- ClearRaidMarker(arg1);
-    else
-        -- PlaceRaidMarker(arg1);
-    end
-end
-
-local function ClearRaidWorldMarker_OnClick(self, arg1, arg2, checked)
-    -- ClearRaidMarker();
-end
-
-function CRFManager_RaidWorldMarkerDropDown_Update()
-    local info = UIDropDownMenu_CreateInfo();
-
-    info.isRadio = true;
-
-    for i=1, NUM_WORLD_RAID_MARKERS do
-        local index = WORLD_RAID_MARKER_ORDER[i];
-        info.text = _G["WORLD_MARKER"..index];
-        info.func = RaidWorldMarker_OnClick;
-        info.checked = IsRaidMarkerActive(index);
-        info.arg1 = index;
-        UIDropDownMenu_AddButton(info);
-    end
-
-    info.notCheckable = 1;
-    info.text = REMOVE_WORLD_MARKERS;
-    info.func = ClearRaidWorldMarker_OnClick;
-    info.arg1 = nil;	--Remove everything
-    UIDropDownMenu_AddButton(info);
 end
 
 function CompactRaidFrameManager_UpdateDisplayCounts(self)
@@ -411,7 +336,7 @@ function CompactRaidFrameManager_UpdateRaidIcons()
     local unit = "target";
     local disableAll = not CanBeRaidTarget(unit);
     for i=1, NUM_RAID_ICONS do
-        local button = _G["CompactRaidFrameManagerDisplayFrameRaidMarkersRaidMarker"..i];	--.... /cry
+        local button = _G["CompactRaidFrameManagerDisplayFrameRaidMarkersRaidMarker"..i];   --.... /cry
         if ( disableAll or button:GetID() == GetRaidTargetIndex(unit) ) then
             button:GetNormalTexture():SetDesaturated(true);
             button:SetAlpha(0.7);
@@ -468,7 +393,7 @@ function CompactRaidFrameManager_GetSettingBeforeLoad(settingName)
     end
 end
 
-do	--Enclosure to make sure people go through SetSetting
+do  --Enclosure to make sure people go through SetSetting
     local function CompactRaidFrameManager_SetManaged(value)
         local container = CompactRaidFrameManager.container;
     end
@@ -595,6 +520,9 @@ end
 
 function CompactRaidFrameManager_UpdateContainerVisibility()
     local manager = CompactRaidFrameManager;
+    if ( not manager or manager._suiNeedsInit or not manager.container ) then
+        return;
+    end
     if ( GetDisplayedAllyFrames() == "raid" and manager.container.enabled ) then
         manager.container:Show();
     else
@@ -765,7 +693,7 @@ end
 
 function CompactRaidFrameManager_ResizeFrame_LoadPosition(manager)
     local dynamic, topPoint, topOffset, bottomPoint, bottomOffset, leftPoint, leftOffset = GetRaidProfileSavedPosition(GetActiveRaidProfile());
-    if ( dynamic ) then	--We are automatically placed.
+    if ( dynamic ) then --We are automatically placed.
         manager.dynamicContainerPosition = true;
         CompactRaidFrameManager_UpdateContainerBounds(manager);
         return;
@@ -836,7 +764,7 @@ function CRFSort_Group(token1, token2)
         elseif ( token2 == "player" ) then
             return false;
         else
-            return token1 < token2;	--String compare is OK since we don't go above 1 digit for party.
+            return token1 < token2; --String compare is OK since we don't go above 1 digit for party.
         end
     end
 end
@@ -852,8 +780,8 @@ function CRFSort_Role(token1, token2)
         role2 = select(10, GetRaidRosterInfo(id2));
     end
 
-    role1 = role1 or UnitGroupRoles(token1);
-    role2 = role2 or UnitGroupRoles(token2);
+    role1 = role1 or UnitGroupRolesAssigned(token1);
+    role2 = role2 or UnitGroupRolesAssigned(token2);
 
     local value1, value2 = roleValues[role1], roleValues[role2];
     if ( value1 ~= value2 ) then
@@ -910,15 +838,15 @@ function CRF_GetFilterGroup(group)
 end
 
 function CRFFlowFilterFunc(token)
-    if ( not UnitExists(token) ) then
+    if ( token ~= "player" and not UnitExists(token) ) then
         return false;
     end
 
-    if ( not IsInRaid() ) then	--We don't filter unless we're in a raid.
+    if ( not IsInRaid() ) then  --We don't filter unless we're in a raid.
         return true;
     end
 
-    local role = UnitGroupRoles(token);
+    local role = UnitGroupRolesAssigned(token);
     if ( not filterOptions["displayRole"..role] ) then
         return false;
     end
@@ -932,7 +860,7 @@ function CRFFlowFilterFunc(token)
         end
 
         local showingMTandMA = CompactRaidFrameManager_GetSetting("DisplayMainTankAndAssist");
-        if ( raidRole and (showingMTandMA and showingMTandMA ~= "0") ) then	--If this character is already displayed as a Main Tank/Main Assist, we don't want to show them a second time
+        if ( raidRole and (showingMTandMA and showingMTandMA ~= "0") ) then --If this character is already displayed as a Main Tank/Main Assist, we don't want to show them a second time
             return false;
         end
     end
@@ -945,16 +873,16 @@ function CRFGroupFilterFunc(groupNum)
 end
 --Counting functions
 RaidInfoCounts = {
-    aliveRoleTANK 		= 0,
-    totalRoleTANK		= 0,
-    aliveRoleHEALER		= 0,
-    totalRoleHEALER		= 0,
-    aliveRoleDAMAGER	= 0,
-    totalRoleDAMAGER	= 0,
-    aliveRoleNONE		= 0,
-    totalRoleNONE		= 0,
-    totalCount			= 0,
-    totalAlive			= 0,
+    aliveRoleTANK       = 0,
+    totalRoleTANK       = 0,
+    aliveRoleHEALER     = 0,
+    totalRoleHEALER     = 0,
+    aliveRoleDAMAGER    = 0,
+    totalRoleDAMAGER    = 0,
+    aliveRoleNONE       = 0,
+    totalRoleNONE       = 0,
+    totalCount          = 0,
+    totalAlive          = 0,
 }
 
 local function CRF_ResetCountedStuff()
@@ -968,16 +896,16 @@ function CRF_CountStuff()
     if ( IsInRaid() ) then
         for i=1, GetNumGroupMembers() do
             local name, rank, subgroup, level, class, fileName, zone, online, isDead, role, isML = GetRaidRosterInfo(i);  --Weird that we have 2 role return values, but... oh well
-            local assignedRole = UnitGroupRoles("raid"..i)
+            local assignedRole = UnitGroupRolesAssigned("raid"..i)
             if ( rank ) then
                 CRF_AddToCount(isDead, assignedRole);
             end
         end
     else
-        CRF_AddToCount(UnitIsDeadOrGhost("player"), UnitGroupRoles("player"));
+        CRF_AddToCount(UnitIsDeadOrGhost("player"), UnitGroupRolesAssigned("player"));
         for i=1, GetNumSubgroupMembers() do
             local unit = "party"..i;
-            CRF_AddToCount(UnitIsDeadOrGhost(unit), UnitGroupRoles(unit));
+            CRF_AddToCount(UnitIsDeadOrGhost(unit), UnitGroupRolesAssigned(unit));
         end
     end
 end

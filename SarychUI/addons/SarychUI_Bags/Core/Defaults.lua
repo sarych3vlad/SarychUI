@@ -74,6 +74,7 @@ P.bags = {
 	bankColumns = 10,
 	splitMode = "classic", -- classic | adibags
 	adiBagsCategories = true, -- visual category sections when splitMode is adibags
+	customCategories = {}, -- profile-owned SarychUI manual sections
 	consumableSplit = false,
 	ammoSplit = false,
 	questSplit = false,

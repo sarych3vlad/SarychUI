@@ -6,17 +6,17 @@ local ADDON_NAME = "CompactRaidFrame"
 local wrapper = {
 	name = ADDON_NAME,
 	title = "CompactRaidFrame",
-	author = "RomanSpector & Blizzard",
-	version = "1.2.2",
+	author = "Blizzard, Tsoukie",
+	version = "1.14",
 	loaded = true,
 	enabled = false,
 }
 
 local function GetRuntimeEnabledFromDB()
 	if SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.addons and SarychUI.db.profile.addons[ADDON_NAME] then
-		return SarychUI.db.profile.addons[ADDON_NAME].enabled == true
+		return SarychUI.db.profile.addons[ADDON_NAME].enabled ~= false
 	end
-	return false
+	return true
 end
 
 local function SetRuntimeEnabledInDB(enable)
@@ -67,7 +67,7 @@ end
 
 local function ShowDisableReloadPopup()
 	if SarychUI and SarychUI.ShowReloadPopup then
-		SarychUI:ShowReloadPopup("|cff1784d1CompactRaidFrame|r будет убран из «Интерфейс → Модификации» после перезагрузки (/reload).")
+		SarychUI:ShowReloadPopup("|cff1784d1CompactRaidFrame|r будет убран из «Интерфейс -> Модификации» после перезагрузки (/reload).")
 	elseif StaticPopup_Show then
 		StaticPopup_Show("SARYCHUI_RELOAD_UI")
 	end
@@ -157,7 +157,7 @@ end
 function SarychUI_OpenCompactRaidFrameConfig()
 	if not GetRuntimeEnabledFromDB() then
 		if SarychUI and SarychUI.Print then
-			SarychUI:Print("|cffff9900CompactRaidFrame:|r сначала включите аддон в |cff1784d1Настройки → Аддоны|r.")
+			SarychUI:Print("|cffff9900CompactRaidFrame:|r сначала включите аддон в |cff1784d1Настройки -> Аддоны|r.")
 		end
 		return false
 	end
@@ -193,7 +193,7 @@ function wrapper:GetOptions()
 			enabled = {
 				type = "toggle",
 				name = "Включить",
-				desc = "Включить/выключить CompactRaidFrame. При выключении нужен /reload, чтобы убрать пункт из «Интерфейс → Модификации».",
+				desc = "Включить/выключить CompactRaidFrame. При выключении нужен /reload, чтобы убрать пункт из «Интерфейс -> Модификации».",
 				order = 1,
 				get = function()
 					return wrapper:IsRuntimeEnabled()
@@ -204,8 +204,8 @@ function wrapper:GetOptions()
 			},
 			open = {
 				type = "execute",
-				name = "Открыть настройки CompactRaidFrame",
-				desc = "Открыть панель профилей рейдовых фреймов (Interface → AddOns)",
+				name = "Настройка",
+				desc = "Открыть панель профилей рейдовых фреймов",
 				order = 2,
 				disabled = function()
 					return not wrapper:IsRuntimeEnabled()
@@ -216,10 +216,10 @@ function wrapper:GetOptions()
 			},
 			description = {
 				type = "description",
-				name = "Портированные компактные рейдовые фреймы из retail версии WoW.\nВключение — сразу; выключение из списка Модификаций — после /reload.\n\nАвтор: "
-					.. (wrapper.author or "RomanSpector & Blizzard")
+				name = "Компактные рейдовые фреймы (Classic Raid Frames).\nВключение - сразу; выключение из списка Модификаций - после /reload.\n\nАвтор: "
+					.. (wrapper.author or "Blizzard, Tsoukie")
 					.. "\nВерсия: "
-					.. (wrapper.version or "1.2.2"),
+					.. (wrapper.version or "1.14"),
 				order = 3,
 				width = "full",
 			},

@@ -1,4 +1,4 @@
--- SarychUI Minimap — live options preview.
+-- SarychUI Minimap - live options preview.
 -- Layout mirrors Blizzard 3.3.5 Minimap.xml / GameTime.xml exactly.
 
 local CreateFrame = CreateFrame
@@ -9,6 +9,12 @@ local GetTime = GetTime
 local floor = math.floor
 
 SarychUI = SarychUI or {}
+
+local function Tr(s)
+	if type(s) ~= "string" or s == "" then return s end
+	if SarychUI.T then return SarychUI:T(s) end
+	return s
+end
 
 local function ApplyPanelBg(host)
 	local T = SarychUI.OptionsTheme
@@ -158,7 +164,7 @@ function Preview:Create(parent)
 	cluster:SetSize(CLUSTER_W, CLUSTER_H)
 	cluster:SetPoint("CENTER", stage, "CENTER", -6, 6)
 
-	-- MinimapBorderTop: 192x32 TOPRIGHT, TexCoords 0.25–1 / 0–0.125
+	-- MinimapBorderTop: 192x32 TOPRIGHT, TexCoords 0.25-1 / 0-0.125
 	local borderTop = cluster:CreateTexture(nil, "ARTWORK")
 	borderTop:SetSize(192, 32)
 	borderTop:SetPoint("TOPRIGHT", cluster, "TOPRIGHT", 0, 0)
@@ -173,7 +179,7 @@ function Preview:Create(parent)
 	local zoneFs = zoneBtn:CreateFontString(nil, "BACKGROUND", "GameFontNormal")
 	zoneFs:SetSize(150, 12)
 	zoneFs:SetPoint("CENTER", zoneBtn, "TOP", 0, -5)
-	zoneFs:SetText("Штормград")
+	zoneFs:SetText(Tr("Штормград"))
 	zoneFs:SetTextColor(1, 0.82, 0)
 	zoneFs:SetJustifyH("CENTER")
 

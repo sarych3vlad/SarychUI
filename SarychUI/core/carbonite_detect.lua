@@ -45,12 +45,15 @@ function SarychUI:EnsureExternalCarboniteLoaded()
 end
 
 function SarychUI:SanitizeMapType(mapType)
-	mapType = mapType or "mapster"
-	if mapType == "carbonite" and not self:IsExternalCarboniteAvailable() then
-		return "mapster"
+	mapType = mapType or "sarychui"
+	if mapType == "mapster" then
+		mapType = "sarychui"
 	end
-	if mapType ~= "classic" and mapType ~= "mapster" and mapType ~= "carbonite" then
-		return "mapster"
+	if mapType == "carbonite" and not self:IsExternalCarboniteAvailable() then
+		return "sarychui"
+	end
+	if mapType ~= "classic" and mapType ~= "sarychui" and mapType ~= "carbonite" then
+		return "sarychui"
 	end
 	return mapType
 end

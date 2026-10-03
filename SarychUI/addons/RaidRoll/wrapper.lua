@@ -64,7 +64,7 @@ end
 
 local function ShowDisableReloadPopup()
 	if SarychUI and SarychUI.ShowReloadPopup then
-		SarychUI:ShowReloadPopup("|cff1784d1RaidRoll|r будет убран из «Интерфейс → Модификации» после перезагрузки (/reload).")
+		SarychUI:ShowReloadPopup("|cff1784d1RaidRoll|r будет убран из «Интерфейс -> Модификации» после перезагрузки (/reload).")
 	elseif StaticPopup_Show then
 		StaticPopup_Show("SARYCHUI_RELOAD_UI")
 	end
@@ -121,7 +121,7 @@ function wrapper:GetOptions()
 			enabled = {
 				type = "toggle",
 				name = "Включить",
-				desc = "Включить/выключить RaidRoll (включая EPGP и Loot Tracker). При выключении нужен /reload, чтобы убрать пункт из «Интерфейс → Модификации».",
+				desc = "Включить/выключить RaidRoll (включая EPGP и Loot Tracker). При выключении нужен /reload, чтобы убрать пункт из «Интерфейс -> Модификации».",
 				order = 1,
 				get = function()
 					return wrapper:IsRuntimeEnabled()
@@ -133,7 +133,7 @@ function wrapper:GetOptions()
 			skinStyle = {
 				type = "select",
 				name = "Стиль окна",
-				desc = "Внешний вид RaidRoll. ElvUI — плоский скин; SarychUI — текстуры как у окна настроек SarychUI. Требуется /reload.",
+				desc = "Внешний вид RaidRoll. ElvUI - плоский скин; SarychUI - текстуры как у окна настроек SarychUI. Требуется /reload.",
 				order = 2,
 				values = {
 					ElvUI = "ElvUI",
@@ -153,7 +153,7 @@ function wrapper:GetOptions()
 			},
 			description = {
 				type = "description",
-				name = "Рейд-роллы, EPGP и окно лута (RaidRoll + RaidRoll_EPGP + RaidRoll_LootTracker).\nВключение — сразу; выключение из списка Модификаций — после /reload.\n\nАвтор: "
+				name = "Рейд-роллы, EPGP и окно лута (RaidRoll + RaidRoll_EPGP + RaidRoll_LootTracker).\nВключение - сразу; выключение из списка Модификаций - после /reload.\n\nАвтор: "
 					.. (wrapper.author or "Musou")
 					.. "\nВерсия: "
 					.. (wrapper.version or "1.0"),

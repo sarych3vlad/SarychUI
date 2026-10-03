@@ -256,22 +256,26 @@ end
 
 local grenColorToClass = {}
 for class, color in pairs(RAID_CLASS_COLORS) do
-	grenColorToClass[color.g] = class
+	grenColorToClass[floor(color.g * 100 + 0.5) / 100] = class
 end
 
 function NP:UnitClass(frame, unitType)
-	if unitType == "FRIENDLY_PLAYER" then
-		if frame.unit then
-			local _, class = UnitClass(frame.unit)
-			if class then
-				return class
-			end
-		else
-			return NP:GetUnitClassByGUID(frame, frame.guid)
+	if unitType ~= "FRIENDLY_PLAYER" and unitType ~= "ENEMY_PLAYER" then
+		return
+	end
+	if frame.unit and UnitExists(frame.unit) then
+		local _, class = UnitClass(frame.unit)
+		if class then
+			return class
 		end
-	elseif unitType == "ENEMY_PLAYER" then
+	end
+	local guidClass = NP:GetUnitClassByGUID(frame, frame.guid)
+	if guidClass then
+		return guidClass
+	end
+	if unitType == "ENEMY_PLAYER" and frame.oldHealthBar then
 		local _, g = frame.oldHealthBar:GetStatusBarColor()
-		return grenColorToClass[floor(g*100 + 0.5) / 100]
+		return grenColorToClass[floor(g * 100 + 0.5) / 100]
 	end
 end
 
@@ -328,15 +332,17 @@ function NP:GetUnitTypeFromUnit(unit)
 	local reaction = UnitReaction("player", unit)
 	local isPlayer = UnitIsPlayer(unit)
 
-	if isPlayer and UnitIsFriend("player", unit) and reaction and reaction >= 5 then
-		return "FRIENDLY_PLAYER"
-	elseif not isPlayer and (reaction and reaction >= 5) or UnitFactionGroup(unit) == "Neutral" then
-		return "FRIENDLY_NPC"
-	elseif not isPlayer and (reaction and reaction <= 4) then
-		return "ENEMY_NPC"
-	else
+	if isPlayer then
+		if UnitIsFriend("player", unit) or (reaction and reaction >= 5) then
+			return "FRIENDLY_PLAYER"
+		end
 		return "ENEMY_PLAYER"
 	end
+
+	if reaction and reaction >= 5 then
+		return "FRIENDLY_NPC"
+	end
+	return "ENEMY_NPC"
 end
 
 function NP:GetGUIDByName(name, unitType)
@@ -344,6 +350,74 @@ function NP:GetGUIDByName(name, unitType)
 		if info.name == name and info.unitType == unitType then
 			return guid
 		end
+	end
+end
+
+function NP:GetKnownPlayerGUID(name)
+	if not name or not LibStub then return nil end
+	local lib = LibStub("LibAuraInfo-1.0", true)
+	if not lib or not lib.GUIDData_name then return nil end
+	local shortName = match(name, "^(.-)-") or name
+	local found
+	for guid, knownName in pairs(lib.GUIDData_name) do
+		local flags = lib.GUIDData_flags and lib.GUIDData_flags[guid]
+		local knownShort = knownName and (match(knownName, "^(.-)-") or knownName)
+		if flags and bit and bit.band and bit.band(flags, 0x00000400) ~= 0 and knownShort == shortName then
+			if found and found ~= guid then return nil end
+			found = guid
+		end
+	end
+	return found
+end
+
+function NP:BindNameplateUnit(frame, unit)
+	if not frame or not unit or not UnitExists(unit) then return false end
+	local guid = UnitGUID(unit)
+	if not guid then return false end
+
+	frame.unit = unit
+	-- A nameplate token remains valid for the lifetime of the shown plate, just
+	-- like a group unit. Target/mouseover cleanup must not discard it.
+	frame.isGroupUnit = true
+	frame.guid = guid
+	if frame.UnitName and frame.UnitType then
+		self.GUIDList[guid] = {name = frame.UnitName, unitType = frame.UnitType}
+	end
+	return true
+end
+
+-- Combat log identity is available before LibNameplates learns a plate GUID via
+-- mouseover. Bind it only when the visible player name is unique, so equal names
+-- from different realms can never color or populate the wrong plate.
+function NP:LearnPlayerIdentity(guid, name, flags)
+	if not guid or not name or not flags or not bit or not bit.band
+		or bit.band(flags, 0x00000400) == 0 then
+		return
+	end
+	local shortName = match(name, "^(.-)-") or name
+	local known = self.GUIDList[guid]
+	if known and known.name == shortName then return end
+	local matched
+	for frame in pairs(self.VisiblePlates) do
+		if frame.UnitName == shortName
+			and (frame.UnitType == "FRIENDLY_PLAYER" or frame.UnitType == "ENEMY_PLAYER") then
+			if matched and matched ~= frame then
+				return
+			end
+			matched = frame
+		end
+	end
+	if not matched or (matched.guid and matched.guid ~= guid) then return end
+
+	matched.guid = guid
+	self.GUIDList[guid] = {name = matched.UnitName, unitType = matched.UnitType}
+	matched.UnitClass = self:GetUnitClassByGUID(matched, guid) or matched.UnitClass
+	self:Update_Name(matched, true)
+	self:Update_HealthColor(matched)
+
+	local root = matched:GetParent()
+	if root and _G.sarPlatesAuras_OnNonAwesomePlate then
+		_G.sarPlatesAuras_OnNonAwesomePlate(root)
 	end
 end
 
@@ -360,18 +434,37 @@ function NP:OnShow(isConfig, dontHideHighlight)
 	end
 
 	frame.UnitName = gsub(frame.oldName:GetText() or "", FSPAT, "")
-	local reaction, unitType = NP:GetUnitInfo(frame)
+
+	local unit = self.namePlateUnitToken
+	if not (unit and UnitExists(unit)) then
+		unit = nil
+	end
+
+	local reaction, unitType
+	if unit then
+		unitType = NP:GetUnitTypeFromUnit(unit)
+		reaction = UnitReaction("player", unit) or 3
+	else
+		reaction, unitType = NP:GetUnitInfo(frame)
+	end
+
 	local oldUnitType = frame.UnitType
 	frame.UnitType = unitType
 	frame.UnitReaction = reaction
 
-	local unit = NP:GetUnitByName(frame, unitType)
+	if not unit then
+		unit = NP:GetUnitByName(frame, unitType)
+	end
 	if unit then
-		frame.unit = unit
-		frame.isGroupUnit = true
-		frame.guid = UnitGUID(unit)
+		NP:BindNameplateUnit(frame, unit)
 	else
 		frame.guid = NP:GetGUIDByName(frame.UnitName, unitType)
+		if not frame.guid and (unitType == "FRIENDLY_PLAYER" or unitType == "ENEMY_PLAYER") then
+			frame.guid = NP:GetKnownPlayerGUID(frame.UnitName)
+			if frame.guid then
+				NP.GUIDList[frame.guid] = {name = frame.UnitName, unitType = unitType}
+			end
+		end
 	end
 
 	frame.UnitClass = NP:UnitClass(frame, unitType)
@@ -414,6 +507,17 @@ function NP:OnShow(isConfig, dontHideHighlight)
 	frame:Show()
 
 	NP:StyleFilterUpdate(frame, "NAME_PLATE_UNIT_ADDED")
+	-- Repaint the fallback aura layer after ElvUI has resolved its persistent
+	-- group/nameplate token. This removes the old dependency on mouseover order.
+	if _G.sarPlatesAuras_OnNonAwesomePlate then
+		_G.sarPlatesAuras_OnNonAwesomePlate(self)
+	end
+	-- Awesome may create aura frames before ElvUI finishes this OnShow, while the
+	-- fallback paints afterwards. Run one common final layout pass at the same
+	-- lifecycle point so responsive size and parentage settle identically.
+	if _G.sarPlatesAuras_UpdatePlateLayout then
+		_G.sarPlatesAuras_UpdatePlateLayout(self)
+	end
 	NP:ForEachVisiblePlate("ResetNameplateFrameLevel") --keep this after `StyleFilterUpdate`
 end
 
@@ -1081,6 +1185,34 @@ function NP:UPDATE_MOUSEOVER_UNIT()
 	end
 end
 
+function NP:NAME_PLATE_UNIT_ADDED(_, unit)
+	if not unit or not UnitExists(unit) or not C_NamePlate or not C_NamePlate.GetNamePlateForUnit then
+		return
+	end
+
+	local function BindVisiblePlate()
+		if not UnitExists(unit) then return false end
+		local root = C_NamePlate.GetNamePlateForUnit(unit)
+		local frame = root and root.UnitFrame
+		if not frame or not root:IsShown() or not frame.UnitType then return false end
+		if not self:BindNameplateUnit(frame, unit) then return false end
+
+		frame.UnitClass = self:UnitClass(frame, frame.UnitType)
+		self:Update_Name(frame, true)
+		self:Update_HealthColor(frame)
+		self:RegisterEvents(frame)
+		if _G.sarPlatesAuras_OnNonAwesomePlate then
+			_G.sarPlatesAuras_OnNonAwesomePlate(root)
+		end
+		return true
+	end
+
+	-- Depending on event order ElvUI may construct the UnitFrame one frame later.
+	if not BindVisiblePlate() and C_Timer and C_Timer.After then
+		C_Timer.After(0, BindVisiblePlate)
+	end
+end
+
 function NP:PLAYER_FOCUS_CHANGED()
 	local unitName
 
@@ -1361,6 +1493,9 @@ function NP:Initialize()
 	self:RegisterEvent("SPELL_UPDATE_COOLDOWN")
 	self:RegisterEvent("RAID_TARGET_UPDATE")
 	self:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
+	if C_NamePlate and C_NamePlate.GetNamePlateForUnit then
+		self:RegisterEvent("NAME_PLATE_UNIT_ADDED")
+	end
 	self:RegisterEvent("UNIT_COMBO_POINTS")
 	self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 	self:RegisterEvent("UNIT_HEALTH")

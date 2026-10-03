@@ -613,7 +613,7 @@ function TestMod.DisplayTestAuras(namePlate)
         local playerAuras = auras.player or {}
         local activeAuraCount = #playerAuras
         
-        -- ElvUI owns parenting/scale; classic keeps TOP→center BOTTOM.
+        -- ElvUI owns parenting/scale; classic keeps TOP->center BOTTOM.
         namePlate.playerFrame:ClearAllPoints()
         local layoutMod = SarychUI and SarychUI.PlatesAurasElvUI
         if layout.PLAYER_ALT_RIGHT and namePlate.mobilityContainer then

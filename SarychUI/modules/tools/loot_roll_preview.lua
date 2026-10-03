@@ -1,4 +1,4 @@
--- SarychUI Tools — live preview for loot roll count font styling.
+-- SarychUI Tools - live preview for loot roll count font styling.
 
 local CreateFrame = CreateFrame
 local pairs = pairs
@@ -16,7 +16,7 @@ local Preview = SarychUI.LootRollPreview
 
 local PREVIEW_H = 108
 local SAMPLE_ITEM_ID = 54590
--- Sharpened Twilight Scale (54590) — known WotLK icon path as cache-independent fallback.
+-- Sharpened Twilight Scale (54590) - known WotLK icon path as cache-independent fallback.
 local SAMPLE_ITEM_ICON = "Interface\\Icons\\INV_Misc_RubySanctum4"
 local ACTIVE_BORDER = { 1, 0.82, 0.2, 1 }
 local SAMPLE_COUNTS = {

@@ -1,4 +1,4 @@
--- SarychUI Auras — live options preview (Target / Focus / ToT + aura icons).
+-- SarychUI Auras - live options preview (Target / Focus / ToT + aura icons).
 
 local CreateFrame = CreateFrame
 local ipairs = ipairs
@@ -7,6 +7,12 @@ local tinsert = table.insert
 local tonumber = tonumber
 
 SarychUI = SarychUI or {}
+
+local function Tr(s)
+	if type(s) ~= "string" or s == "" then return s end
+	if SarychUI.T then return SarychUI:T(s) end
+	return s
+end
 
 local function ApplyPanelBg(host)
 	local T = SarychUI.OptionsTheme
@@ -82,12 +88,18 @@ SarychUI.AurasPreview = MakeBucket("AurasPreview")
 local Preview = SarychUI.AurasPreview
 
 -- Blizzard TargetFrame.lua aura layout constants (3.3.5).
--- LARGE_AURA_SIZE=21, SMALL_AURA_SIZE=17 — most target auras use small.
+-- LARGE_AURA_SIZE=21, SMALL_AURA_SIZE=17 - most target auras use small.
 local AURA_START_X = 5
 local AURA_START_Y = 32
 local AURA_OFFSET_Y = 3
 local AURA_SIZE = 17
-local AURA_GAP = 2
+local BLIZZ_SMALL = 17
+local BLIZZ_LARGE = 21
+local BLIZZ_ROW = 122
+local TOT_AURA_ROW_WIDTH = 101
+local NUM_TOT_AURA_ROWS = 2
+local BUFF_OFFSET_X = 3
+local DEBUFF_OFFSET_X = 4
 local TOT_DEBUFF_SIZE = 12
 
 local PORTRAITS = {
@@ -146,24 +158,60 @@ local function LiveFlag(key, fallback)
 end
 
 -- One aura icon (buff or debuff). Optional Stealable glow / debuff border.
+local LORTI_GLOSS = [[Interface\AddOns\SarychUI\addons\LortiUI\media\gloss]]
+
+local function ToolsDarkMode()
+	local mods = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules
+	local db = mods and mods.tools
+	if not (db and db.enabled and (db.enableDarkMode == 1 or db.enableDarkMode == true)) then
+		return false
+	end
+	return true, db.darkModeColor
+end
+
 local function MakeAuraIcon(parent, size, iconPath, opts)
 	opts = opts or {}
 	local f = CreateFrame("Frame", nil, parent)
 	f:SetSize(size, size)
+	f._selfAura = opts.selfAura and true or false
 
+	local dark, color = ToolsDarkMode()
 	local icon = f:CreateTexture(nil, "BACKGROUND")
-	icon:SetAllPoints()
+	if dark then
+		icon:SetPoint("TOPLEFT", 1, -1)
+		icon:SetPoint("BOTTOMRIGHT", -1, 1)
+		icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+	else
+		icon:SetAllPoints()
+		icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+	end
 	icon:SetTexture(iconPath)
-	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 
 	if opts.debuffColor then
 		local border = f:CreateTexture(nil, "OVERLAY")
-		border:SetTexture("Interface\\Buttons\\UI-Debuff-Overlays")
-		border:SetTexCoord(0.296875, 0.5703125, 0, 0.515625)
-		border:SetPoint("TOPLEFT", -1, 1)
-		border:SetPoint("BOTTOMRIGHT", 1, -1)
 		local c = opts.debuffColor
+		if dark then
+			border:SetTexture(LORTI_GLOSS)
+			border:SetTexCoord(0, 1, 0, 1)
+			border:SetAllPoints(f)
+		else
+			border:SetTexture("Interface\\Buttons\\UI-Debuff-Overlays")
+			border:SetTexCoord(0.296875, 0.5703125, 0, 0.515625)
+			border:SetPoint("TOPLEFT", -1, 1)
+			border:SetPoint("BOTTOMRIGHT", 1, -1)
+		end
 		border:SetVertexColor(c[1], c[2], c[3])
+		f.border = border
+	elseif dark then
+		local border = f:CreateTexture(nil, "OVERLAY")
+		border:SetTexture(LORTI_GLOSS)
+		border:SetTexCoord(0, 1, 0, 1)
+		border:SetAllPoints(f)
+		if color then
+			border:SetVertexColor(color.r or 0.37, color.g or 0.37, color.b or 0.37, color.a or 1)
+		else
+			border:SetVertexColor(0, 0, 0, 0.9)
+		end
 		f.border = border
 	end
 
@@ -176,48 +224,200 @@ local function MakeAuraIcon(parent, size, iconPath, opts)
 		f.stealable = steal
 	end
 
+	function f:ApplySize(newSize)
+		self:SetSize(newSize, newSize)
+		if self.stealable then
+			self.stealable:SetSize(newSize + 3, newSize + 3)
+		end
+	end
+
 	return f
 end
 
--- Hostile-target style: debuffs on top row, buffs below (with stealable samples).
-local function MakeTargetAuraBlock(parent)
-	local block = CreateFrame("Frame", nil, parent)
-	-- Two rows of SMALL_AURA_SIZE + gap; width for 5 icons.
-	local rowW = 5 * AURA_SIZE + 4 * AURA_GAP
-	local h = AURA_SIZE * 2 + AURA_OFFSET_Y
-	block:SetSize(rowW, h)
+local function AuraPreviewSizes()
+	local custom = LiveFlag("changeFrameAuraSize", false)
+	local small = custom and tonumber(Live("frameAuraOtherSize", 23)) or BLIZZ_SMALL
+	local large = custom and tonumber(Live("frameAuraSelfSize", 23)) or BLIZZ_LARGE
+	local maxRow = custom and tonumber(Live("frameAuraRowWidth", 122)) or BLIZZ_ROW
+	return small or BLIZZ_SMALL, large or BLIZZ_LARGE, maxRow or BLIZZ_ROW
+end
 
-	local debuffs = {}
+-- TargetFrame_UpdateBuffAnchor / TargetFrame_UpdateDebuffAnchor (3.3.5).
+-- Grow-up flips TOPLEFT/BOTTOMLEFT so new rows stack above the frame.
+local function AuraGrowPoints()
+	if LiveFlag("frameAurasGrowUp", false) then
+		return "BOTTOM", "TOP", tonumber(Live("frameAurasGrowUpY", -17)) or -17
+	end
+	return "TOP", "BOTTOM", AURA_START_Y
+end
+
+local function UpdateBuffAnchor(unitFrame, icons, index, numDebuffs, anchorIndex, size, offsetX, offsetY)
+	local buff = icons[index]
+	if not buff then return end
+	buff:ApplySize(size)
+	buff:ClearAllPoints()
+	local buffs = unitFrame.buffs
+	local debuffs = unitFrame.debuffs
+	local point, relativePoint, startY = AuraGrowPoints()
+	local stackY = LiveFlag("frameAurasGrowUp", false) and offsetY or -offsetY
+	local containerY = LiveFlag("frameAurasGrowUp", false) and AURA_OFFSET_Y or -AURA_OFFSET_Y
+
+	if index == 1 then
+		if unitFrame._friendly or numDebuffs == 0 then
+			buff:SetPoint(point .. "LEFT", unitFrame, relativePoint .. "LEFT", AURA_START_X, startY)
+		else
+			buff:SetPoint(point .. "LEFT", debuffs, relativePoint .. "LEFT", 0, stackY)
+		end
+		buffs:ClearAllPoints()
+		buffs:SetPoint(point .. "LEFT", buff, point .. "LEFT", 0, 0)
+		buffs:SetPoint(relativePoint .. "LEFT", buff, relativePoint .. "LEFT", 0, containerY)
+	elseif anchorIndex ~= (index - 1) then
+		buff:SetPoint(point .. "LEFT", icons[anchorIndex], relativePoint .. "LEFT", 0, stackY)
+		buffs:SetPoint(relativePoint .. "LEFT", buff, relativePoint .. "LEFT", 0, containerY)
+	else
+		buff:SetPoint(point .. "LEFT", icons[anchorIndex], point .. "RIGHT", offsetX, 0)
+	end
+end
+
+local function UpdateDebuffAnchor(unitFrame, icons, index, numBuffs, anchorIndex, size, offsetX, offsetY)
+	local buff = icons[index]
+	if not buff then return end
+	buff:ApplySize(size)
+	buff:ClearAllPoints()
+	local buffs = unitFrame.buffs
+	local debuffs = unitFrame.debuffs
+	local point, relativePoint, startY = AuraGrowPoints()
+	local stackY = LiveFlag("frameAurasGrowUp", false) and offsetY or -offsetY
+	local containerY = LiveFlag("frameAurasGrowUp", false) and AURA_OFFSET_Y or -AURA_OFFSET_Y
+
+	if index == 1 then
+		if unitFrame._friendly and numBuffs > 0 then
+			buff:SetPoint(point .. "LEFT", buffs, relativePoint .. "LEFT", 0, stackY)
+		else
+			buff:SetPoint(point .. "LEFT", unitFrame, relativePoint .. "LEFT", AURA_START_X, startY)
+		end
+		debuffs:ClearAllPoints()
+		debuffs:SetPoint(point .. "LEFT", buff, point .. "LEFT", 0, 0)
+		debuffs:SetPoint(relativePoint .. "LEFT", buff, relativePoint .. "LEFT", 0, containerY)
+	elseif anchorIndex ~= (index - 1) then
+		buff:SetPoint(point .. "LEFT", icons[anchorIndex], relativePoint .. "LEFT", 0, stackY)
+		debuffs:SetPoint(relativePoint .. "LEFT", buff, relativePoint .. "LEFT", 0, containerY)
+	else
+		buff:SetPoint(point .. "LEFT", icons[index - 1], point .. "RIGHT", offsetX, 0)
+	end
+end
+
+-- TargetFrame_UpdateAuraPositions: wrap by maxRowWidth, chain TOPLEFT.
+local function UpdateAuraPositions(unitFrame, icons, numOpposite, updateFunc, maxRowWidth, offsetX, small, large, fullRowWidth)
+	local offsetY = AURA_OFFSET_Y
+	local rowWidth = 0
+	local firstOnRow = 1
+	local n = #icons
+	for i = 1, n do
+		local size
+		if icons[i]._selfAura then
+			size = large
+			offsetY = AURA_OFFSET_Y + AURA_OFFSET_Y
+		else
+			size = small
+		end
+		if i == 1 then
+			rowWidth = size
+			unitFrame.auraRows = (unitFrame.auraRows or 0) + 1
+		else
+			rowWidth = rowWidth + size + offsetX
+		end
+		if rowWidth > maxRowWidth then
+			updateFunc(unitFrame, icons, i, numOpposite, firstOnRow, size, offsetX, offsetY)
+			rowWidth = size
+			unitFrame.auraRows = (unitFrame.auraRows or 0) + 1
+			firstOnRow = i
+			offsetY = AURA_OFFSET_Y
+			if unitFrame.auraRows > NUM_TOT_AURA_ROWS then
+				maxRowWidth = fullRowWidth
+			end
+		else
+			updateFunc(unitFrame, icons, i, numOpposite, i - 1, size, offsetX, offsetY)
+		end
+	end
+end
+
+local function LayoutUnitAuras(unitFrame, haveToT)
+	if not unitFrame or not unitFrame._buffIcons then return end
+	local small, large, rowW = AuraPreviewSizes()
+	local custom = LiveFlag("changeFrameAuraSize", false)
+	local growUp = LiveFlag("frameAurasGrowUp", false)
+	local totRow = (haveToT and not custom and not growUp) and TOT_AURA_ROW_WIDTH or rowW
+	unitFrame.auraRows = 0
+
+	local buffIcons = unitFrame._buffIcons
+	local debuffIcons = unitFrame._debuffIcons
+	local numBuffs = #buffIcons
+	local numDebuffs = #debuffIcons
+
+	-- Same order as TargetFrame_UpdateAuras: buffs, then debuffs.
+	UpdateAuraPositions(unitFrame, buffIcons, numDebuffs, UpdateBuffAnchor, totRow, BUFF_OFFSET_X, small, large, rowW)
+	local debuffRow = (haveToT and not custom and not growUp and (unitFrame.auraRows or 0) < NUM_TOT_AURA_ROWS) and TOT_AURA_ROW_WIDTH or rowW
+	UpdateAuraPositions(unitFrame, debuffIcons, numBuffs, UpdateDebuffAnchor, debuffRow, DEBUFF_OFFSET_X, small, large, rowW)
+end
+
+local function AttachAuras(unitFrame, friendly)
+	local lvl = (unitFrame:GetFrameLevel() or 1) + 4
+	local buffs = CreateFrame("Frame", nil, unitFrame)
+	buffs:SetSize(10, 10)
+	buffs:SetFrameLevel(lvl)
+	local debuffs = CreateFrame("Frame", nil, unitFrame)
+	debuffs:SetSize(10, 10)
+	debuffs:SetFrameLevel(lvl)
+	unitFrame.buffs = buffs
+	unitFrame.debuffs = debuffs
+	unitFrame._friendly = friendly and true or false
+
+	-- Hostile frame: debuffs on top. Own (large) auras sit together first,
+	-- then other (small) auras - same visual as player DoTs leading the row.
+	local buffIcons = {}
+	for i = 1, 6 do
+		buffIcons[i] = MakeAuraIcon(unitFrame, AURA_SIZE, BUFF_ICONS[((i - 1) % #BUFF_ICONS) + 1], {
+			stealable = (i == 2 or i == 4),
+			selfAura = false,
+		})
+		buffIcons[i]:SetFrameLevel(lvl)
+	end
+	local debuffIcons = {}
 	for i = 1, 4 do
-		local icon = MakeAuraIcon(block, AURA_SIZE, DEBUFF_ICONS[i], {
+		debuffIcons[i] = MakeAuraIcon(unitFrame, AURA_SIZE, DEBUFF_ICONS[((i - 1) % #DEBUFF_ICONS) + 1], {
 			debuffColor = DEBUFF_COLORS[((i - 1) % #DEBUFF_COLORS) + 1],
+			selfAura = (i <= 2),
 		})
-		if i == 1 then
-			icon:SetPoint("TOPLEFT", block, "TOPLEFT", 0, 0)
-		else
-			icon:SetPoint("TOPLEFT", debuffs[i - 1], "TOPRIGHT", AURA_GAP, 0)
-		end
-		debuffs[i] = icon
+		debuffIcons[i]:SetFrameLevel(lvl)
 	end
+	unitFrame._buffIcons = buffIcons
+	unitFrame._debuffIcons = debuffIcons
+end
 
-	local buffs = {}
-	for i = 1, 5 do
-		-- Icons 2 and 4 show Stealable (purge / dispel highlight).
-		local steal = (i == 2 or i == 4)
-		local icon = MakeAuraIcon(block, AURA_SIZE, BUFF_ICONS[((i - 1) % #BUFF_ICONS) + 1], {
-			stealable = steal,
-		})
-		if i == 1 then
-			icon:SetPoint("TOPLEFT", debuffs[1], "BOTTOMLEFT", 0, -AURA_OFFSET_Y)
-		else
-			icon:SetPoint("TOPLEFT", buffs[i - 1], "TOPRIGHT", AURA_GAP, 0)
+local function SetUnitAurasShown(unitFrame, shown)
+	if not unitFrame then return end
+	local function setList(list)
+		if not list then return end
+		for _, icon in ipairs(list) do
+			if shown then icon:Show() else icon:Hide() end
 		end
-		buffs[i] = icon
 	end
+	setList(unitFrame._buffIcons)
+	setList(unitFrame._debuffIcons)
+end
 
-	block._buffs = buffs
-	block._debuffs = debuffs
-	return block
+local function SetStealableVisible(unitFrame, show)
+	if not unitFrame or not unitFrame._buffIcons then return end
+	for _, icon in ipairs(unitFrame._buffIcons) do
+		if icon.stealable then
+			if show then
+				icon.stealable:Show()
+			else
+				icon.stealable:Hide()
+			end
+		end
+	end
 end
 
 local function MakeToTDebuffs(parent)
@@ -340,83 +540,87 @@ local function MakeToTPreview(parent, label, portraitPath)
 	return f
 end
 
+local FRAME_SCALE = 0.85
+local FRAME_W = 232
+local FRAME_H = 100
+local FRAME_GAP = 12
+local PREVIEW_H = 158
+local GROW_UP_PAD = 80
+
 function Preview:Create(parent)
 	self:ClearStickyHosts()
 
 	local host = CreateFrame("Frame", nil, parent)
-	-- Target 100 + auras hang below (~48) + gap + Focus 100 + auras (~48) + pad
-	host:SetHeight(320)
+	host:SetHeight(PREVIEW_H)
 	host.spacer = host
 	ApplyPanelBg(host)
 
 	local stage = CreateFrame("Frame", nil, host)
-	stage:SetPoint("TOPLEFT", 10, -10)
-	stage:SetPoint("BOTTOMRIGHT", -10, 10)
+	stage:SetPoint("TOPLEFT", 6, -6)
+	stage:SetPoint("BOTTOMRIGHT", -6, 6)
 
-	-- Stage wide enough for Target + ToT hanging off the right.
-	local stack = CreateFrame("Frame", nil, stage)
-	stack:SetSize(300, 300)
-	stack:SetPoint("CENTER", stage, "CENTER", -10, 0)
+	-- Same two-frame row as Frames preview: target left, focus right.
+	local wrap = CreateFrame("Frame", nil, stage)
+	wrap:SetSize(FRAME_W * 2 + FRAME_GAP, FRAME_H + 72)
+	wrap:SetScale(FRAME_SCALE)
+	wrap:SetPoint("TOP", stage, "TOP", 0, -2)
 
-	local target = MakeTargetLike(stack, "Цель", 0.72, 0.55, PORTRAITS[1])
-	target:SetPoint("TOPLEFT", stack, "TOPLEFT", 0, 0)
+	local target = MakeTargetLike(wrap, Tr("Цель"), 0.72, 0.55, PORTRAITS[1])
+	target:SetPoint("TOPLEFT", wrap, "TOPLEFT", 0, 0)
+	AttachAuras(target, false)
 
-	-- Blizzard: TargetofTargetFrame BOTTOMRIGHT of TargetFrame at -35, -10.
-	local tot = MakeToTPreview(stack, "Цель цели", PORTRAITS[5])
+	local tot = MakeToTPreview(wrap, Tr("Цель цели"), PORTRAITS[5])
 	tot:SetPoint("BOTTOMRIGHT", target, "BOTTOMRIGHT", -35, -10)
+	tot:SetFrameLevel((target:GetFrameLevel() or 1) + 6)
 
-	-- ToT debuffs: TOPLEFT relative TOPRIGHT of ToT +4, -10 (TargetFrame.xml).
-	local totAuras = MakeToTDebuffs(stack)
+	local totAuras = MakeToTDebuffs(tot)
 	totAuras:SetPoint("TOPLEFT", tot, "TOPRIGHT", 4, -10)
 
-	-- Hostile layout: auras under TargetFrame at AURA_START_X/Y.
-	local targetAuras = MakeTargetAuraBlock(stack)
-	targetAuras:SetPoint("TOPLEFT", target, "BOTTOMLEFT", AURA_START_X, AURA_START_Y)
+	local focus = MakeTargetLike(wrap, Tr("Фокус"), 0.58, 0.8, PORTRAITS[8])
+	focus:SetPoint("TOPRIGHT", wrap, "TOPRIGHT", 0, 0)
+	AttachAuras(focus, false)
 
-	local focus = MakeTargetLike(stack, "Фокус", 0.58, 0.8, PORTRAITS[8])
-	-- Sit below target aura block with a small gap.
-	focus:SetPoint("TOPLEFT", targetAuras, "BOTTOMLEFT", -AURA_START_X, -16)
-
-	local focusAuras = MakeTargetAuraBlock(stack)
-	focusAuras:SetPoint("TOPLEFT", focus, "BOTTOMLEFT", AURA_START_X, AURA_START_Y)
-
-	host._targetAuras = targetAuras
-	host._focusAuras = focusAuras
+	host._target = target
+	host._focus = focus
 	host._totAuras = totAuras
-
-	local function SetStealableVisible(block, show)
-		if not block or not block._buffs then return end
-		for _, icon in ipairs(block._buffs) do
-			if icon.stealable then
-				if show then
-					icon.stealable:Show()
-				else
-					icon.stealable:Hide()
-				end
-			end
-		end
-	end
+	host._tot = tot
 
 	local function Layout()
 		local hideFocus = LiveFlag("hideFocusAuras", true)
+		local hideTarget = LiveFlag("hideTargetAuras", false)
 		local hideToT = LiveFlag("hideTargetOfTargetAuras", true)
 		local showDispel = LiveFlag("enableDispelHighlight", true)
+		local growUp = LiveFlag("frameAurasGrowUp", false)
+		local startY = tonumber(Live("frameAurasGrowUpY", -17)) or -17
+		local topPad = growUp and math.max(GROW_UP_PAD, 48 + startY) or 0
 
-		-- Target auras always visible (no hide toggle).
-		targetAuras:Show()
-		SetStealableVisible(targetAuras, showDispel)
-
-		if hideFocus then
-			focusAuras:Hide()
-		else
-			focusAuras:Show()
-			SetStealableVisible(focusAuras, showDispel)
-		end
+		wrap:SetHeight(FRAME_H + (growUp and (topPad + 12) or 72))
+		target:ClearAllPoints()
+		focus:ClearAllPoints()
+		target:SetPoint("TOPLEFT", wrap, "TOPLEFT", 0, -topPad)
+		focus:SetPoint("TOPRIGHT", wrap, "TOPRIGHT", 0, -topPad)
 
 		if hideToT then
 			totAuras:Hide()
 		else
 			totAuras:Show()
+		end
+
+		-- ToT frame stays shown; Blizzard uses that for TOT_AURA_ROW_WIDTH on the first rows.
+		LayoutUnitAuras(target, tot:IsShown() and not growUp)
+		if hideTarget then
+			SetUnitAurasShown(target, false)
+		else
+			SetUnitAurasShown(target, true)
+			SetStealableVisible(target, showDispel)
+		end
+
+		LayoutUnitAuras(focus, false)
+		if hideFocus then
+			SetUnitAurasShown(focus, false)
+		else
+			SetUnitAurasShown(focus, true)
+			SetStealableVisible(focus, showDispel)
 		end
 	end
 

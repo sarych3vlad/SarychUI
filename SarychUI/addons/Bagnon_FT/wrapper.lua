@@ -192,7 +192,7 @@ function wrapper:GetOptions()
 			},
 			coordinationNote = {
 				type = "description",
-				name = "|cff808080Совместим с SarychUI Bags, классическими сумками и Bagnon — дополняет UI тултипами «у кого какой предмет».|r",
+				name = "|cff808080Совместим с SarychUI Bags, классическими сумками и Bagnon - дополняет UI тултипами «у кого какой предмет».|r",
 				order = 2.5,
 				width = "full",
 			},

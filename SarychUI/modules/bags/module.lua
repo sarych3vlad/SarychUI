@@ -1,4 +1,4 @@
--- SarychUI Bags Module — стандартные / ElvUI / BaudBag
+-- SarychUI Bags Module - стандартные / ElvUI / BaudBag
 
 
 
@@ -369,7 +369,7 @@ function module:StartElvUIBagsRuntime()
 
 	if E and E.CheckElvUIConflict and E:CheckElvUIConflict() then
 
-		bagDebug("ElvUI full addon conflict — embedded bags disabled")
+		bagDebug("ElvUI full addon conflict - embedded bags disabled")
 
 		return false
 
@@ -417,7 +417,7 @@ function module:StartElvUIBagsRuntime()
 
 
 
-	bagDebug("Failed to start ElvUI bags — no wrapper/engine API")
+	bagDebug("Failed to start ElvUI bags - no wrapper/engine API")
 
 	return false
 
@@ -562,7 +562,7 @@ function module:CanUseDefaultAutoSellGrey()
 
 	end
 
-	-- SarychUI Bags: своя автопродажа; классика и Baud Bag — модуль Автоматизация.
+	-- SarychUI Bags: своя автопродажа; классика и Baud Bag - модуль Автоматизация.
 	if self:IsElvUIMode() then
 
 		return false
@@ -573,6 +573,171 @@ function module:CanUseDefaultAutoSellGrey()
 
 	return automation and automation.enableAutoSellGrey == 1
 
+end
+
+
+local CUSTOM_CATEGORY_RESERVED_NAMES = {
+	["новое"] = true,
+	["Новое"] = true,
+	["задания"] = true,
+	["Задания"] = true,
+	["экипировка"] = true,
+	["Экипировка"] = true,
+	["расходные материалы"] = true,
+	["Расходные материалы"] = true,
+	["хозяйственные товары"] = true,
+	["Хозяйственные товары"] = true,
+	["рецепты"] = true,
+	["Рецепты"] = true,
+	["боеприпасы"] = true,
+	["Боеприпасы"] = true,
+	["разное"] = true,
+	["Разное"] = true,
+	["хлам"] = true,
+	["Хлам"] = true,
+	["свободно"] = true,
+	["Свободно"] = true,
+}
+
+local function NormalizeCustomCategoryName(name)
+	name = tostring(name or "")
+	name = name:gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
+	return name
+end
+
+function module:GetCustomBagCategories()
+	local elvui = self:GetElvUISettings()
+	if not elvui then return {} end
+	if type(elvui.customCategories) ~= "table" then
+		elvui.customCategories = {}
+	end
+
+	local seenIDs = {}
+	local nextID = 1
+	for _, category in ipairs(elvui.customCategories) do
+		if type(category) == "table" then
+			local id = tonumber(category.id)
+			if id and id >= nextID then nextID = id + 1 end
+		end
+	end
+	for index, category in ipairs(elvui.customCategories) do
+		if type(category) ~= "table" then
+			category = { name = tostring(category or ("Категория " .. index)) }
+			elvui.customCategories[index] = category
+		end
+		local id = tonumber(category.id)
+		if not id or seenIDs[id] then
+			id = nextID
+			nextID = nextID + 1
+		end
+		seenIDs[id] = true
+		category.id = id
+		category.name = NormalizeCustomCategoryName(category.name)
+		if category.name == "" then category.name = "Категория " .. id end
+		if type(category.items) ~= "table" then category.items = {} end
+	end
+	return elvui.customCategories
+end
+
+function module:FindCustomBagCategory(categoryID)
+	categoryID = tonumber(categoryID)
+	if not categoryID then return nil end
+	for index, category in ipairs(self:GetCustomBagCategories()) do
+		if tonumber(category.id) == categoryID then
+			return category, index
+		end
+	end
+	return nil
+end
+
+function module:AddCustomBagCategory(name)
+	name = NormalizeCustomCategoryName(name)
+	if name == "" then return false, "invalid" end
+	local lowered = string.lower(name)
+	if CUSTOM_CATEGORY_RESERVED_NAMES[name] or CUSTOM_CATEGORY_RESERVED_NAMES[lowered] then return false, "reserved" end
+
+	local categories = self:GetCustomBagCategories()
+	local nextID = 1
+	for _, category in ipairs(categories) do
+		if string.lower(category.name or "") == lowered then
+			return false, "duplicate"
+		end
+		local id = tonumber(category.id) or 0
+		if id >= nextID then nextID = id + 1 end
+	end
+	categories[#categories + 1] = { id = nextID, name = name, items = {} }
+	return true, nextID
+end
+
+function module:RemoveCustomBagCategory(categoryID)
+	local _, index = self:FindCustomBagCategory(categoryID)
+	if not index then return false end
+	table.remove(self:GetCustomBagCategories(), index)
+	return true
+end
+
+function module:RenameCustomBagCategory(categoryID, name)
+	local category = self:FindCustomBagCategory(categoryID)
+	if not category then return false, "missing" end
+	name = NormalizeCustomCategoryName(name)
+	if name == "" then return false, "invalid" end
+	local lowered = string.lower(name)
+	if CUSTOM_CATEGORY_RESERVED_NAMES[name] or CUSTOM_CATEGORY_RESERVED_NAMES[lowered] then
+		return false, "reserved"
+	end
+	for _, other in ipairs(self:GetCustomBagCategories()) do
+		if other ~= category and string.lower(other.name or "") == lowered then
+			return false, "duplicate"
+		end
+	end
+	category.name = name
+	return true
+end
+
+function module:MoveCustomBagCategory(categoryID, direction)
+	local categories = self:GetCustomBagCategories()
+	local _, index = self:FindCustomBagCategory(categoryID)
+	if not index then return false end
+	local target = index + (direction == "up" and -1 or 1)
+	if target < 1 or target > #categories then return false end
+	categories[index], categories[target] = categories[target], categories[index]
+	return true
+end
+
+function module:AddItemToCustomBagCategory(categoryID, itemID)
+	itemID = tonumber(itemID)
+	if not itemID or itemID <= 0 then return false, "invalid" end
+	local target = self:FindCustomBagCategory(categoryID)
+	if not target then return false, "missing" end
+	if target.items[itemID] == true or target.items[tostring(itemID)] == true then
+		return false, "duplicate"
+	end
+
+	-- Manual filtering is a one-to-one override: moving an item to another
+	-- custom category automatically removes its previous association.
+	for _, category in ipairs(self:GetCustomBagCategories()) do
+		category.items[itemID] = nil
+		category.items[tostring(itemID)] = nil
+	end
+	target.items[itemID] = true
+	return true
+end
+
+function module:RemoveItemFromCustomBagCategory(categoryID, itemID)
+	local category = self:FindCustomBagCategory(categoryID)
+	itemID = tonumber(itemID)
+	if not category or not itemID then return false end
+	category.items[itemID] = nil
+	category.items[tostring(itemID)] = nil
+	return true
+end
+
+function module:ApplyCustomBagCategories()
+	local E = self:GetElvUIEngine()
+	local bags = E and E.GetModule and E:GetModule("Bags", true)
+	if bags and bags.BagFrame and bags.Layout then
+		bags:Layout()
+	end
 end
 
 

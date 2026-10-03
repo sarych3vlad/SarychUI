@@ -8,6 +8,20 @@ local CreateFrame = CreateFrame
 local GetComboPoints = GetComboPoints
 local MAX_COMBO_POINTS = MAX_COMBO_POINTS
 
+-- The border and the colored fill are separate textures. Nameplate frames are
+-- recycled, so restore the fill when a point becomes active instead of relying
+-- on Configure_CPoints having run for the current use of the frame.
+local function PaintComboPoint(self, comboPoint, index, statusbarTexture)
+	local backdrop = comboPoint and comboPoint.backdrop
+	local color = self.db.colors.comboPoints[index]
+	if not backdrop or not color then return end
+
+	backdrop:SetTexture(statusbarTexture)
+	backdrop:SetVertexColor(color.r, color.g, color.b, color.a or 1)
+	backdrop:SetAlpha(1)
+	backdrop:Show()
+end
+
 function NP:Update_CPoints(frame)
 	if frame.UnitType == "FRIENDLY_PLAYER" or frame.UnitType == "FRIENDLY_NPC" then return end
 	if not self.db.units.TARGET.comboPoints.enable then return end
@@ -19,9 +33,11 @@ function NP:Update_CPoints(frame)
 
 	if numPoints and numPoints > 0 then
 		frame.CPoints:Show()
+		local statusbarTexture = LSM:Fetch("statusbar", self.db.statusbar)
 
 		for i = 1, MAX_COMBO_POINTS do
 			if i <= numPoints then
+				PaintComboPoint(self, frame.CPoints[i], i, statusbarTexture)
 				frame.CPoints[i]:Show()
 			else
 				frame.CPoints[i]:Hide()
@@ -58,6 +74,7 @@ function NP:Configure_CPoints(frame, configuring)
 
 	local comboBar = frame.CPoints
 	local healthShown = self.db.units[frame.UnitType].health.enable or (frame.isTarget and self.db.alwaysShowTargetHealth)
+	local statusbarTexture = LSM:Fetch("statusbar", self.db.statusbar)
 
 	comboBar:ClearAllPoints()
 	if healthShown then
@@ -68,9 +85,7 @@ function NP:Configure_CPoints(frame, configuring)
 
 	for i = 1, MAX_COMBO_POINTS do
 		local comboPoint = comboBar[i]
-		comboPoint.backdrop:SetTexture(LSM:Fetch("statusbar", self.db.statusbar))
-		local color = self.db.colors.comboPoints[i]
-		comboPoint.backdrop:SetVertexColor(color.r, color.g, color.b)
+		PaintComboPoint(self, comboPoint, i, statusbarTexture)
 
 		comboPoint:SetWidth(db.width)
 

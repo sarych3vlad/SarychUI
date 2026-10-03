@@ -165,7 +165,7 @@ end
 function wrapper:OpenConfig()
 	if not GetRuntimeEnabledFromDB() then
 		if SarychUI and SarychUI.Print then
-			SarychUI:Print("|cffff9900Postal:|r сначала включите аддон в |cff1784d1Настройки → Аддоны|r.")
+			SarychUI:Print("|cffff9900Postal:|r сначала включите аддон в |cff1784d1Настройки -> Аддоны|r.")
 		end
 		return false
 	end
@@ -197,7 +197,7 @@ function wrapper:OpenConfig()
 		MailFrame:Show()
 	end
 	if SarychUI and SarychUI.Print then
-		SarychUI:Print("Postal: настройки модулей — в выпадающем меню почтового ящика (кнопка со стрелкой справа вверху).")
+		SarychUI:Print("Postal: настройки модулей - в выпадающем меню почтового ящика (кнопка со стрелкой справа вверху).")
 	end
 	return true
 end
@@ -211,7 +211,7 @@ function wrapper:GetOptions()
 			enabled = {
 				type = "toggle",
 				name = "Включить",
-				desc = "Включить/выключить Postal. Включение — сразу, если уже загружен; иначе /reload. Выключение — после /reload.",
+				desc = "Включить/выключить Postal. Включение - сразу, если уже загружен; иначе /reload. Выключение - после /reload.",
 				order = 1,
 				get = function()
 					return wrapper:IsRuntimeEnabled()
@@ -223,7 +223,7 @@ function wrapper:GetOptions()
 			open = {
 				type = "execute",
 				name = "Открыть настройки Postal",
-				desc = "Открыть почтовый ящик — настройки Postal в меню справа вверху",
+				desc = "Открыть почтовый ящик - настройки Postal в меню справа вверху",
 				order = 2,
 				disabled = function()
 					return not wrapper:IsRuntimeEnabled()
@@ -236,7 +236,7 @@ function wrapper:GetOptions()
 				type = "description",
 				name = function()
 					local mode = GetLoadModeFromDB()
-					return "Расширенная поддержка почтового ящика (Open All, Express, BlackBook и др.).\nВключение — сразу (если уже загружен); выключение — после /reload.\n\nНастройки модулей — в интерфейсе почтового ящика.\nБаза настроек: |cff1784d1Postal3DB|r.\nРежим загрузки: |cff1784d1" .. tostring(mode) .. "|r (strict embedded).\n\nАвтор: " .. (wrapper.author or "Xinhuan") .. "\nВерсия: " .. (wrapper.version or "3.3.2")
+					return "Расширенная поддержка почтового ящика (Open All, Express, BlackBook и др.).\nВключение - сразу (если уже загружен); выключение - после /reload.\n\nНастройки модулей - в интерфейсе почтового ящика.\nБаза настроек: |cff1784d1Postal3DB|r.\nРежим загрузки: |cff1784d1" .. tostring(mode) .. "|r (strict embedded).\n\nАвтор: " .. (wrapper.author or "Xinhuan") .. "\nВерсия: " .. (wrapper.version or "3.3.2")
 				end,
 				order = 3,
 				width = "full",

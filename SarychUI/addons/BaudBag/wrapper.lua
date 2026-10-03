@@ -130,7 +130,7 @@ function wrapper:GetOptions()
 			enabled = {
 				type = "toggle",
 				name = "Включить",
-				desc = "Включить Baud Bag как режим сумок. Включение — сразу; при выключении нужен /reload для корректного возврата сумок.",
+				desc = "Включить Baud Bag как режим сумок. Включение - сразу; при выключении нужен /reload для корректного возврата сумок.",
 				order = 1,
 				get = function()
 					local db = SarychUI and SarychUI.db and SarychUI.db.profile
@@ -181,7 +181,7 @@ function wrapper:GetOptions()
 			},
 			description = {
 				type = "description",
-				name = "Baud Bag — контейнеры сумок и банка.\nВключение — сразу; выключение режима сумок — после /reload.\n\nАвтор: "
+				name = "Baud Bag - контейнеры сумок и банка.\nВключение - сразу; выключение режима сумок - после /reload.\n\nАвтор: "
 					.. (wrapper.author or "")
 					.. "\nВерсия: "
 					.. (wrapper.version or ""),

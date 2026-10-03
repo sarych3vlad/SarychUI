@@ -71,6 +71,45 @@ function Layout.GetElvUIUnitFrame(namePlate)
 	return namePlate.UnitFrame
 end
 
+-- Friendly ElvUI plates may deliberately hide Health and leave only Name visible.
+-- The right aura block must follow that visible element instead of the hidden bar.
+-- Icon-only style-filter plates (totems/unique units) are handled separately and
+-- must never be mistaken for a name-only friendly plate.
+function Layout.IsNameOnlyPlate(namePlate)
+	local unitFrame = Layout.GetElvUIUnitFrame(namePlate)
+	local health = unitFrame and unitFrame.Health
+	local name = unitFrame and unitFrame.Name
+	if not health or not name or unitFrame.IconOnlyChanged then
+		return false
+	end
+
+	-- LibNameplates can announce a recycled plate before ElvUI has finished its
+	-- first Update_HealthBar pass. At that moment IsShown() still describes the
+	-- previous unit, while ElvUI's unit configuration already tells us whether
+	-- this friendly plate is name-only. Awesome announces it later, which is why
+	-- the two backends used to choose different anchors for the same plate.
+	local NP = GetNPModule()
+	local unitDB = NP and NP.db and NP.db.units and unitFrame.UnitType
+		and NP.db.units[unitFrame.UnitType]
+	local healthConfigured = unitDB and unitDB.health and unitDB.health.enable
+	local targetHealth = unitFrame.isTarget and NP and NP.db and NP.db.alwaysShowTargetHealth
+	if unitDB and not healthConfigured and not targetHealth then
+		local nameEnabled = not unitDB.name or unitDB.name.enable ~= false
+		if nameEnabled then
+			return true
+		end
+	end
+
+	if health:IsShown() then
+		return false
+	end
+	if name.IsShown and not name:IsShown() then
+		return false
+	end
+	local text = name.GetText and name:GetText()
+	return text ~= nil and text ~= ""
+end
+
 function Layout.GetRootPlate(namePlate, unitFrame)
 	if namePlate then return namePlate end
 	if unitFrame then
@@ -80,9 +119,29 @@ function Layout.GetRootPlate(namePlate, unitFrame)
 end
 
 function Layout.GetActiveLayoutProfile()
+	local db = SarychUI and SarychUI.db and SarychUI.db.profile
+		and SarychUI.db.profile.modules and SarychUI.db.profile.modules.plates_auras
+
+	-- This module only lays out ElvUI plates. Never let the fallback bridge's
+	-- early/classic mode leak the classic 5,-10 offsets into these anchors.
+	if db and db.profiles and db.profiles.elvui then
+		return db.profiles.elvui
+	end
+
 	local mod = GetModule()
-	if mod and mod.GetActiveDisplayProfile then
-		return mod:GetActiveDisplayProfile()
+	if mod and mod.EnsureProfiles then
+		mod:EnsureProfiles()
+		db = SarychUI and SarychUI.db and SarychUI.db.profile
+			and SarychUI.db.profile.modules and SarychUI.db.profile.modules.plates_auras
+		if db and db.profiles and db.profiles.elvui then
+			return db.profiles.elvui
+		end
+	end
+
+	local defaults = SarychUI and SarychUI.defaults and SarychUI.defaults.profile
+		and SarychUI.defaults.profile.modules and SarychUI.defaults.profile.modules.plates_auras
+	if defaults and defaults.profiles then
+		return defaults.profiles.elvui
 	end
 	return nil
 end
@@ -99,7 +158,9 @@ function Layout.ResolveAnchorFrame(namePlate, anchorKey)
 		anchor = unitFrame.Health or unitFrame
 	end
 
-	local parent = unitFrame
+	-- Keep the scale chain backend-independent. The aura container belongs to the
+	-- real plate root and is only anchored to an ElvUI region.
+	local parent = namePlate
 	return parent, anchor
 end
 
@@ -168,7 +229,7 @@ function Layout.CalculateResponsiveScaleBonus(plateScale, config)
 	if factor == nil then factor = 0 end
 	local maxBonus = config.maxBonus
 	if maxBonus == nil then maxBonus = 0 end
-	-- Grow with the plate: factor 1.0 ≈ same relative growth as the indicator.
+	-- Grow with the plate: factor 1.0 ~= same relative growth as the indicator.
 	local delta = math.max(0, (plateScale or 1) - 1)
 	return math.min(maxBonus, delta * factor)
 end
@@ -267,7 +328,11 @@ function Layout.UpdatePlateResponsiveScale(namePlate, options)
 	local unitFrame = options.unitFrame or Layout.GetElvUIUnitFrame(namePlate)
 
 	local profile = Layout.GetActiveLayoutProfile()
-	local profileBaseScale = (profile and profile.display and profile.display.scale) or 1
+	local profileBaseScale
+	if _G.sarPlatesAuras_GetDisplayScale then
+		profileBaseScale = _G.sarPlatesAuras_GetDisplayScale()
+	end
+	profileBaseScale = profileBaseScale or (profile and profile.display and profile.display.scale) or 0.8
 	if options.baseScale then
 		profileBaseScale = options.baseScale
 	end
@@ -278,6 +343,14 @@ function Layout.UpdatePlateResponsiveScale(namePlate, options)
 		namePlate.centerContainer.sarBaseScale = profileBaseScale
 		Layout.SetContainerScale(namePlate.centerContainer, profileBaseScale)
 		ApplyCenterIconSizes(namePlate, centerMult)
+	end
+
+	-- Mobility + Other share this container. Normalize it in the same final
+	-- layout pass as CC/Cast and Player so neither backend can retain an older
+	-- scale after recycling a plate or changing profiles.
+	if namePlate.mobilityContainer then
+		namePlate.mobilityContainer.sarBaseScale = profileBaseScale
+		Layout.SetContainerScale(namePlate.mobilityContainer, profileBaseScale)
 	end
 
 	-- Player strip: fixed icon sizes + display.scale only (no plate-growth).
@@ -319,6 +392,33 @@ local function InstallHealthSizeSync(unitFrame)
 			})
 		end
 	end)
+end
+
+local function InstallPlateLifecycleSync(namePlate, unitFrame)
+	if not namePlate or not unitFrame or namePlate.sarAuraLayoutLifecycleInstalled then
+		return
+	end
+	namePlate.sarAuraLayoutLifecycleInstalled = true
+
+	local function refresh()
+		if Layout.IsActive() and namePlate:IsShown() then
+			Layout.ScheduleRefresh(namePlate)
+		end
+	end
+
+	-- Fallback can paint during plate recycling/configuration. Re-anchor once the
+	-- root or ElvUI unit frame becomes visible, and whenever target health toggles.
+	if namePlate.HookScript then
+		namePlate:HookScript("OnShow", refresh)
+	end
+	if unitFrame.HookScript then
+		unitFrame:HookScript("OnShow", refresh)
+	end
+	local health = unitFrame.Health
+	if health and health.HookScript then
+		health:HookScript("OnShow", refresh)
+		health:HookScript("OnHide", refresh)
+	end
 end
 
 -- Full layout refresh on plate visual scale/size: responsive icon scale AND proportional offsets.
@@ -366,8 +466,16 @@ function Layout.GetSlotConfig(profile, slotName)
 		slot.offsetY = positions.CentrY or 0
 		slot.noPlayerLift = slotTemplate.noPlayerLift ~= nil and slotTemplate.noPlayerLift or 30
 	elseif slotName == "right" then
-		slot.offsetX = positions.RightX or 0
-		slot.offsetY = positions.RightY or 0
+		local rightX = positions.RightX or 0
+		local rightY = positions.RightY or 0
+		local db = SarychUI and SarychUI.db and SarychUI.db.profile
+			and SarychUI.db.profile.modules and SarychUI.db.profile.modules.plates_auras
+		-- Apply the v8 legacy correction even during the tiny pre-migration paint.
+		if rightX == 5 and rightY == -10 and (tonumber(db and db.profileVersion) or 0) < 8 then
+			rightX, rightY = 10, 0
+		end
+		slot.offsetX = rightX
+		slot.offsetY = rightY
 	elseif slotName == "player" then
 		slot.offsetX = slotTemplate.offsetX or 0
 		slot.offsetY = positions.PlayerOffsetY or 0
@@ -425,7 +533,7 @@ function Layout.GetCastBarIconOffsetY(unitFrame)
 	return CASTBAR_ICON_RIGHT_EXTRA_Y
 end
 
-function Layout.CalculateOffset(anchor, slot, namePlate, slotName)
+function Layout.CalculateOffset(anchor, slot, namePlate, slotName, anchorKey)
 	local x = slot.offsetX or 0
 	local y = slot.offsetY or 0
 
@@ -433,7 +541,7 @@ function Layout.CalculateOffset(anchor, slot, namePlate, slotName)
 		local width = anchor:GetWidth() or 0
 		local height = anchor:GetHeight() or 0
 		-- Player strip anchors to centerContainer (icon row), which does not track plate
-		-- scale — use the health bar size so proportional factors follow the indicator.
+		-- scale - use the health bar size so proportional factors follow the indicator.
 		if slotName == "player" and namePlate then
 			local unitFrame = Layout.GetElvUIUnitFrame(namePlate)
 			local health = unitFrame and unitFrame.Health
@@ -452,7 +560,9 @@ function Layout.CalculateOffset(anchor, slot, namePlate, slotName)
 		end
 	end
 
-	if slotName == "right" and namePlate then
+	-- Castbar's right icon only occupies space beside the health bar. When the
+	-- block is attached to a name-only plate it must start directly after Name.
+	if slotName == "right" and anchorKey ~= "name" and namePlate then
 		local unitFrame = Layout.GetElvUIUnitFrame(namePlate)
 		x = x + Layout.GetCastBarIconOffsetX(unitFrame)
 		y = y + Layout.GetCastBarIconOffsetY(unitFrame)
@@ -468,21 +578,30 @@ function Layout.EnsureContainerParent(container, parent)
 	end
 end
 
+function Layout.EnsureContainerLayer(container, namePlate)
+	local unitFrame = Layout.GetElvUIUnitFrame(namePlate)
+	if not container or not unitFrame or not container.SetFrameLevel or not unitFrame.GetFrameLevel then return end
+	container:SetFrameLevel((unitFrame:GetFrameLevel() or 0) + 10)
+end
+
 function Layout.ApplySlotAnchor(container, namePlate, slotName, slotOverride)
 	if not container or not namePlate then return false end
 
 	local profile = Layout.GetActiveLayoutProfile()
 	local slot = slotOverride or Layout.GetSlotConfig(profile, slotName)
 	local anchorKey = slot.anchorFrame or "health"
+	if slotName == "right" and Layout.IsNameOnlyPlate(namePlate) then
+		anchorKey = "name"
+	end
 
 	if slotName == "player" and slot.anchorFrame == "centerContainer" then
 		local anchor = namePlate.centerContainer
 		if not anchor then return false end
-		-- Sibling of center under unitFrame (NOT child of center) so SetScale is absolute
-		-- like centerContainer. Still SetPoint-anchored to center's BOTTOM for position.
-		local unitFrame = Layout.GetElvUIUnitFrame(namePlate)
-		Layout.EnsureContainerParent(container, unitFrame or namePlate)
-		local x, y = Layout.CalculateOffset(anchor, slot, namePlate, slotName)
+		-- Sibling of center under the real plate root. Still SetPoint-anchored to
+		-- center's BOTTOM for position, with the same scale chain in both backends.
+		Layout.EnsureContainerParent(container, namePlate)
+		Layout.EnsureContainerLayer(container, namePlate)
+		local x, y = Layout.CalculateOffset(anchor, slot, namePlate, slotName, anchorKey)
 		container:ClearAllPoints()
 		container:SetPoint(slot.point or "TOP", anchor, slot.relativePoint or "BOTTOM", x, y)
 		return true
@@ -498,7 +617,8 @@ function Layout.ApplySlotAnchor(container, namePlate, slotName, slotOverride)
 	end
 
 	Layout.EnsureContainerParent(container, parent)
-	local x, y = Layout.CalculateOffset(anchor, slot, namePlate, slotName)
+	Layout.EnsureContainerLayer(container, namePlate)
+	local x, y = Layout.CalculateOffset(anchor, slot, namePlate, slotName, anchorKey)
 	container:ClearAllPoints()
 	container:SetPoint(slot.point or "BOTTOM", anchor, slot.relativePoint or "TOP", x, y)
 	return true
@@ -552,6 +672,8 @@ function Layout.UpdateElvUIAuraAnchor(namePlate, options)
 
 	local unitFrame = Layout.GetElvUIUnitFrame(namePlate)
 	if not unitFrame then return end
+	InstallHealthSizeSync(unitFrame)
+	InstallPlateLifecycleSync(namePlate, unitFrame)
 
 	local centerSlot = Layout.GetSlotConfig(profile, "center")
 	if options.hasVisiblePlayerIcons == false and centerSlot.noPlayerLift then
@@ -577,6 +699,8 @@ function Layout.UpdateElvUIAuraAnchor(namePlate, options)
 	-- Alt placement owns the player block: it hangs off the right container (anchored
 	-- just above), so the center-relative slot anchor must not run.
 	if namePlate.playerFrame then
+		Layout.EnsureContainerParent(namePlate.playerFrame, namePlate)
+		Layout.EnsureContainerLayer(namePlate.playerFrame, namePlate)
 		local isAltRight = _G.sarPlatesAuras_IsPlayerAltRight
 		if isAltRight and isAltRight() then
 			if _G.sarPlatesAuras_AnchorPlayerFrame then
@@ -700,6 +824,18 @@ function Layout.InstallHooks()
 	hooksecurefunc(NP, "UpdateElement_All", function(...)
 		if not Layout.IsActive() then return end
 		-- Layout/position only. Aura paint is PlateBuffs bridge (LibNameplates FoundGUID).
+		RefreshFromUnitFrame(...)
+	end)
+
+	-- Health visibility changes when a friendly name-only plate becomes the target
+	-- (and back again). Re-evaluate the right anchor on that exact transition.
+	hooksecurefunc(NP, "Update_HealthBar", function(...)
+		if not Layout.IsActive() then return end
+		RefreshFromUnitFrame(...)
+	end)
+
+	hooksecurefunc(NP, "StyleFilterUpdate", function(...)
+		if not Layout.IsActive() then return end
 		RefreshFromUnitFrame(...)
 	end)
 

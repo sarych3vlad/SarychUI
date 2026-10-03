@@ -1,4 +1,4 @@
--- SarychUI Plates Auras — live layout preview for options (sizes / positions).
+-- SarychUI Plates Auras - live layout preview for options (sizes / positions).
 -- Sticky mock nameplate matching in-game anchors; active slider slot is highlighted yellow.
 
 local CreateFrame = CreateFrame

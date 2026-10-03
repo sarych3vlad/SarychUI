@@ -96,7 +96,7 @@ end
 -- Состояния по каждому бару: bar -> {alt=false, hover=false, combat=false, shown=false}
 local st = setmetatable({}, { __mode = "k" })
 
--- Helper function to get settings — always reads active profile (no cached db).
+-- Helper function to get settings - always reads active profile (no cached db).
 local function GetSetting(key, default)
     local db = SarychUI.GetModuleProfile and SarychUI:GetModuleProfile(moduleName)
         or (SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules and SarychUI.db.profile.modules[moduleName])
@@ -121,6 +121,120 @@ local function GetPVPIconElements()
         { tex = _G["TargetFrameTextureFramePVPIcon"] or _G["TargetFramePVPIcon"], hideKey = "hideTargetPVP" },
         { tex = _G["FocusFrameTextureFramePVPIcon"] or _G["FocusFramePVPIcon"], hideKey = "hideFocusPVP" },
     }
+end
+
+local NOLEVEL_MEDIA = [[Interface\AddOns\SarychUI\media\frames\nolevel\]]
+local NOLEVEL_BORDER = {
+    normal = NOLEVEL_MEDIA .. "NoLevel-UI-TargetingFrame",
+    elite = NOLEVEL_MEDIA .. "NoLevel-UI-TargetingFrame-Elite",
+    worldboss = NOLEVEL_MEDIA .. "NoLevel-UI-TargetingFrame-Elite",
+    rare = NOLEVEL_MEDIA .. "NoLevel-UI-TargetingFrame-Rare",
+    rareelite = NOLEVEL_MEDIA .. "NoLevel-UI-TargetingFrame-Rare-Elite",
+}
+local BLIZZARD_BORDER = {
+    normal = [[Interface\TargetingFrame\UI-TargetingFrame]],
+    elite = [[Interface\TargetingFrame\UI-TargetingFrame-Elite]],
+    worldboss = [[Interface\TargetingFrame\UI-TargetingFrame-Elite]],
+    rare = [[Interface\TargetingFrame\UI-TargetingFrame-Rare]],
+    rareelite = [[Interface\TargetingFrame\UI-TargetingFrame-Rare-Elite]],
+}
+local NOLEVEL_FLASH = NOLEVEL_MEDIA .. "ui-targetingframe-flash"
+local BLIZZARD_FLASH = [[Interface\TargetingFrame\UI-TargetingFrame-Flash]]
+local PLAYER_BORDER_TCOORDS = { 1.0, 0.09375, 0, 0.78125 }
+local TARGET_BORDER_TCOORDS = { 0.09375, 1.0, 0, 0.78125 }
+
+local function GetLevelElements()
+    return {
+        _G["PlayerLevelText"],
+        _G["TargetFrameTextureFrameLevelText"] or (TargetFrame and TargetFrame.levelText),
+        _G["FocusFrameTextureFrameLevelText"] or (FocusFrame and FocusFrame.levelText),
+        _G["TargetFrameTextureFrameHighLevelTexture"] or (TargetFrame and TargetFrame.highLevelTexture),
+        _G["FocusFrameTextureFrameHighLevelTexture"] or (FocusFrame and FocusFrame.highLevelTexture),
+    }
+end
+
+local function ClassificationKey(unit)
+    if not unit or not UnitExists or not UnitExists(unit) or not UnitClassification then
+        return "normal"
+    end
+    local classification = UnitClassification(unit)
+    if classification and NOLEVEL_BORDER[classification] then
+        return classification
+    end
+    return "normal"
+end
+
+local function GetNameBackgrounds()
+    return {
+        { tex = (TargetFrame and TargetFrame.nameBackground) or _G["TargetFrameNameBackground"], unit = "target" },
+        { tex = (FocusFrame and FocusFrame.nameBackground) or _G["FocusFrameNameBackground"], unit = "focus" },
+    }
+end
+
+local NAME_BG_DEFAULT = [[Interface\TargetingFrame\UI-TargetingFrame-LevelBackground]]
+local NAME_BG_CLASS = [[Interface\TargetingFrame\UI-StatusBar]]
+
+local function ClassRGBA(unit)
+    if not unit or not UnitIsPlayer or not UnitIsPlayer(unit) then
+        return nil
+    end
+    local _, class = UnitClass(unit)
+    local c = class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+    if not c then return nil end
+    return c.r, c.g, c.b, 1
+end
+
+local function UnpackNameBgColor()
+    local c = GetSetting("nameBackgroundColor", { 0, 0, 0, 0 })
+    if type(c) ~= "table" then
+        return 0, 0, 0, 0
+    end
+    local r, g, b, a = c[1], c[2], c[3], c[4]
+    if r == nil then r = 0 end
+    if g == nil then g = 0 end
+    if b == nil then b = 0 end
+    if a == nil then a = 0 end
+    return r, g, b, a
+end
+
+local function PaintNameBackground(tex, unit)
+    if not tex then return end
+    if not SettingOn("nameBackgroundEnabled", 0) then
+        tex:SetTexture(NAME_BG_DEFAULT)
+        if unit and UnitExists(unit) then
+            if not UnitPlayerControlled(unit) and UnitIsTapped(unit) and not UnitIsTappedByPlayer(unit)
+                and not (UnitIsTappedByAllThreatList and UnitIsTappedByAllThreatList(unit)) then
+                tex:SetVertexColor(0.5, 0.5, 0.5)
+            elseif UnitSelectionColor then
+                tex:SetVertexColor(UnitSelectionColor(unit))
+            else
+                tex:SetVertexColor(0, 0, 1)
+            end
+        else
+            tex:SetVertexColor(0, 0, 1)
+        end
+        return
+    end
+    if GetSetting("nameBackgroundMode", "custom") == "class" then
+        tex:SetTexture(NAME_BG_CLASS)
+        local r, g, b, a = ClassRGBA(unit)
+        if r then
+            tex:SetVertexColor(r, g, b, a)
+        else
+            tex:SetVertexColor(0, 0, 0, 0.5)
+        end
+        return
+    end
+    tex:SetTexture(NAME_BG_DEFAULT)
+    tex:SetVertexColor(UnpackNameBgColor())
+end
+
+local function SetBorderTexture(tex, path, coords)
+    if not tex or not path then return end
+    tex:SetTexture(path)
+    if coords then
+        tex:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
+    end
 end
 
 -- Получение текстового элемента из бара
@@ -332,7 +446,10 @@ function module:Enable()
     self:RegisterEvent("UNIT_EXITED_VEHICLE", "OnEvent")
     self:RegisterEvent("PLAYER_TARGET_CHANGED", "OnEvent")
     self:RegisterEvent("PLAYER_FOCUS_CHANGED", "OnEvent")
+    self:RegisterEvent("UNIT_COMBO_POINTS", "OnEvent")
     self:RegisterEvent("UNIT_FACTION", "OnEvent")
+    self:RegisterEvent("UNIT_LEVEL", "OnEvent")
+    self:RegisterEvent("UNIT_CLASSIFICATION_CHANGED", "OnEvent")
     self:RegisterEvent("PLAYER_FLAGS_CHANGED", "OnEvent")
     -- Use bucket events for frequent events to reduce load
     self:RegisterBucketEvent("UNIT_COMBAT", 0.1, "OnCombatUpdate")
@@ -441,6 +558,9 @@ function module:Enable()
     self:ApplyTextIndicators()
     self:ApplyVisualSettings()
     self:ApplyCombatIndicator()
+    if self.UpdateFocusComboPoints then
+        self:UpdateFocusComboPoints()
+    end
     if self.Enable3DPortraitEvents then
         self:Enable3DPortraitEvents()
     end
@@ -470,6 +590,8 @@ end
 -- Disable module
 function module:Disable()
     self._pvpHooksInstalled = false
+    self._levelHooksInstalled = false
+    self._playerRestStateHooksInstalled = false
     -- Unregister Alt Mode callback
     if SarychUI.AltMode then
         SarychUI.AltMode:UnregisterCallback(moduleName)
@@ -487,8 +609,12 @@ function module:Disable()
     self:ResetFramePositions()
     self:ResetFrameScale()
     self:HideTextIndicators()
+    self:ResetBarFontSizes()
     self:ResetVisualSettings()
     self:HideCombatIndicator()
+    if self.HideFocusComboPoints then
+        self:HideFocusComboPoints()
+    end
     if self.Disable3DPortraitEvents then
         self:Disable3DPortraitEvents()
     end
@@ -634,11 +760,15 @@ function module:ApplySettings()
             self:ApplyPositionDragMode()
         end
         self:ApplyFrameScale()
+        self:ApplyBarFontSizes()
         if not sliderBusy then
             self:ApplyTextIndicators()
             self:ApplyVisualSettings()
         end
         self:ApplyCombatIndicator()
+        if not sliderBusy and self.UpdateFocusComboPoints then
+            self:UpdateFocusComboPoints()
+        end
         if not sliderBusy and self.Apply3DPortraits then
             self:Apply3DPortraits()
         end
@@ -666,6 +796,9 @@ function module:OnEvent(event, ...)
         end
         if self.SchedulePortraitRefresh then
             self:SchedulePortraitRefresh()
+        end
+        if self.UpdateFocusComboPoints then
+            self:UpdateFocusComboPoints()
         end
         
         -- Синхронизируем состояние текстовых индикаторов при входе в мир
@@ -701,15 +834,35 @@ function module:OnEvent(event, ...)
         self:OnTargetChanged()
     elseif event == "PLAYER_FOCUS_CHANGED" then
         self:OnFocusChanged()
+        if self.UpdateFocusComboPoints then
+            self:UpdateFocusComboPoints()
+        end
+    elseif event == "UNIT_COMBO_POINTS" then
+        if self.UpdateFocusComboPoints then
+            self:UpdateFocusComboPoints()
+        end
     elseif event == "UNIT_FACTION" or event == "PLAYER_FLAGS_CHANGED" then
         self:HidePVPIcons()
         self:HidePVPTimer()
+        self:HideFrameLevels()
+    elseif event == "UNIT_LEVEL" or event == "UNIT_CLASSIFICATION_CHANGED" then
+        local unit = ...
+        if unit == "target" or unit == "focus" then
+            self:HideFrameLevels(true)
+            self:ApplyClassNames()
+        end
     elseif event == "PLAYER_REGEN_DISABLED" then
         -- Вход в бой - показываем текстовые индикаторы
         self:OnEnterCombat()
     elseif event == "PLAYER_REGEN_ENABLED" then
         -- Выход из боя - скрываем текстовые индикаторы
         self:OnLeaveCombat()
+        if self._pendingFramePositions then
+            self:ApplyFramePositions()
+        end
+        if self._pendingFrameScale then
+            self:ApplyFrameScale()
+        end
     end
 end
 
@@ -784,6 +937,11 @@ function module:ApplyFramePositions()
         -- Мы просто не управляем позициями, но не сбрасываем их
         return
     end
+    if InCombatLockdown and InCombatLockdown() then
+        self._pendingFramePositions = true
+        return
+    end
+    self._pendingFramePositions = false
     
     -- Проверяем, не происходит ли сейчас drag - если да, не применяем позицию
     -- Это предотвращает перезапись позиции во время drag
@@ -873,6 +1031,11 @@ end
 
 -- Frame scaling functions
 function module:ApplyFrameScale()
+    if InCombatLockdown and InCombatLockdown() then
+        self._pendingFrameScale = true
+        return
+    end
+    self._pendingFrameScale = false
     -- Проверяем, включено ли изменение масштаба
     if GetSetting('changeScale', 0) == 0 then
         -- Если настройка отключена, сбрасываем масштаб на 1.0
@@ -953,9 +1116,81 @@ function module:CreateFocusFrameTexts()
     end
 end
 
+local function GetStatusBarFontString(bar)
+    if not bar then return nil end
+    if bar.TextString then
+        return bar.TextString
+    end
+    return GetBarText(bar)
+end
+
+local function EachStatusBarFontString(callback)
+    NormalizeBars()
+    local list = {
+        { PlayerFrameHealthBar, "hp" },
+        { PlayerFrameManaBar, "mana" },
+        { TargetFrameHealthBar, "hp" },
+        { TargetFrameManaBar, "mana" },
+        { FocusFrameHealthBar, "hp" },
+        { FocusFrameManaBar, "mana" },
+        { PetFrameHealthBar, "hpPet" },
+        { PetFrameManaBar, "manaPet" },
+    }
+    for i = 1, 5 do
+        list[#list + 1] = { _G["ArenaEnemyFrame" .. i .. "HealthBar"], "hp" }
+        list[#list + 1] = { _G["ArenaEnemyFrame" .. i .. "ManaBar"], "mana" }
+    end
+    for i = 1, #list do
+        local fs = GetStatusBarFontString(list[i][1])
+        if fs then
+            callback(fs, list[i][2])
+        end
+    end
+end
+
+local function CaptureBarFont(fs)
+    if not fs or fs._suiOrigFont then return end
+    local path, size, flags = fs:GetFont()
+    fs._suiOrigFont = { path, size, flags }
+end
+
+function module:ApplyBarFontSizes()
+    if not SettingOn("changeBarFontSize", 0) then
+        self:ResetBarFontSizes()
+        return
+    end
+    local hp = tonumber(GetSetting("healthBarFontSize", 14)) or 14
+    local mana = tonumber(GetSetting("manaBarFontSize", 14)) or 14
+    local path = STANDARD_TEXT_FONT or defaultFontPath
+    EachStatusBarFontString(function(fs, kind)
+        CaptureBarFont(fs)
+        local size = hp
+        if kind == "mana" then
+            size = mana
+        elseif kind == "hpPet" then
+            size = hp - 2
+        elseif kind == "manaPet" then
+            size = mana - 2
+        end
+        if size < 8 then size = 8 end
+        fs:SetFont(path, size, "OUTLINE")
+    end)
+end
+
+function module:ResetBarFontSizes()
+    EachStatusBarFontString(function(fs)
+        local orig = fs._suiOrigFont
+        if orig and orig[1] then
+            fs:SetFont(orig[1], orig[2] or 10, orig[3] or "")
+        end
+        fs._suiOrigFont = nil
+    end)
+end
+
 function module:ApplyTextIndicators()
     -- Update fonts if LibSharedMedia is available
     self:UpdateTextIndicatorFonts()
+    self:ApplyBarFontSizes()
     self:SyncBarAltFlags()
     self:UpdateTextIndicators()
     -- Update combat state to show/hide text indicators in combat
@@ -1103,9 +1338,81 @@ end
 
 function module:ApplyVisualSettings()
     self:EnsurePVPHooks()
+    self:EnsureLevelHooks()
+    self:EnsureClassColorHooks()
+    self:EnsurePlayerRestStateHooks()
     self:HidePVPIcons()
     self:HidePVPTimer()
+    self:HideFrameLevels()
+    self:ApplyPlayerRestState()
+    self:ApplyNameBackground()
+    self:ApplyClassNames()
+    self:ResetClassOutlines()
     self:DisableHitIndicators()
+end
+
+-- PlayerStatusTexture is shared by the resting and combat states, while the
+-- state icons themselves use separate regions of UI-StateIcon.  Suppress the
+-- status border and only the resting regions; PlayerAttackIcon,
+-- PlayerAttackGlow and PlayerAttackBackground must stay under Blizzard control.
+function module:ApplyPlayerRestState()
+    if not SettingOn("hidePlayerRestState", 0) then
+        if self._playerRestStateSuppressed then
+            self._playerRestStateSuppressed = false
+            if _G.PlayerFrame_UpdateStatus and not self._restStateRestoring then
+                self._restStateRestoring = true
+                _G.PlayerFrame_UpdateStatus()
+                self._restStateRestoring = false
+            end
+        end
+        return
+    end
+
+    self._playerRestStateSuppressed = true
+    local restElementNames = {
+        "PlayerStatusTexture",
+        "PlayerRestIcon",
+        "PlayerRestGlow",
+    }
+    for i = 1, #restElementNames do
+        local element = _G[restElementNames[i]]
+        if element then
+            element:Hide()
+        end
+    end
+end
+
+function module:EnsurePlayerRestStateHooks()
+    if self._playerRestStateHooksInstalled then return end
+    self._playerRestStateHooksInstalled = true
+
+    local function reapply()
+        if not self.db or not self.db.enabled then return end
+        self:ApplyPlayerRestState()
+    end
+    local function hookShow(element)
+        if not element or self:IsHooked(element, "Show") then return end
+        self:SecureHook(element, "Show", reapply)
+    end
+
+    hookShow(_G.PlayerStatusTexture)
+    hookShow(_G.PlayerRestIcon)
+    hookShow(_G.PlayerRestGlow)
+    if _G.PlayerFrame_UpdateStatus and not self:IsHooked("PlayerFrame_UpdateStatus") then
+        self:SecureHook("PlayerFrame_UpdateStatus", reapply)
+    end
+end
+
+function module:ResetPlayerRestState()
+    self._playerRestStateSuppressed = false
+    self._restStateRestoring = false
+    if _G.PlayerFrame_UpdateStatus then
+        _G.PlayerFrame_UpdateStatus()
+    else
+        if _G.PlayerStatusTexture then _G.PlayerStatusTexture:Show() end
+        if _G.PlayerRestIcon then _G.PlayerRestIcon:Show() end
+        if _G.PlayerRestGlow then _G.PlayerRestGlow:Show() end
+    end
 end
 
 function module:HidePVPIcons()
@@ -1144,6 +1451,7 @@ function module:EnsurePVPHooks()
         if not self.db or not self.db.enabled then return end
         self:HidePVPIcons()
         self:HidePVPTimer()
+        self:ApplyNameBackground()
     end
     local function hookShow(tex)
         if not tex or self:IsHooked(tex, "Show") then return end
@@ -1160,12 +1468,270 @@ function module:EnsurePVPHooks()
     if _G.PlayerFrame_UpdatePvP then
         self:SecureHook("PlayerFrame_UpdatePvP", reapply)
     end
-    if _G.TargetFrame_CheckFaction then
-        self:SecureHook("TargetFrame_CheckFaction", reapply)
+	if _G.FocusFrame_CheckFaction then
+		self:SecureHook("FocusFrame_CheckFaction", reapply)
     end
-    if _G.FocusFrame_CheckFaction then
-        self:SecureHook("FocusFrame_CheckFaction", reapply)
+end
+
+function module:EnsurePlayerNameBackground()
+    local bg = self._playerNameBg
+    if bg and bg.GetParent and bg:GetParent() then
+        return bg
     end
+    local pf = _G.PlayerFrame
+    local pbg = _G.PlayerFrameBackground
+    if not pf or not pbg then
+        return nil
+    end
+    bg = pf:CreateTexture("SarychUI_PlayerNameBackground", "BORDER")
+    bg:SetPoint("TOPLEFT", pbg, "TOPLEFT", 0, 0)
+    bg:SetPoint("BOTTOMRIGHT", pbg, "BOTTOMRIGHT", 0, 22)
+    bg:SetTexture(NAME_BG_CLASS)
+    bg:Hide()
+    self._playerNameBg = bg
+    return bg
+end
+
+function module:ApplyNameBackground()
+    local list = GetNameBackgrounds()
+    for i = 1, #list do
+        local tex = list[i].tex
+        if tex then
+            tex:Show()
+            tex:SetAlpha(1)
+            PaintNameBackground(tex, list[i].unit)
+        end
+    end
+    local playerBg = self:EnsurePlayerNameBackground()
+    if playerBg then
+        if SettingOn("nameBackgroundEnabled", 0)
+            and GetSetting("nameBackgroundMode", "custom") == "class"
+            and not SettingOn("nameBackgroundExcludePlayer", 0) then
+            local r, g, b, a = ClassRGBA("player")
+            if r then
+                playerBg:SetVertexColor(r, g, b, a)
+            else
+                playerBg:SetVertexColor(0, 0, 0, 0.5)
+            end
+            playerBg:Show()
+        else
+            playerBg:Hide()
+        end
+    end
+end
+
+function module:ResetNameBackground()
+    local list = GetNameBackgrounds()
+    for i = 1, #list do
+        local tex = list[i].tex
+        local unit = list[i].unit
+        if tex then
+            tex:SetTexture(NAME_BG_DEFAULT)
+            tex:Show()
+            tex:SetAlpha(1)
+            if unit and UnitExists(unit) and UnitSelectionColor then
+                tex:SetVertexColor(UnitSelectionColor(unit))
+            else
+                tex:SetVertexColor(0, 0, 1)
+            end
+        end
+    end
+    local playerBg = self._playerNameBg
+    if playerBg then
+        playerBg:Hide()
+    end
+end
+
+local NAME_GOLD_R, NAME_GOLD_G, NAME_GOLD_B = 1, 0.81960791349411, 0
+
+local function GetNameFontStrings()
+    return {
+        { fs = _G["PlayerName"] or (PlayerFrame and PlayerFrame.name), unit = "player" },
+        { fs = _G["TargetName"] or (TargetFrame and TargetFrame.name), unit = "target" },
+        { fs = _G["FocusName"] or (FocusFrame and FocusFrame.name) or _G["FocusFrameTextureFrameName"], unit = "focus" },
+    }
+end
+
+local function PaintUnitName(fs, unit)
+    if not fs then return end
+    if SettingOn("classColoredNames", 0)
+        and not (unit == "player" and SettingOn("classColoredNamesExcludePlayer", 0)) then
+        local r, g, b = ClassRGBA(unit)
+        if r then
+            fs:SetTextColor(r, g, b)
+            return
+        end
+    end
+    fs:SetTextColor(NAME_GOLD_R, NAME_GOLD_G, NAME_GOLD_B)
+end
+
+function module:ApplyClassNames()
+    local list = GetNameFontStrings()
+    for i = 1, #list do
+        PaintUnitName(list[i].fs, list[i].unit)
+    end
+end
+
+function module:ResetClassNames()
+    local list = GetNameFontStrings()
+    for i = 1, #list do
+        local fs = list[i].fs
+        if fs then
+            fs:SetTextColor(NAME_GOLD_R, NAME_GOLD_G, NAME_GOLD_B)
+        end
+    end
+end
+
+function module:ResetClassOutlines()
+    local list = self._classOutlines
+    if not list then return end
+    for _, wrap in pairs(list) do
+        if wrap then wrap:Hide() end
+    end
+end
+
+function module:EnsureClassColorHooks()
+    if self._classColorHooksInstalled then return end
+    self._classColorHooksInstalled = true
+    -- Do not hook TargetFrame_Update itself. Blizzard uses the same function for
+    -- protected BossNTargetFrame updates. On 3.3.5 clients, wrapping that entry
+    -- point can make INSTANCE_ENCOUNTER_ENGAGE_UNIT reach BossNTargetFrame:Hide()
+    -- from an addon-tainted context. PLAYER_TARGET_CHANGED / PLAYER_FOCUS_CHANGED
+    -- already give us safe, addon-owned refresh points for name colors.
+end
+
+function module:HideFrameLevels(fromBlizzard)
+    if self._applyingFrameLevels then return end
+    self._applyingFrameLevels = true
+
+    local hide = SettingOn("hideFrameLevel", 0)
+    local alpha = hide and 0 or 1
+    local elements = GetLevelElements()
+    for i = 1, #elements do
+        local el = elements[i]
+        if el then
+            el:SetAlpha(alpha)
+        end
+    end
+
+    local playerBorder = _G["PlayerFrameTexture"]
+    if hide then
+        if playerBorder then
+            SetBorderTexture(playerBorder, NOLEVEL_BORDER.normal, PLAYER_BORDER_TCOORDS)
+        end
+        local function ApplyUnitBorder(unit, border, flash)
+            if not border then return end
+            local key = ClassificationKey(unit)
+            SetBorderTexture(border, NOLEVEL_BORDER[key] or NOLEVEL_BORDER.normal, TARGET_BORDER_TCOORDS)
+            if flash then
+                flash:SetTexture(NOLEVEL_FLASH)
+            end
+        end
+        ApplyUnitBorder(
+            "target",
+            _G["TargetFrameTextureFrameTexture"] or (TargetFrame and TargetFrame.borderTexture),
+            _G["TargetFrameFlash"] or (TargetFrame and TargetFrame.threatIndicator)
+        )
+        ApplyUnitBorder(
+            "focus",
+            _G["FocusFrameTextureFrameTexture"] or (FocusFrame and FocusFrame.borderTexture),
+            _G["FocusFrameFlash"] or (FocusFrame and FocusFrame.threatIndicator)
+        )
+    elseif not fromBlizzard then
+        if playerBorder then
+            SetBorderTexture(playerBorder, BLIZZARD_BORDER.normal, PLAYER_BORDER_TCOORDS)
+        end
+        if _G.TargetFrame_CheckClassification then
+            if TargetFrame then TargetFrame_CheckClassification(TargetFrame) end
+            if FocusFrame then TargetFrame_CheckClassification(FocusFrame) end
+        else
+            SetBorderTexture(
+                _G["TargetFrameTextureFrameTexture"] or (TargetFrame and TargetFrame.borderTexture),
+                BLIZZARD_BORDER.normal,
+                TARGET_BORDER_TCOORDS
+            )
+            SetBorderTexture(
+                _G["FocusFrameTextureFrameTexture"] or (FocusFrame and FocusFrame.borderTexture),
+                BLIZZARD_BORDER.normal,
+                TARGET_BORDER_TCOORDS
+            )
+        end
+        local targetFlash = _G["TargetFrameFlash"] or (TargetFrame and TargetFrame.threatIndicator)
+        local focusFlash = _G["FocusFrameFlash"] or (FocusFrame and FocusFrame.threatIndicator)
+        if targetFlash then targetFlash:SetTexture(BLIZZARD_FLASH) end
+        if focusFlash then focusFlash:SetTexture(BLIZZARD_FLASH) end
+        for i = 1, #elements do
+            local el = elements[i]
+            if el then
+                el:SetAlpha(1)
+            end
+        end
+    end
+
+    if self.ApplyClassIcons then
+        self:ApplyClassIcons()
+    end
+
+    self._applyingFrameLevels = false
+end
+
+function module:EnsureLevelHooks()
+    if self._levelHooksInstalled then return end
+    self._levelHooksInstalled = true
+    local function reapply()
+        if not self.db or not self.db.enabled then return end
+        self:HideFrameLevels()
+        self:ApplyClassNames()
+    end
+    local function reapplyKeepArt()
+        if not self.db or not self.db.enabled then return end
+        self:HideFrameLevels(true)
+        self:ApplyClassNames()
+    end
+    local function hookShow(el)
+        if not el or self:IsHooked(el, "Show") then return end
+        self:SecureHook(el, "Show", reapplyKeepArt)
+    end
+    local elements = GetLevelElements()
+    for i = 1, #elements do
+        hookShow(elements[i])
+    end
+	if _G.PlayerFrame_ToPlayerArt then
+        self:SecureHook("PlayerFrame_ToPlayerArt", reapply)
+    end
+    if _G.PlayerFrame_Update then
+        self:SecureHook("PlayerFrame_Update", reapplyKeepArt)
+    end
+    if _G.PlayerFrame_UpdateLevel then
+        self:SecureHook("PlayerFrame_UpdateLevel", reapplyKeepArt)
+    end
+end
+
+function module:ResetFrameLevels()
+    local elements = GetLevelElements()
+    for i = 1, #elements do
+        local el = elements[i]
+        if el then
+            el:SetAlpha(1)
+        end
+    end
+    local playerBorder = _G["PlayerFrameTexture"]
+    if playerBorder then
+        SetBorderTexture(playerBorder, BLIZZARD_BORDER.normal, PLAYER_BORDER_TCOORDS)
+    end
+    if _G.TargetFrame_CheckClassification then
+        if TargetFrame then TargetFrame_CheckClassification(TargetFrame) end
+        if FocusFrame then TargetFrame_CheckClassification(FocusFrame) end
+    else
+        local targetBorder = _G["TargetFrameTextureFrameTexture"] or (TargetFrame and TargetFrame.borderTexture)
+        local focusBorder = _G["FocusFrameTextureFrameTexture"] or (FocusFrame and FocusFrame.borderTexture)
+        SetBorderTexture(targetBorder, BLIZZARD_BORDER.normal, TARGET_BORDER_TCOORDS)
+        SetBorderTexture(focusBorder, BLIZZARD_BORDER.normal, TARGET_BORDER_TCOORDS)
+    end
+    local targetFlash = _G["TargetFrameFlash"] or (TargetFrame and TargetFrame.threatIndicator)
+    local focusFlash = _G["FocusFrameFlash"] or (FocusFrame and FocusFrame.threatIndicator)
+    if targetFlash then targetFlash:SetTexture(BLIZZARD_FLASH) end
+    if focusFlash then focusFlash:SetTexture(BLIZZARD_FLASH) end
 end
 
 function module:DisableHitIndicators()
@@ -1191,6 +1757,11 @@ function module:ResetVisualSettings()
     
     if PlayerHitIndicator then PlayerHitIndicator.Show = nil end
     if PetHitIndicator then PetHitIndicator.Show = nil end
+    self:ResetPlayerRestState()
+    self:ResetFrameLevels()
+    self:ResetNameBackground()
+    self:ResetClassNames()
+    self:ResetClassOutlines()
 end
 
 -- Base Blizzard combat icon size, scaled by combatIndicatorScale.
@@ -1504,6 +2075,8 @@ function module:OnTargetChanged()
     end
     self:HidePVPIcons()
     self:HidePVPTimer()
+    self:HideFrameLevels()
+    self:ApplyClassNames()
 end
 
 -- Focus changed handler
@@ -1521,6 +2094,8 @@ function module:OnFocusChanged()
     end
     self:HidePVPIcons()
     self:HidePVPTimer()
+    self:HideFrameLevels()
+    self:ApplyClassNames()
 end
 
 -- Force reset all elements to ensure complete restoration
@@ -1549,6 +2124,10 @@ function module:ForceResetAllElements()
     -- Reset hit indicators
     if PlayerHitIndicator then PlayerHitIndicator.Show = nil end
     if PetHitIndicator then PetHitIndicator.Show = nil end
+    self:ResetFrameLevels()
+    self:ResetNameBackground()
+    self:ResetClassNames()
+    self:ResetClassOutlines()
 end
 
 -- Register position frames for drag mode
@@ -1651,7 +2230,7 @@ function module:ApplyPositionDragMode()
     
     -- Проверяем, включено ли изменение позиций
     if GetSetting('changePositions', 0) == 0 then
-        -- Do not overwrite DB from GetPoint here — after free-move anchors can
+        -- Do not overwrite DB from GetPoint here - after free-move anchors can
         -- disagree with slider CENTER offsets and would desync /sui.
         if PlayerFrame then
             SarychUI.DragMode:EnableEditMode("playerFrame", false, false, false)

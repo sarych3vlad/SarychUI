@@ -3209,7 +3209,7 @@ function SarychUI.LoadFlightDataAlliance()
 				["0.74:0.29:0.49:0.42:0.42:0.47:0.22:0.39:0.17:0.47"] = 439, -- Kamagua, Moa'ki, Stars' Rest, Valiance Keep, Amber Ledge
 				["0.74:0.29:0.76:0.33:0.60:0.48:0.42:0.47:0.29:0.43"] = 392, -- Kamagua, Westguard Keep, Wintergarde Keep, Stars' Rest, Unu'pe
 				["0.74:0.29:0.49:0.42:0.42:0.47:0.41:0.57:0.38:0.79"] = 472, -- Kamagua, Moa'ki, Sternenruh, Valianzlager, Das Schattengewölbe
-				["0.74:0.29:0.49:0.42:0.29:0.43:0.21:0.51:0.24:040"] = 467, -- Kanagua, Moa’ki, Unu’pe, Fizzcrank Airstrip, River’s Heart
+				["0.74:0.29:0.49:0.42:0.29:0.43:0.21:0.51:0.24:040"] = 467, -- Kanagua, Moa'ki, Unu'pe, Fizzcrank Airstrip, River's Heart
 				["0.74:0.29:0.49:0.42:0.29:0.43:0.22:0.39:0.17:0.47:0.12:0.47"] = 483, -- Kamagua, Moa'ki, Unu'pe, Valiance Keep, Amber Ledge, Transitus Shield
 				["0.74:0.29:0.76:0.33:0.73:0.46:0.83:0.54:0.78:0.62:0.72:0.71"] = 351, -- Kamagua, Donjon de la Garde de l'ouest, Gîte Ambrepin, Brigade de la marche de l'Ouest, Zim'Torga, Dun Nifflelem
 

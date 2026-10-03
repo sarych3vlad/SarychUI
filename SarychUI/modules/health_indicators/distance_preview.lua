@@ -1,4 +1,4 @@
--- SarychUI Health Indicators — live preview for nameplate distance text (autolos).
+-- SarychUI Health Indicators - live preview for nameplate distance text (autolos).
 
 local CreateFrame = CreateFrame
 local pairs = pairs
@@ -14,6 +14,12 @@ local math_min = math.min
 SarychUI = SarychUI or {}
 SarychUI.NameplateDistancePreview = SarychUI.NameplateDistancePreview or {}
 local Preview = SarychUI.NameplateDistancePreview
+
+local function Tr(s)
+	if type(s) ~= "string" or s == "" then return s end
+	if SarychUI.T then return SarychUI:T(s) end
+	return s
+end
 
 local PREVIEW_H = 120
 local NOTICE_H = 18
@@ -53,10 +59,10 @@ local function ModeNotice()
 	local label
 	if mode == "elvui" then
 		label = L and (L["ElvUI Nameplates"] or "ElvUI индикаторы") or "ElvUI индикаторы"
-		return "Настройки параметров для: |cff00ff00" .. label .. "|r"
+		return Tr("Настройки параметров для: ") .. "|cff00ff00" .. Tr(label) .. "|r"
 	end
 	label = L and (L["Classic WoW Nameplates"] or "Классические WoW") or "Классические WoW"
-	return "Настройки параметров для: |cFFFFD700" .. label .. "|r"
+	return Tr("Настройки параметров для: ") .. "|cFFFFD700" .. Tr(label) .. "|r"
 end
 
 local function Num(v, fallback)
@@ -156,7 +162,7 @@ function Preview:Create(parent, noticeText)
 	self:ClearStickyHosts()
 	local T = SarychUI.OptionsTheme
 
-	-- Single frame (no spacer overlay) — avoids empty gap under the toggle.
+	-- Single frame (no spacer overlay) - avoids empty gap under the toggle.
 	local host = CreateFrame("Frame", nil, parent)
 	host:SetHeight(PREVIEW_H)
 	host.spacer = host -- RefreshAll compatibility
@@ -243,8 +249,8 @@ function Preview:Create(parent, noticeText)
 		local isElvui = mode == "elvui"
 
 		-- Place plate so real offsets keep "43" inside the stage.
-		-- classic: CENTER+CENTER with ~-95 → plate toward the right
-		-- elvui: RIGHT of text to LEFT of health with ~-6 → plate more centered
+		-- classic: CENTER+CENTER with ~-95 -> plate toward the right
+		-- elvui: RIGHT of text to LEFT of health with ~-6 -> plate more centered
 		plate:ClearAllPoints()
 		if isElvui then
 			plate:SetPoint("CENTER", stage, "CENTER", 20, -2)
@@ -261,13 +267,13 @@ function Preview:Create(parent, noticeText)
 			dist:SetShadowColor(0, 0, 0, 1)
 		end
 
-		-- Always show sample "43" — never wait for DLL / real distance.
+		-- Always show sample "43" - never wait for DLL / real distance.
 		dist:SetText("43")
 		dist:Show()
 
 		-- Mirror Autolos.ApplyLayout exactly:
-		-- classic → CENTER of nameplate + offset
-		-- elvui   → RIGHT of text to LEFT of health + offset
+		-- classic -> CENTER of nameplate + offset
+		-- elvui   -> RIGHT of text to LEFT of health + offset
 		dist:ClearAllPoints()
 		if isElvui then
 			dist:SetPoint("RIGHT", plate, "LEFT", offsetX, offsetY)

@@ -1,4 +1,4 @@
--- SarychUI Chat — ItemRef tooltip icons sticky preview (item + achievement).
+-- SarychUI Chat - ItemRef tooltip icons sticky preview (item + achievement).
 
 local CreateFrame = CreateFrame
 local ipairs = ipairs
@@ -9,6 +9,12 @@ local GetItemIcon = GetItemIcon
 local GetAchievementInfo = GetAchievementInfo
 
 SarychUI = SarychUI or {}
+
+local function Tr(s)
+	if type(s) ~= "string" or s == "" then return s end
+	if SarychUI.T then return SarychUI:T(s) end
+	return s
+end
 
 local PREVIEW_H = 200
 
@@ -133,12 +139,12 @@ local function ResolveItem(sample)
 	return {
 		kind = "item",
 		id = sample.id,
-		name = name or sample.name,
+		name = name or Tr(sample.name),
 		quality = quality or sample.quality or 4,
 		icon = texture or (GetItemIcon and GetItemIcon(sample.id)) or sample.icon,
 		link = link,
-		line2 = "Уровень предмета 284",
-		line3 = "Уникальный экипируемый",
+		line2 = Tr("Уровень предмета 284"),
+		line3 = Tr("Уникальный экипируемый"),
 		showBorder = false,
 	}
 end
@@ -152,11 +158,11 @@ local function ResolveAchievement(sample)
 	return {
 		kind = "achievement",
 		id = sample.id,
-		name = name or sample.name,
+		name = name or Tr(sample.name),
 		points = points or sample.points or 10,
 		icon = icon or sample.icon,
-		line2 = "Достижение",
-		line3 = (points or sample.points or 10) .. " очков достижений",
+		line2 = Tr("Достижение"),
+		line3 = (points or sample.points or 10) .. Tr(" очков достижений"),
 		showBorder = true,
 		nameColor = { 1, 0.82, 0 },
 	}
@@ -200,7 +206,7 @@ local function MakeTooltipPreview(parent)
 	line3:SetTextColor(1, 1, 1)
 	tip.line3 = line3
 
-	-- Same placement as appearance.lua: TOPRIGHT of tip → TOPLEFT, 0.5, -1.5
+	-- Same placement as appearance.lua: TOPRIGHT of tip -> TOPLEFT, 0.5, -1.5
 	local icon = CreateFrame("Frame", nil, tip)
 	icon:SetSize(37, 37)
 	icon:SetPoint("TOPRIGHT", tip, "TOPLEFT", 0.5, -1.5)
@@ -230,7 +236,7 @@ local function ApplyTipData(tip, data)
 		local c = QUALITY_COLORS[q] or QUALITY_COLORS[4]
 		tip.nameFs:SetTextColor(c[1], c[2], c[3])
 	end
-	tip.nameFs:SetText(data.name or "—")
+	tip.nameFs:SetText(data.name or "-")
 	tip.line2:SetText(data.line2 or "")
 	tip.line3:SetText(data.line3 or "")
 	if data.icon then

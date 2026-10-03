@@ -45,7 +45,7 @@ local function overlayProfileTable(base, overlay)
 	return dest
 end
 
-local SARYCH_2K_PRODUCT_DEFAULTS_REV = 2
+local SARYCH_2K_PRODUCT_DEFAULTS_REV = 9
 
 local function resolveBuiltinProfile(name, overlay)
 	overlay = overlay or (SarychUI.BuiltinProfiles and SarychUI.BuiltinProfiles[name])
@@ -68,7 +68,8 @@ function SarychUI:ApplySarych2KProductDefaults(profile)
 	local modules = profile.modules
 
 	modules.map = modules.map or {}
-	modules.map.mapType = "mapster"
+	modules.map.mapType = "sarychui"
+	modules.map.hideMapButton = true
 
 	modules.mainmenubar = modules.mainmenubar or {}
 	modules.mainmenubar.microMenuStyle = "dragonflight"
@@ -85,6 +86,13 @@ function SarychUI:ApplySarych2KProductDefaults(profile)
 
 	modules.chat = modules.chat or {}
 	modules.chat.lfgAbbrev = "[Поиск]"
+	modules.chat.classColorMentionsEnabled = 1
+	modules.chat.classColorMentionsChat = 1
+	modules.chat.classColorMentionsSpeech = 1
+
+	modules.tools = modules.tools or {}
+	modules.tools.enableTooltipCursor = 1
+	modules.tools.tooltipCursorAltOnly = 1
 
 	modules.bags = modules.bags or {}
 	modules.bags.mode = "elvui"
@@ -99,12 +107,15 @@ function SarychUI:ApplySarych2KProductDefaults(profile)
 
 	modules.frame = modules.frame or {}
 	modules.frame.changeScale = 0
+	modules.frame.nameBackgroundEnabled = 0
 
 	profile.addons = profile.addons or {}
-	profile.addons.Mapster = profile.addons.Mapster or {}
-	profile.addons.Mapster.enabled = true
 	profile.addons.Carbonite = profile.addons.Carbonite or {}
 	profile.addons.Carbonite.enabled = false
+	profile.addons.LootClicker = profile.addons.LootClicker or {}
+	profile.addons.LootClicker.enabled = false
+	profile.addons.Talented = profile.addons.Talented or {}
+	profile.addons.Talented.dragonflightHeader = false
 	profile.addons.SarychUI_Bags = profile.addons.SarychUI_Bags or {}
 	profile.addons.SarychUI_Bags.enabled = true
 	profile.addons.autolos = profile.addons.autolos or {}
@@ -193,7 +204,7 @@ function SarychUI:NotifyProfileOptionsChanged()
 		self._pendingOptionsRefresh = true
 		return
 	end
-	-- Custom /sui window: refresh it directly. Do NOT NotifyChange Ace —
+	-- Custom /sui window: refresh it directly. Do NOT NotifyChange Ace -
 	-- that revalidates the whole options tree via AceConfigDialog and freezes.
 	-- A profile swap moves every value, so this one asks for a real rebuild.
 	if self.OptionsCore and self.OptionsCore._open then
@@ -525,7 +536,7 @@ function SarychUI:ActivateBuiltinProfile(builtinName)
 
 	local charName = self:GetCharacterProfileName()
 	if not charName then
-		-- Player name not ready yet — stay on template until login finishes.
+		-- Player name not ready yet - stay on template until login finishes.
 		if self.db.SetProfile then
 			self.db:SetProfile(builtinName)
 		end

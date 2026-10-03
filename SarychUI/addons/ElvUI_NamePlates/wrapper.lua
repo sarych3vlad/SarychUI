@@ -147,7 +147,7 @@ function wrapper:GetOptions()
 			},
 			description = {
 				type = "description",
-				name = "ElvUI NamePlates — стилизация и настройка nameplates в стиле ElvUI.\nВключение и выключение работают сразу.\n\nКоманды: |cff1784d1/enp|r, |cff1784d1/elvnp|r, |cff1784d1/elvnameplates|r\n\nАвтор: " .. (wrapper.author or "") .. "\nВерсия: " .. (wrapper.version or ""),
+				name = "ElvUI NamePlates - стилизация и настройка nameplates в стиле ElvUI.\nВключение и выключение работают сразу.\n\nКоманды: |cff1784d1/enp|r, |cff1784d1/elvnp|r, |cff1784d1/elvnameplates|r\n\nАвтор: " .. (wrapper.author or "") .. "\nВерсия: " .. (wrapper.version or ""),
 				order = 3,
 				width = "full",
 			},
@@ -155,7 +155,7 @@ function wrapper:GetOptions()
 				type = "description",
 				name = function()
 					if IsAddOnLoaded and IsAddOnLoaded("ElvUI_NamePlates_Standalone") then
-						return "|cffff0000Внимание:|r отключите отдельный аддон |cff1784d1ElvUI_NamePlates_Standalone|r — иначе встроенный модуль не запустится."
+						return "|cffff0000Внимание:|r отключите отдельный аддон |cff1784d1ElvUI_NamePlates_Standalone|r - иначе встроенный модуль не запустится."
 					end
 					return ""
 				end,

@@ -32,6 +32,17 @@ local function IsModuleEnabled()
 		and SarychUI.db.profile.modules.tools.enabled == true
 end
 
+local function IsOmniCDEnabled()
+	local wrapper = SarychUI and SarychUI.GetAddOn and SarychUI:GetAddOn("OmniCD")
+	if wrapper and wrapper.IsRuntimeEnabled then
+		return wrapper:IsRuntimeEnabled() and true or false
+	end
+	if SarychUI and SarychUI.IsAddOnEnabled then
+		return SarychUI:IsAddOnEnabled("OmniCD") and true or false
+	end
+	return OmniCDEnabled == true
+end
+
 local function Refresh()
 	if SarychUI.NotifySarychUIOptionsChange then
 		SarychUI:NotifySarychUIOptionsChange()
@@ -141,7 +152,7 @@ function module:GetOptions()
 					altAnnounceBox = {
 						type = "group",
 						name = "Объявления по |cFFFFD700Alt|r + Левая кнопка мыши",
-						desc = "Быстрый отчёт статуса в чат: зажмите |cFFFFD700Alt|r и кликните левой кнопкой мыши по способности, полоске HP/MP или ауре — удобно сообщить группе готовность, ресурсы или эффект.",
+						desc = "Быстрый отчёт статуса в чат: зажмите |cFFFFD700Alt|r и кликните левой кнопкой мыши по способности, полоске HP/MP или ауре - удобно сообщить группе готовность, ресурсы или эффект.",
 						order = 2,
 						inline = true,
 						suiHelpIcon = SarychUI.DOTA_ALT_HELP_ICON,
@@ -189,6 +200,29 @@ function module:GetOptions()
 									db.enableAltAuras = val and 1 or 0
 									if module and module.ApplyAltAuras then module:ApplyAltAuras() end
 									Refresh()
+								end,
+							},
+							enableAltOmniCD = {
+								type = "toggle",
+								name = "Объявлять OmniCD",
+								desc = function()
+									if not IsOmniCDEnabled() then
+										return "Сначала включите OmniCD в |cff1784d1Настройки -> Аддоны|r."
+									end
+									return "При |cFFFFD700Alt|r + ЛКМ по иконке OmniCD отправляет в чат статус способности: готова / перезаряжается, и имя игрока. Чтобы иконки были кликабельны, в OmniCD включите всплывающие подсказки. Только клик мышью, не бинды."
+								end,
+								order = 4,
+								width = "full",
+								suiHelpIcon = SarychUI.DOTA_ALT_HELP_ICON,
+								get = toggleGetter,
+								set = function(info, val)
+									local db = DB(); if not db then return end
+									db.enableAltOmniCD = val and 1 or 0
+									if module and module.ApplyAltOmniCD then module:ApplyAltOmniCD() end
+									Refresh()
+								end,
+								disabled = function()
+									return not IsOmniCDEnabled()
 								end,
 							},
 						},
@@ -450,7 +484,7 @@ function module:GetOptions()
 							enableBadgeStackBuyer = {
 								type = "toggle",
 								name = "|TInterface\\Icons\\Spell_Holy_SummonChampion:14:14:0:0|t Лёгкая покупка эмблем",
-								desc = "Shift+ЛКМ по эмблеме у торговца — окно количества. Покупка идёт по 1 шт. за кадр (без фриза).",
+								desc = "Shift+ЛКМ по эмблеме у торговца - окно количества. Покупка идёт по 1 шт. за кадр (без фриза).",
 								order = 2,
 								width = "full",
 								get = toggleGetter,
@@ -461,6 +495,30 @@ function module:GetOptions()
 										module:ApplyBadgeStackBuyer()
 									end
 									Refresh()
+								end,
+							},
+						},
+					},
+
+					keyEchoBox = {
+						type = "group",
+						name = "Двойное нажатие клавиш",
+						order = 7,
+						inline = true,
+						args = {
+							enableKeyEcho = {
+								type = "toggle",
+								name = "Включить",
+								desc = "Дублирует нажатия клавиш, как AHK. Работает со стандартными панелями, Dominos и Bartender4.",
+								order = 1,
+								width = "full",
+								get = toggleGetter,
+								set = function(_, val)
+									local db = DB(); if not db then return end
+									db.enableKeyEcho = val and 1 or 0
+									if module and module.ApplyKeyEcho then
+										module:ApplyKeyEcho()
+									end
 								end,
 							},
 						},
@@ -477,6 +535,29 @@ function module:GetOptions()
 				order = 3,
 				disabled = function() return not IsModuleEnabled() end,
 				args = {
+					pvpScoreboardBox = {
+						type = "group",
+						name = "Имена в таблице PvP в цвет класса",
+						order = 0.5,
+						inline = true,
+						args = {
+							enablePvpScoreboardClassNames = {
+								type = "toggle",
+								name = "Включить",
+								desc = "В таблице очков поля боя окрашивает имена игроков в цвет класса.",
+								order = 1,
+								width = "full",
+								get = toggleGetter,
+								set = function(_, val)
+									local db = DB(); if not db then return end
+									db.enablePvpScoreboardClassNames = val and 1 or 0
+									if module and module.ApplyPvpScoreboardClassNames then
+										module:ApplyPvpScoreboardClassNames()
+									end
+								end,
+							},
+						},
+					},
 					interfaceBox = {
 						type = "group",
 						name = "Интерфейс",
@@ -510,7 +591,7 @@ function module:GetOptions()
 							questTrackerStyle = {
 								type = "select",
 								name = "Внешний вид",
-								desc = "Классический — стандартный WatchFrame WotLK.\nDragonflight — шапка и шрифт; положение по умолчанию у WoW, опционально сдвиг как в DragonUI.",
+								desc = "Классический - стандартный WatchFrame WotLK.\nDragonflight - шапка и шрифт; положение по умолчанию у WoW, опционально сдвиг как в DragonUI.",
 								order = 1,
 								width = "full",
 								values = {
@@ -743,7 +824,7 @@ function module:GetOptions()
 							fpsScale = {
 								type = "range",
 								name = "Масштаб FPS",
-								desc = "Размер FPS-индикатора при зажатом |cFFFFD700Alt|r (0.50 — 2.00)",
+								desc = "Размер FPS-индикатора при зажатом |cFFFFD700Alt|r (0.50 - 2.00)",
 								order = 2,
 								width = "full",
 								suiFullRow = true,
@@ -806,7 +887,7 @@ function module:GetOptions()
 							enableShowFlightTimes = {
 								type = "toggle",
 								name = "|TInterface\\Minimap\\Tracking\\FlightMaster:17:17:0:0|t Время полётов",
-								desc = "Показывает оставшееся время полёта, пока вы в воздухе у распорядителя полётов — сколько ещё лететь до пункта назначения.",
+								desc = "Показывает оставшееся время полёта, пока вы в воздухе у распорядителя полётов - сколько ещё лететь до пункта назначения.",
 								order = 1,
 								width = "full",
 								suiHelpIcon = true,
@@ -843,22 +924,32 @@ function module:GetOptions()
 					darkModeBox = {
 						type = "group",
 						name = "Затемнение текстур интерфейса (LortiUI)",
-						desc = "Настройки затемнения текстур интерфейса Blizzard",
+						desc = "Lorti UI: затемняет текстуры фреймов, панелей и обводку иконок (UI-Quickslot2)",
 						order = 4,
 						inline = true,
 						args = {
 							enableDarkMode = {
 								type = "toggle",
-								name = "Затемнение текстур интерфейса",
+								name = "Включить",
 								desc = "Затемняет текстуры интерфейса Blizzard выбранным цветом",
 								order = 1,
 								width = "full",
 								get = toggleGetter,
 								set = function(info, val)
 									local db = DB(); if not db then return end
-									db.enableDarkMode = val and 1 or 0
+									local enable = val and 1 or 0
+									local previous = db.enableDarkMode
+									if previous == enable then return end
+									db.enableDarkMode = enable
 									if module and module.ApplyDarkMode then module:ApplyDarkMode() end
 									Refresh()
+									if enable == 0 and SarychUI and SarychUI.ShowReloadPopup then
+										SarychUI:ShowReloadPopup(nil, function()
+											db.enableDarkMode = 1
+											if module and module.ApplyDarkMode then module:ApplyDarkMode() end
+											Refresh()
+										end)
+									end
 								end,
 							},
 							darkModeColor = {
@@ -886,32 +977,6 @@ function module:GetOptions()
 									Refresh()
 								end,
 								hidden = function() return not isOn("enableDarkMode") end,
-							},
-						},
-					},
-
-					bossFramesBox = {
-						type = "group",
-						name = "Фреймы боссов",
-						desc = "Исправление залипания стандартных Blizzard Boss1–Boss5 TargetFrame",
-						order = 4.5,
-						inline = true,
-						args = {
-							fixBossFrames = {
-								type = "toggle",
-								name = "Исправлять залипание фреймов боссов",
-								desc = "Синхронизирует BossNTargetFrame с UnitExists и надпись «Мертва» с UnitHealth (как TargetFrame_CheckDead). Нужно, когда сервер не шлёт engage/UNIT_HEALTH — в т.ч. боссы, которые воскресают.",
-								order = 1,
-								width = "full",
-								get = toggleGetter,
-								set = function(info, val)
-									local db = DB(); if not db then return end
-									db.fixBossFrames = val and 1 or 0
-									if module and module.ApplyFixBossFrames then
-										module:ApplyFixBossFrames()
-									end
-									Refresh()
-								end,
 							},
 						},
 					},

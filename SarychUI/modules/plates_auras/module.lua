@@ -202,6 +202,32 @@ function module:EnsureProfiles()
 		end
 		db.profileVersion = 6
 	end
+
+	-- ElvUI's aura profile used scale=1 before the ElvUI-specific 0.8 default
+	-- was introduced. Existing SavedVariables kept that old value forever, so
+	-- fallback rendered 30 px while the established Awesome layout rendered
+	-- the intended 24 px. Migrate only once; after this the user's slider value
+	-- is respected normally, including an intentional change back to 1.
+	if db.profileVersion < 7 then
+		local elvuiProfile = db.profiles and db.profiles.elvui
+		local display = elvuiProfile and elvuiProfile.display
+		if display and tonumber(display.scale) == 1 then
+			display.scale = 0.8
+		end
+		db.profileVersion = 7
+	end
+
+	-- Old ElvUI aura profiles could retain the classic right-block position.
+	-- Normalize that exact legacy pair to the established Awesome placement.
+	if db.profileVersion < 8 then
+		local elvuiProfile = db.profiles and db.profiles.elvui
+		local positions = elvuiProfile and elvuiProfile.positions
+		if positions and tonumber(positions.RightX) == 5 and tonumber(positions.RightY) == -10 then
+			positions.RightX = 10
+			positions.RightY = 0
+		end
+		db.profileVersion = 8
+	end
 end
 
 function module:InstallElvUIHooks()
@@ -239,7 +265,7 @@ function module:Enable()
     local db = DB()
     if not db or not db.enabled then return end
 
-    -- Stale profile: Awesome toggle on but no C_NamePlate API → force non-Awesome path
+    -- Stale profile: Awesome toggle on but no C_NamePlate API -> force non-Awesome path
     if db.useAwesomeWotlk and not (C_NamePlate and C_NamePlate.GetNamePlateForUnit) then
         db.useAwesomeWotlk = false
     end
@@ -266,7 +292,7 @@ function module:Enable()
         if _G.sarPlatesAuras_RegisterLibAuraInfo then
             _G.sarPlatesAuras_RegisterLibAuraInfo()
         end
-        -- PlateBuffs OnEnable: only register callbacks/events — no WorldFrame plate spray / arena seed.
+        -- PlateBuffs OnEnable: only register callbacks/events - no WorldFrame plate spray / arena seed.
         -- Visible plates are handled by Lib NewNameplate/FoundGUID; target/mouseover by those events.
         if UnitExists("target") and _G.sarPlatesAuras_CollectUnitInfo then
             _G.sarPlatesAuras_CollectUnitInfo("target")
@@ -412,6 +438,9 @@ end
 function module:ApplyProfileGlobals()
     local profile = self:GetActiveDisplayProfile()
     if not profile then return end
+	_G.SAR_PLATES_AURAS_DISPLAY_MODE = self:GetActiveProfileMode()
+	_G.SAR_PLATES_AURAS_DISPLAY_SCALE = tonumber(profile.display and profile.display.scale)
+		or (_G.SAR_PLATES_AURAS_DISPLAY_MODE == "elvui" and 0.8 or 1)
     if profile.sizes then
         for key, value in pairs(profile.sizes) do
             _G[key] = value
@@ -513,7 +542,7 @@ function module:OnAuraDataSettingChanged(spellID, field, value)
     self:ScheduleAuraRerender()
 end
 
--- Apply settings from DB (full path — enable/init/add spell)
+-- Apply settings from DB (full path - enable/init/add spell)
 function module:ApplySettings()
     local totalStart = DEBUG_PLATES_AURAS_PERF and debugprofilestop() or nil
     local db = DB()

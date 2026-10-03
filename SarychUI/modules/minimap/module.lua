@@ -1,7 +1,7 @@
 -- SarychUI Minimap Module
 -- Full sarMinimap integration
 
-local max, rad, cos, sin = math.max, math.rad, math.cos, math.sin
+local max, rad, cos, sin, atan2, deg, floor = math.max, math.rad, math.cos, math.sin, math.atan2, math.deg, math.floor
 
 local moduleName = "minimap"
 local module = {}
@@ -32,9 +32,14 @@ local DEBUG_MINIMAP_WORLD_BUTTON = false
 
 local managedButtonsList = {}
 local managedButtonsListDirty = true
+local addonButtonFramesByID = {}
 local mouseWatchHooksInstalled = false
 local layoutPending = false
 local layoutForcePending = false
+local addonButtonDragDriver
+local activeAddonButtonDrag
+local GetButtonSettings
+local armHide, cancelPending
 
 local carboniteCaptureTimer
 local carboniteHooksInstalled
@@ -48,6 +53,72 @@ local DEFAULT_ICON_SETTINGS = {
 	radius = 82,
 	scale = 1.0,
 }
+
+local LIBDBICON_PREFIX = "LibDBIcon10_"
+
+local function CanonicalizeButtonID(buttonID)
+	if not buttonID then return nil end
+	local doublePrefix = LIBDBICON_PREFIX .. LIBDBICON_PREFIX
+	while buttonID:sub(1, #doublePrefix) == doublePrefix do
+		buttonID = buttonID:sub(#LIBDBICON_PREFIX + 1)
+	end
+	return buttonID
+end
+
+local function RememberAddonButtonFrame(buttonID, button)
+	buttonID = CanonicalizeButtonID(buttonID)
+	if buttonID and button then
+		addonButtonFramesByID[buttonID] = button
+	end
+	return buttonID
+end
+
+local function ResolveAddonButtonFrame(buttonID)
+	buttonID = CanonicalizeButtonID(buttonID)
+	if not buttonID then return nil end
+
+	local button = addonButtonFramesByID[buttonID] or _G[buttonID]
+	if button then
+		addonButtonFramesByID[buttonID] = button
+		return button
+	end
+
+	local lib = LibStub and LibStub("LibDBIcon-1.0", true)
+	if lib and lib.objects then
+		for name, candidate in pairs(lib.objects) do
+			if candidate and candidate.GetName then
+				local candidateID = CanonicalizeButtonID(candidate:GetName() or (LIBDBICON_PREFIX .. name))
+				if candidateID then
+					addonButtonFramesByID[candidateID] = candidate
+					if candidateID == buttonID then
+						return candidate
+					end
+				end
+			end
+		end
+	end
+	return nil
+end
+
+local function MigrateCanonicalButtonSettings(icons)
+	if not icons then return 0 end
+	local moves = {}
+	for buttonID, cfg in pairs(icons) do
+		local canonicalID = CanonicalizeButtonID(buttonID)
+		if canonicalID ~= buttonID then
+			moves[#moves + 1] = { from = buttonID, to = canonicalID, cfg = cfg }
+		end
+	end
+	for i = 1, #moves do
+		local move = moves[i]
+		-- A canonical entry may already contain a newer value entered in /sui.
+		if not icons[move.to] then
+			icons[move.to] = move.cfg
+		end
+		icons[move.from] = nil
+	end
+	return #moves
+end
 
 -- Дефолтные углы для известных кнопок (LibDBIcon-имя или полный buttonID)
 local ADDON_BUTTON_ANGLE_DEFAULTS = {
@@ -195,24 +266,226 @@ local function DebugWorldMapButton(msg)
 	end
 end
 
-local function DisableButtonDrag(button)
-	if not button or button._SarychUIDragDisabled then
+local function NormalizeButtonAngle(angle)
+	if not angle then
+		return nil
+	end
+	angle = floor(angle + 0.5) % 360
+	return angle
+end
+
+local function GetManagedButtonDragAngle()
+	if not Minimap then return nil end
+	local mx, my = Minimap:GetCenter()
+	if not mx or not my then return nil end
+
+	local px, py = GetCursorPosition()
+	local scale = Minimap:GetEffectiveScale() or 1
+	if scale == 0 then scale = 1 end
+	px, py = px / scale, py / scale
+	return NormalizeButtonAngle(deg(atan2(py - my, px - mx)))
+end
+
+local function GetManagedButtonFrameAngle(button)
+	if not button or not Minimap then return nil end
+	local bx, by = button:GetCenter()
+	local mx, my = Minimap:GetCenter()
+	if not bx or not by or not mx or not my then return nil end
+	return NormalizeButtonAngle(deg(atan2(by - my, bx - mx)))
+end
+
+local function SnapManagedButtonToCfg(button, cfg)
+	if not button or not cfg or not Minimap then
 		return
 	end
-	if button.SetMovable then
-		pcall(button.SetMovable, button, false)
+	local angle = cfg.angle or DEFAULT_ICON_SETTINGS.angle
+	local radius = cfg.radius or DEFAULT_ICON_SETTINGS.radius
+	local radians = rad(angle)
+	local x = cos(radians) * radius
+	local y = sin(radians) * radius
+	button:ClearAllPoints()
+	button:SetPoint("CENTER", Minimap, "CENTER", x, y)
+	button.__SarychUILastAngle = angle
+	button.__SarychUILastRadius = radius
+	button.__SarychUILastPosX = x
+	button.__SarychUILastPosY = y
+end
+
+local function WriteManagedButtonAngle(button, angle, refreshOptions)
+	local buttonID = button and button._SarychUIButtonID
+	local cfg = buttonID and GetButtonSettings(buttonID)
+	angle = NormalizeButtonAngle(angle)
+	if not cfg or not cfg.managed or not angle then return false end
+
+	local changed = cfg.angle ~= angle
+	cfg.angle = angle
+	SnapManagedButtonToCfg(button, cfg)
+	if refreshOptions and module.OnAddonButtonSettingChanged then
+		module:OnAddonButtonSettingChanged(buttonID, "angle", cfg.angle)
 	end
-	if button.SetUserPlaced then
-		pcall(button.SetUserPlaced, button, false)
+	if refreshOptions and SarychUI and SarychUI.SyncOpenOptionValue then
+		SarychUI:SyncOpenOptionValue("minimap.angle." .. buttonID)
+	end
+	if refreshOptions and SarychUI and SarychUI.IsSarychUIOptionsOpen and SarychUI:IsSarychUIOptionsOpen()
+		and SarychUI.NotifySarychUIOptionsChange then
+		SarychUI:NotifySarychUIOptionsChange()
+	end
+	return changed
+end
+
+local function UpdateManagedButtonDrag(button)
+	return WriteManagedButtonAngle(button, GetManagedButtonDragAngle(), false)
+end
+
+local function StopManagedButtonDrag(button, commit)
+	button = button or activeAddonButtonDrag
+	if not button then return end
+
+	if activeAddonButtonDrag == button then
+		activeAddonButtonDrag = nil
+		if addonButtonDragDriver then
+			addonButtonDragDriver:SetScript("OnUpdate", nil)
+		end
+	end
+	button._SarychUIDragging = nil
+
+	if commit then
+		WriteManagedButtonAngle(button, GetManagedButtonDragAngle(), true)
+	end
+end
+
+local function ManagedButtonDragOnUpdate()
+	local button = activeAddonButtonDrag
+	if not button then return end
+	if IsMouseButtonDown and not IsMouseButtonDown("LeftButton") then
+		StopManagedButtonDrag(button, true)
+		return
+	end
+	UpdateManagedButtonDrag(button)
+end
+
+local function ManagedButtonOnDragStart(button)
+	if not db or not db.enabled then return end
+	local buttonID = button and button._SarychUIButtonID
+	local cfg = buttonID and GetButtonSettings(buttonID)
+	if not cfg or not cfg.managed or cfg.shown == false then return end
+
+	if activeAddonButtonDrag and activeAddonButtonDrag ~= button then
+		StopManagedButtonDrag(activeAddonButtonDrag, true)
+	end
+	if not addonButtonDragDriver then
+		addonButtonDragDriver = CreateFrame("Frame")
+	end
+	activeAddonButtonDrag = button
+	button._SarychUIDragging = true
+	if cancelPending then cancelPending() end
+	UpdateManagedButtonDrag(button)
+	addonButtonDragDriver:SetScript("OnUpdate", ManagedButtonDragOnUpdate)
+end
+
+local function ManagedButtonOnDragStop(button)
+	if activeAddonButtonDrag == button then
+		StopManagedButtonDrag(button, true)
+	end
+end
+
+local function CaptureManagedButtonPosition(button)
+	if not button or button._SarychUICapturePending then return end
+	button._SarychUICapturePending = true
+	C_Timer.After(0, function()
+		button._SarychUICapturePending = nil
+		if not db or not db.enabled then return end
+		local buttonID = button._SarychUIButtonID
+		local cfg = buttonID and GetButtonSettings(buttonID)
+		if not cfg or not cfg.managed or cfg.shown == false then return end
+		local angle = GetManagedButtonFrameAngle(button)
+		if angle and cfg.angle ~= angle then
+			WriteManagedButtonAngle(button, angle, true)
+		end
+	end)
+end
+
+local function ManagedButtonOnMouseUp(button, mouseButton)
+	if mouseButton ~= "LeftButton" then return end
+	if activeAddonButtonDrag == button then
+		StopManagedButtonDrag(button, true)
+	else
+		-- Some minimap libraries implement dragging through mouse scripts instead
+		-- of OnDragStart/OnDragStop. Read their final position on the next frame.
+		CaptureManagedButtonPosition(button)
+	end
+end
+
+local function CompatManagedButtonOnDragStart(button, ...)
+	local original = button._SarychUIOriginalOnDragStart
+	if original then original(button, ...) end
+	ManagedButtonOnDragStart(button)
+end
+
+local function CompatManagedButtonOnDragStop(button, ...)
+	local original = button._SarychUIOriginalOnDragStop
+	if original then original(button, ...) end
+	ManagedButtonOnDragStop(button)
+end
+
+local function UninstallSarychUIButtonDrag(button)
+	if not button or not button._SarychUIDragInstalled then return end
+	if activeAddonButtonDrag == button then
+		StopManagedButtonDrag(button, false)
+	end
+	if button._SarychUICompatDragScripts and button.SetScript then
+		if button:GetScript("OnDragStart") == CompatManagedButtonOnDragStart then
+			button:SetScript("OnDragStart", button._SarychUIOriginalOnDragStart)
+		end
+		if button:GetScript("OnDragStop") == CompatManagedButtonOnDragStop then
+			button:SetScript("OnDragStop", button._SarychUIOriginalOnDragStop)
+		end
+		button._SarychUIDragHooked = nil
+	end
+	if button.SetMovable and button._SarychUIOriginalMovable ~= nil then
+		pcall(button.SetMovable, button, button._SarychUIOriginalMovable)
+	end
+	button._SarychUIDragging = nil
+	button._SarychUIDragInstalled = nil
+	button._SarychUICompatDragScripts = nil
+	button._SarychUIOriginalOnDragStart = nil
+	button._SarychUIOriginalOnDragStop = nil
+	button._SarychUIOriginalMovable = nil
+end
+
+local function InstallSarychUIButtonDrag(button, buttonID)
+	if not button or not buttonID then
+		return
+	end
+	button._SarychUIButtonID = buttonID
+	if button._SarychUIDragInstalled then
+		return
+	end
+	button._SarychUIOriginalMovable = button.IsMovable and button:IsMovable() or false
+
+	if not button._SarychUIDragHooked then
+		if button.HookScript then
+			button:HookScript("OnDragStart", ManagedButtonOnDragStart)
+			button:HookScript("OnDragStop", ManagedButtonOnDragStop)
+			button:HookScript("OnMouseUp", ManagedButtonOnMouseUp)
+		else
+			-- Compatibility fallback for clients without Frame:HookScript.
+			button._SarychUIOriginalOnDragStart = button:GetScript("OnDragStart")
+			button._SarychUIOriginalOnDragStop = button:GetScript("OnDragStop")
+			button:SetScript("OnDragStart", CompatManagedButtonOnDragStart)
+			button:SetScript("OnDragStop", CompatManagedButtonOnDragStop)
+			button._SarychUICompatDragScripts = true
+		end
+		button._SarychUIDragHooked = true
+	end
+	if button.SetMovable then
+		pcall(button.SetMovable, button, true)
 	end
 	if button.RegisterForDrag then
-		pcall(button.RegisterForDrag, button)
+		pcall(button.RegisterForDrag, button, "LeftButton")
 	end
-	if button.SetScript then
-		button:SetScript("OnDragStart", nil)
-		button:SetScript("OnDragStop", nil)
-	end
-	button._SarychUIDragDisabled = true
+	button._SarychUIDragInstalled = true
+	button._SarychUIDragDisabled = nil
 end
 
 local function EnsureAddonButtonsDB()
@@ -330,10 +603,11 @@ function module:GetStableMinimapButtonKey(frame)
 	if not frame or not frame.GetName then
 		return nil
 	end
-	return frame:GetName()
+	return RememberAddonButtonFrame(frame:GetName(), frame)
 end
 
-local function RegisterAddonButtonIcon(icons, buttonID, stats, source)
+local function RegisterAddonButtonIcon(icons, buttonID, stats, source, button)
+	buttonID = RememberAddonButtonFrame(buttonID, button)
 	if IsIgnoredMinimapButtonID(buttonID) then
 		stats.skippedBlacklist = stats.skippedBlacklist + 1
 		return false
@@ -365,7 +639,7 @@ local function ScanLibDBIconButtons(icons, stats)
 			local buttonID = button:GetName() or ("LibDBIcon10_" .. name)
 			stats.scanned = stats.scanned + 1
 			stats.candidates = stats.candidates + 1
-			RegisterAddonButtonIcon(icons, buttonID, stats, "LibDBIcon")
+			RegisterAddonButtonIcon(icons, buttonID, stats, "LibDBIcon", button)
 		end
 	end
 end
@@ -380,6 +654,7 @@ function module:CleanupAddonButtonIcons()
 		return { removed = 0 }
 	end
 
+	MigrateCanonicalButtonSettings(icons)
 	local removed = 0
 	for buttonID in pairs(icons) do
 		local remove = false
@@ -388,7 +663,7 @@ function module:CleanupAddonButtonIcons()
 		elseif buttonID:match("^QuestieFrame") then
 			remove = true
 		else
-			local frame = _G[buttonID]
+			local frame = ResolveAddonButtonFrame(buttonID)
 			if frame then
 				local valid = IsValidAddonMinimapButton(frame)
 				if not valid then
@@ -412,6 +687,7 @@ local function PurgeBlacklistedIconSettings()
 end
 
 function module:GetButtonDisplayName(buttonID)
+	buttonID = CanonicalizeButtonID(buttonID)
 	if buttonID == "NXMiniMapBut" then
 		return "Carbonite"
 	end
@@ -426,7 +702,8 @@ function module:IsBlizzardMinimapButton(frameName)
 	return IsBlizzardMinimapButton(frameName)
 end
 
-local function GetButtonSettings(buttonID)
+GetButtonSettings = function(buttonID)
+	buttonID = CanonicalizeButtonID(buttonID)
 	if IsBlizzardMinimapButton(buttonID) then
 		return nil
 	end
@@ -451,7 +728,7 @@ local function IsButtonManagedBySarychUI(frame)
 	if not IsManagedMinimapButton(frame) then
 		return false
 	end
-	local buttonID = frame:GetName()
+	local buttonID = RememberAddonButtonFrame(frame:GetName(), frame)
 	local cfg = buttonID and GetButtonSettings(buttonID)
 	return cfg and cfg.managed == true
 end
@@ -460,7 +737,7 @@ local function ShouldParticipateInAutoHide(frame)
 	if not IsButtonManagedBySarychUI(frame) then
 		return false
 	end
-	local buttonID = frame:GetName()
+	local buttonID = RememberAddonButtonFrame(frame:GetName(), frame)
 	local cfg = GetButtonSettings(buttonID)
 	return cfg and cfg.shown ~= false
 end
@@ -640,7 +917,7 @@ local function RebuildManagedButtonsList()
 	if icons then
 		for buttonID in pairs(icons) do
 			if not IsBlizzardMinimapButton(buttonID) then
-				local button = _G[buttonID]
+				local button = ResolveAddonButtonFrame(buttonID)
 				if button and ShouldParticipateInAutoHide(button) and not seen[button] then
 					seen[button] = true
 					managedButtonsList[#managedButtonsList + 1] = button
@@ -700,7 +977,6 @@ local function SafeFadeIn(frame, t, from, to)
 end
 
 -- Хелперы наблюдения за курсором (AceTimer + AceHook)
-local armHide, cancelPending
 
 local function StopMouseWatch()
 	if mouseWatchTicker then module:CancelTimer(mouseWatchTicker); mouseWatchTicker = nil end
@@ -779,7 +1055,7 @@ local function StartMouseWatch()
 			cancelPending()
 			return
 		end
-		-- Allow hide even during the show fade — otherwise opening a nested
+		-- Allow hide even during the show fade - otherwise opening a nested
 		-- settings window while buttons are animating in leaves them stuck.
 		if isAnimatingShow then
 			HideMinimapButtons()
@@ -1068,7 +1344,7 @@ local function SetupMinimap()
 		MinimapZoomOut:Show()
 	end
 	
-	-- Hide world map button (SarychUI «Внешний вид» — единственный источник управления)
+	-- Hide world map button (SarychUI «Внешний вид» - единственный источник управления)
 	module:ApplyWorldMapButtonVisibility()
 	
 	-- Hide clock
@@ -1202,6 +1478,17 @@ local function ApplyButtonPosition(button, cfg, force, buttonID)
 	if not button or not cfg or not Minimap or not cfg.managed then
 		return
 	end
+	-- /sui is the other input path for the same cfg.angle value. A direct entry
+	-- is authoritative and cancels an unfinished mouse drag before applying it.
+	if force and activeAddonButtonDrag == button then
+		StopManagedButtonDrag(button, false)
+	end
+	if button._SarychUIDragging and not force then
+		return
+	end
+	if force then
+		button._SarychUIDragging = nil
+	end
 
 	if button:GetParent() ~= Minimap then
 		button:SetParent(Minimap)
@@ -1249,10 +1536,7 @@ local function ApplyButtonPosition(button, cfg, force, buttonID)
 		button.db.minimapPos = nil
 	end
 
-	DisableButtonDrag(button)
-	if button.icon and button.icon ~= button and button.icon.SetScript then
-		DisableButtonDrag(button.icon)
-	end
+	InstallSarychUIButtonDrag(button, buttonID or button:GetName())
 
 	if button.EnableMouse then
 		button:EnableMouse(true)
@@ -1267,13 +1551,14 @@ local function ApplyButtonPosition(button, cfg, force, buttonID)
 end
 
 local function ApplySingleButtonLayout(buttonID, button, force)
+	buttonID = CanonicalizeButtonID(buttonID)
 	local cfg = GetButtonSettings(buttonID)
 	if not cfg then
 		return
 	end
 
 	if not button then
-		button = _G[buttonID]
+		button = ResolveAddonButtonFrame(buttonID)
 	end
 	if not button then
 		return
@@ -1284,7 +1569,7 @@ local function ApplySingleButtonLayout(buttonID, button, force)
 	end
 
 	if not cfg.managed then
-		button._SarychUIDragDisabled = nil
+		UninstallSarychUIButtonDrag(button)
 		return
 	end
 
@@ -1317,11 +1602,12 @@ local function ApplyAddonButtonLayoutNow(force)
 
 	local layoutStart = PerfNow()
 	EnsureAddonButtonsDB()
+	MigrateCanonicalButtonSettings(db.addonButtons.icons)
 	RefreshMinimapChildrenCache()
 
 	for buttonID, cfg in pairs(db.addonButtons.icons) do
 		if not IsBlizzardMinimapButton(buttonID) then
-			local button = _G[buttonID]
+			local button = ResolveAddonButtonFrame(buttonID)
 			if button then
 				ApplySingleButtonLayout(buttonID, button, force)
 			end
@@ -1330,7 +1616,7 @@ local function ApplyAddonButtonLayoutNow(force)
 
 	for _, child in ipairs(GetMinimapChildren()) do
 		if IsManagedMinimapButton(child) then
-			local buttonID = child:GetName()
+			local buttonID = RememberAddonButtonFrame(child:GetName(), child)
 			if buttonID then
 				GetButtonSettings(buttonID)
 				ApplySingleButtonLayout(buttonID, child, force)
@@ -1398,7 +1684,7 @@ function module:ScanAddonMinimapButtons()
 			stats.candidates = stats.candidates + 1
 			local buttonID = child:GetName()
 			if buttonID then
-				RegisterAddonButtonIcon(icons, buttonID, stats, "frame-scan")
+				RegisterAddonButtonIcon(icons, buttonID, stats, "frame-scan", child)
 			end
 		elseif reason == "blacklist" or reason == "questie_pin" then
 			stats.skippedBlacklist = stats.skippedBlacklist + 1
@@ -1409,7 +1695,7 @@ function module:ScanAddonMinimapButtons()
 
 	if _G.NXMiniMapBut then
 		stats.candidates = stats.candidates + 1
-		RegisterAddonButtonIcon(icons, "NXMiniMapBut", stats, "carbonite")
+		RegisterAddonButtonIcon(icons, "NXMiniMapBut", stats, "carbonite", _G.NXMiniMapBut)
 	end
 
 	lastMinimapButtonScanStats = stats
@@ -1781,6 +2067,7 @@ function module:Disable()
 	Minimap:SetScript("OnMouseUp", Minimap_OnClick)
 	
 	for _, button in ipairs(GetManagedButtons()) do
+		UninstallSarychUIButtonDrag(button)
 		EnableMinimapButton(button)
 	end
 	
@@ -1820,7 +2107,7 @@ function module:ApplySettings()
 	SetupMinimap()
     MoveMinimap()
 	
-	-- Позиционирование иконок аддонов (настройки — немедленно, с force)
+	-- Позиционирование иконок аддонов (настройки - немедленно, с force)
 	layoutPending = false
 	layoutForcePending = false
 	ApplyAddonButtonLayoutNow(true)
@@ -1958,6 +2245,7 @@ end
 
 -- Принудительное применение layout одной кнопки (из options UI)
 function module:OnAddonButtonSettingChanged(buttonID, field, value)
+	buttonID = CanonicalizeButtonID(buttonID)
 	if not db or not db.enabled then
 		return
 	end
@@ -1988,5 +2276,6 @@ function module:ApplyInitialStateToAddonMinimapButton(btn)
 	if not db or not db.enabled or not btn then return end
 	local buttonID = btn:GetName()
 	if not buttonID then return end
+	buttonID = RememberAddonButtonFrame(buttonID, btn)
 	ApplySingleButtonLayout(buttonID, btn, true)
 end

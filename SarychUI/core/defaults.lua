@@ -92,7 +92,7 @@ local platesAurasClassicProfileDefaults = CopyTable(platesAurasDisplayDefaults, 
 local platesAurasElvuiProfileDefaults = CopyTable(platesAurasDisplayDefaults, {})
 platesAurasElvuiProfileDefaults.positions = CopyTable(platesAurasDisplayDefaults.positions, {
 	CentrY = 50,
-	RightX = 11,
+	RightX = 10,
 	RightY = 0,
 	PlayerOffsetY = -10,
 })
@@ -100,7 +100,7 @@ platesAurasElvuiProfileDefaults.display = CopyTable(platesAurasDisplayDefaults.d
 	scale = 0.8,
 })
 platesAurasElvuiProfileDefaults.layout = CopyTable(platesAurasElvUILayoutDefaults, {})
-platesAurasElvuiProfileDefaults.layout.right.offsetX = 11
+platesAurasElvuiProfileDefaults.layout.right.offsetX = 10
 platesAurasElvuiProfileDefaults.layout.right.offsetY = 10
 platesAurasElvuiProfileDefaults.layout.center.offsetY = 60
 platesAurasElvuiProfileDefaults.layout.player.offsetY = 10
@@ -123,19 +123,25 @@ SarychUI.defaults = {
 			},
 		},
 
-		-- wow_optimize.dll compatibility (optional, no hard dependency)
-		compatibility = {
-			wowOptimize = "auto", -- auto | enabled | disabled
-			debug = false,
-		},
+		-- Optional client capability detection (no runtime ownership).
+		compatibility = {},
 
 		-- System (Система) settings
-			system = {
-			enableSpeedyLoad = 1,
+		system = {
+			enableSpeedyLoad = false,
 			speedyLoadMode = "safe", -- safe | aggressive
+			speedyLoadPostGC = true,
+			speedyLoadRefreshUI = true,
+			lockdownErrorSearch = false,
 			runtime = {
 				enabled = true,
+				gcEnabled = true,
+				emergencyGCEnabled = true,
+				tablePoolEnabled = true,
+				sharedThrottleEnabled = true,
+				cachedTimeEnabled = true,
 				uiCacheEnabled = true,
+				poolMax = 300,
 				preset = "standard", -- light | standard | heavy
 				frameStepKB = 50,
 				combatStepKB = 15,
@@ -164,6 +170,14 @@ SarychUI.defaults = {
                 scale = 1.0,
                 -- Test mode (0 = none, 2 = test 2, 3 = test 3, 5 = test 5)
                 testMode = 0,
+                -- Nameplate arena index (RougeUI ArenaNumbers)
+                arenaNumbers = 0,
+                arenaNumbersNameplates = 1,
+                arenaNumbersArenaFrames = 1,
+                -- Hide "Group/Raid" titles (RougeUI HideTitles), arena only
+                hideGroupRaidText = 0,
+                -- TAB targets enemy players in arena/BG (RougeUI retab)
+                retab = 0,
                 -- Trinkets and Racial abilities
                 Trinkets = {
                     enabled = true,
@@ -198,6 +212,7 @@ SarychUI.defaults = {
                 enableAltCD = 1,
                 enableAltUnitBars = 1,
                 enableAltAuras = 1,
+                enableAltOmniCD = 0,
 
                 -- Visual / combat text (moved to floating_text)
 
@@ -214,7 +229,7 @@ SarychUI.defaults = {
                 lootRollCountFontOutline = "OUTLINE",
 
                 -- Tooltip
-                enableTooltipCursor = 0,
+                enableTooltipCursor = 1,
                 tooltipCursorAltOnly = 1,
 
                 -- Arena pointer
@@ -243,10 +258,12 @@ SarychUI.defaults = {
 				enableDarkMode = 0,
 				darkModeColor = {r = 0.37, g = 0.37, b = 0.37, a = 1},
 
-				-- Resync stuck Blizzard BossNTargetFrame with UnitExists(bossN)
-				fixBossFrames = 1,
+				-- Double-tap action keys (RougeUI KeyEcho)
+				enableKeyEcho = 0,
+				-- Class-colored names on the PvP scoreboard (RougeUI ScoreBoard)
+				enablePvpScoreboardClassNames = 0,
 
-				-- Chat extras (moved from chat → Утилиты)
+				-- Chat extras (moved from chat -> Утилиты)
 				translitAliasesEnabled = 1,
 				clearChatSlashEnabled = 1,
 
@@ -267,10 +284,57 @@ SarychUI.defaults = {
                 mode = "pretty",
             },
 
-            -- Map module (classic / Mapster / Carbonite selector)
+            -- Map module (classic / SarychUI / Carbonite)
             map = {
                 enabled = true,
-                mapType = "mapster",
+                mapType = "sarychui",
+                strata = "HIGH",
+                hideMapButton = true,
+                arrowScale = 0.88,
+				questObjectives = 1,
+                x = 0,
+                y = 0,
+                point = "CENTER",
+                scale = 1,
+                poiScale = 0.8,
+                alpha = 1,
+                hideBorder = false,
+                disableMouse = false,
+                miniMap = false,
+                panButton = "middle",
+                panSpeed = 0.9,
+                zoneInfo = true,
+                resetLayout = false,
+                fadeOnMove = true,
+                movingAlpha = 0.4,
+                revealFog = true,
+                showPOI = true,
+                showDungeon = true,
+                showFlight = true,
+                showFlightOpposite = false,
+                showTravel = true,
+                showTravelOpposite = false,
+                showSpirit = false,
+                showArrow = true,
+                showCoords = true,
+                persistZoom = true,
+                maxZoom = 4,
+                zoomStep = 0.1,
+                coordAccuracy = 1,
+                fogStyle = "leatrix",
+                fogTintR = 0.6,
+                fogTintG = 0.6,
+                fogTintB = 1,
+                fogTintA = 1,
+                mini = {
+                    x = 0,
+                    y = 0,
+                    point = "CENTER",
+                    scale = 1,
+                    alpha = 0.9,
+                    hideBorder = true,
+                    disableMouse = true,
+                },
             },
 
             -- Plates Auras module
@@ -301,6 +365,8 @@ SarychUI.defaults = {
                     splitMode = "adibags",
                     -- When splitMode is adibags: toolbar toggle for category headers (does not fall back to classic)
                     adiBagsCategories = true,
+					-- User-defined AdiBags sections: { id, name, items = { [itemID] = true } }
+					customCategories = {},
                     consumableSplit = false,
                     ammoSplit = false,
                     questSplit = false,
@@ -581,11 +647,16 @@ SarychUI.defaults = {
 				combatIndicatorEliteOffset = 30,
 				-- Combat indicator rogue offset
 				combatIndicatorRogueOffset = 10,
+				-- Combo points on the focus frame
+				enableFocusComboPoints = 0,
 				-- Text indicators
 				showOnAlt = 1,
 				showTextIndicatorsInCombat = false,
 				textIndicatorsFadeAfterCombat = false,
 				textIndicatorsFadeTime = 0.4,
+				changeBarFontSize = 0,
+				healthBarFontSize = 14,
+				manaBarFontSize = 14,
 				showPercentagesOnAlt = 1,
 				showTargetPercent = 1,
 				showFocusPercent = 0,
@@ -600,21 +671,38 @@ SarychUI.defaults = {
 				hideFocusPVP = 1,
 				hidePVPTimer = 1,
 				pvpTimerOnAlt = 1,
+				hideFrameLevel = 0,
+				hidePlayerRestState = 0,
+				classColoredNames = 0,
+				classColoredNamesExcludePlayer = 0,
+				nameBackgroundEnabled = 0,
+				nameBackgroundMode = "custom",
+				nameBackgroundColor = { 0, 0, 0, 0 },
+				nameBackgroundExcludePlayer = 0,
 				hidePlayerHitIndicator = 1,
 				hidePetHitIndicator = 1,
 				-- Class icons instead of portraits (players only; NPCs keep default)
 				classIconPortraits = 0,
 				-- When classIconPortraits is on: also replace PlayerFrame portrait (1) or keep face (0)
 				classIconPortraitsPlayer = 1,
+				-- Class icon on the level badge: replace the number, or sit beside it
+				classIconEnabled = 0,
+				classIconMode = "replace",
+				classIconMaxLevelOnly = 0,
+				-- When class icons are on: also apply to PlayerFrame (1) or leave the player level alone (0)
+				classIconPlayer = 1,
+				classIconX = -73,
+				classIconY = 43,
 				-- Legacy key (unused)
 				enable3DPortraits = 0,
-				-- Pet name shortening (UI under Frames → Appearance)
+				-- Pet name shortening (UI under Frames -> Appearance)
 				enablePetNameShortening = 1,
 			},
 
 			-- Auras module (extracted from frame)
 			auras = {
 				enabled = true,
+				hideTargetAuras = 0,
 				hideFocusAuras = 1,
 				hideTargetOfTargetAuras = 1,
 				enableDispelHighlight = 1,
@@ -626,6 +714,15 @@ SarychUI.defaults = {
 				buffFrameScale = 1.0,
 				showBuffDragFrame = 0,
 				showBuffGrid = 0,
+				changeFrameAuraSize = 0,
+				frameAuraOtherSize = 23,
+				frameAuraSelfSize = 23,
+				frameAuraRowWidth = 122,
+				frameAurasGrowUp = 0,
+				frameAurasGrowUpY = -17,
+				changePlayerBuffRow = 0,
+				playerBuffsPerRow = 8,
+				showPoisonIcons = 0,
 			},
 			
 			-- Chat module
@@ -658,6 +755,11 @@ SarychUI.defaults = {
 			emotionPickerEnabled = 0,
 			emotionPickerTriggerEnabled = 1,
 			emotionPickerTrigger = "//",
+
+			-- Class-color names when mentioned (ElvUI-style)
+			classColorMentionsEnabled = 1,
+			classColorMentionsChat = 1,
+			classColorMentionsSpeech = 1,
 				
 				-- Chat Icons settings
 				iconsEnabled = 1,
@@ -674,6 +776,10 @@ SarychUI.defaults = {
 				-- Chat Fast Scroll settings
 				fastScrollEnabled = 1,
 				fastScrollSteps = 5,
+
+				-- Chat LagBar (FPS + latency under chat)
+				lagBarEnabled = 0,
+				lagBarLabelsEnabled = 0,
 				
 				-- Chat Appearance settings
 				friendsButtonModEnabled = 1,
@@ -871,7 +977,7 @@ SarychUI.defaults = {
 			},
 			-- LootClicker addon
 			LootClicker = {
-				enabled = true,
+				enabled = false,
 			},
 			-- LootHistory addon
 			LootHistory = {
@@ -896,22 +1002,6 @@ SarychUI.defaults = {
 			-- GladiusEx (embedded)
 			GladiusEx = {
 				enabled = false,
-			},
-			-- Cromulent addon
-			Cromulent = {
-				enabled = true,
-			},
-			-- Mapster addon
-			Mapster = {
-				enabled = true,
-			},
-			-- !Astrolabe (map library)
-			["!Astrolabe"] = {
-				enabled = true,
-			},
-			-- WDM (WoW Dungeon Maps)
-			WDM = {
-				enabled = true,
 			},
 			-- External Carbonite (map mode flag only; addon lives in Interface/AddOns/Carbonite)
 			Carbonite = {
@@ -980,6 +1070,18 @@ SarychUI.defaults = {
 			CompactRaidFrame = {
 				enabled = true,
 			},
+			-- CompactRaidFrame_HealEx addon
+			CompactRaidFrame_HealEx = {
+				enabled = true,
+			},
+			-- EnhancedRaidFrames addon
+			EnhancedRaidFrames = {
+				enabled = true,
+			},
+			-- OmniCD addon
+			OmniCD = {
+				enabled = true,
+			},
 			-- !!!ClassicAPI addon
 			["!!!ClassicAPI"] = {
 				enabled = true,
@@ -1009,10 +1111,6 @@ SarychUI.defaults = {
 			InspectEquip = {
 				enabled = false,
 			},
-			-- FindGroup (embedded)
-			FindGroup = {
-				enabled = false,
-			},
 			-- RaidRoll (embedded: includes EPGP + LootTracker)
 			RaidRoll = {
 				enabled = true,
@@ -1022,7 +1120,7 @@ SarychUI.defaults = {
 			Talented = {
 				enabled = true,
 				skinStyle = "SarychUI", -- SarychUI | ElvUI
-				dragonflightHeader = true,
+				dragonflightHeader = false,
 			},
 		},
 		
@@ -1034,7 +1132,7 @@ SarychUI.defaults = {
 	
 	-- Global settings (not per character)
 	global = {
-		version = "1.0.0",
+		version = "1.1.0",
 		general = {
 			-- Saved size of the config window (matches ElvUI / ElvUI_NamePlates_Standalone defaults).
 			AceGUI = {
@@ -1088,10 +1186,14 @@ local function MigrateProfileDefaults(profile)
 		return
 	end
 
-	if not profile.compatibility then
+	if type(profile.compatibility) ~= "table" then
 		profile.compatibility = CopyTable(SarychUI.defaults.profile.compatibility)
 	end
-
+	-- Capability detection has no profile switches; purge settings from the
+	-- retired external runtime compatibility layer.
+	for key in pairs(profile.compatibility) do
+		profile.compatibility[key] = nil
+	end
 	if not profile.system then
 		profile.system = CopyTable(SarychUI.defaults.profile.system)
 	else
@@ -1101,6 +1203,15 @@ local function MigrateProfileDefaults(profile)
 		end
 		if profile.system.speedyLoadMode == nil then
 			profile.system.speedyLoadMode = sysDef.speedyLoadMode
+		end
+		if profile.system.speedyLoadPostGC == nil then
+			profile.system.speedyLoadPostGC = sysDef.speedyLoadPostGC
+		end
+		if profile.system.speedyLoadRefreshUI == nil then
+			profile.system.speedyLoadRefreshUI = sysDef.speedyLoadRefreshUI
+		end
+		if profile.system.lockdownErrorSearch == nil then
+			profile.system.lockdownErrorSearch = sysDef.lockdownErrorSearch
 		end
 		if not profile.system.runtime then
 			profile.system.runtime = CopyTable(sysDef.runtime)
@@ -1136,10 +1247,10 @@ local function MigrateProfileDefaults(profile)
 				bagsDb.mode = bagsDefaults.mode
 			end
 		end
-		-- Синхронизация bags.mode ↔ addons.BaudBag / SarychUI_Bags
+		-- Синхронизация bags.mode <-> addons.BaudBag / SarychUI_Bags
 		local addonsForBags = profile.addons
 		if addonsForBags then
-			-- Migrate renamed embed key (ElvUI_Bags → SarychUI_Bags).
+			-- Migrate renamed embed key (ElvUI_Bags -> SarychUI_Bags).
 			if type(addonsForBags.ElvUI_Bags) == "table" and type(addonsForBags.SarychUI_Bags) ~= "table" then
 				addonsForBags.SarychUI_Bags = CopyTable(addonsForBags.ElvUI_Bags)
 			end
@@ -1150,8 +1261,9 @@ local function MigrateProfileDefaults(profile)
 				mode = "default"
 				bagsDb.mode = "default"
 			end
-			addonsForBags.BaudBag.enabled = (mode == "baudbag")
-			addonsForBags.SarychUI_Bags.enabled = (mode == "elvui")
+			local enabled = bagsDb.enabled == true
+			addonsForBags.BaudBag.enabled = enabled and (mode == "baudbag")
+			addonsForBags.SarychUI_Bags.enabled = enabled and (mode == "elvui")
 		end
 		if bagsDb.enableBagSearch == nil then
 			bagsDb.enableBagSearch = bagsDefaults.enableBagSearch
@@ -1185,6 +1297,9 @@ local function MigrateProfileDefaults(profile)
 		end
 		if bagsDb.elvui.adiBagsCategories == nil then
 			bagsDb.elvui.adiBagsCategories = bagsDefaults.elvui.adiBagsCategories ~= false
+		end
+		if type(bagsDb.elvui.customCategories) ~= "table" then
+			bagsDb.elvui.customCategories = {}
 		end
 		if bagsDb.elvui.consumableSplit == nil then
 			bagsDb.elvui.consumableSplit = bagsDefaults.elvui.consumableSplit == true
@@ -1229,7 +1344,7 @@ local function MigrateProfileDefaults(profile)
 		if bagsDb.elvui.dragonflightHeader == nil then
 			bagsDb.elvui.dragonflightHeader = bagsDefaults.elvui.dragonflightHeader == true
 		end
-		-- One-shot: previous window alpha default was 0.85 → 0.65; add categories alpha.
+		-- One-shot: previous window alpha default was 0.85 -> 0.65; add categories alpha.
 		if bagsDb.elvui._windowAlphaDefaultsRev ~= 1 then
 			if bagsDb.elvui.windowBackgroundAlpha == nil or bagsDb.elvui.windowBackgroundAlpha == 0.85 then
 				bagsDb.elvui.windowBackgroundAlpha = bagsDefaults.elvui.windowBackgroundAlpha or 0.65
@@ -1313,8 +1428,20 @@ local function MigrateProfileDefaults(profile)
 		if mapDb.enabled == nil then
 			mapDb.enabled = mapDefaults.enabled
 		end
+		if mapDb.mapType == "mapster" then
+			mapDb.mapType = "sarychui"
+		end
 		if mapDb.mapType == nil then
 			mapDb.mapType = mapDefaults.mapType
+		end
+		for key, value in pairs(mapDefaults) do
+			if mapDb[key] == nil then
+				if type(value) == "table" then
+					mapDb[key] = CopyTable(value)
+				else
+					mapDb[key] = value
+				end
+			end
 		end
 	end
 
@@ -1339,7 +1466,7 @@ local function MigrateProfileDefaults(profile)
 		end
 	end
 	if profile.addons.Talented and profile.addons.Talented.dragonflightHeader == nil then
-		profile.addons.Talented.dragonflightHeader = true
+		profile.addons.Talented.dragonflightHeader = false
 	end
 
 	local modules = profile.modules
@@ -1352,8 +1479,14 @@ local function MigrateProfileDefaults(profile)
 	if modules and modules.tools and modules.tools.enableAltAuras == nil then
 		modules.tools.enableAltAuras = SarychUI.defaults.profile.modules.tools.enableAltAuras
 	end
-	if modules and modules.tools and modules.tools.fixBossFrames == nil then
-		modules.tools.fixBossFrames = SarychUI.defaults.profile.modules.tools.fixBossFrames
+	if modules and modules.tools and modules.tools.enableAltOmniCD == nil then
+		modules.tools.enableAltOmniCD = SarychUI.defaults.profile.modules.tools.enableAltOmniCD
+	end
+	if modules and modules.tools and modules.tools.enableKeyEcho == nil then
+		modules.tools.enableKeyEcho = 0
+	end
+	if modules and modules.tools and modules.tools.enablePvpScoreboardClassNames == nil then
+		modules.tools.enablePvpScoreboardClassNames = 0
 	end
 	if modules and modules.tools and modules.tools.fpsExtraOffsetX == nil then
 		modules.tools.fpsExtraOffsetX = 0
@@ -1420,11 +1553,70 @@ local function MigrateProfileDefaults(profile)
 		if frameDb.classIconPortraitsPlayer == nil then
 			frameDb.classIconPortraitsPlayer = frameDef.classIconPortraitsPlayer
 		end
+		if frameDb.classIconEnabled == nil then
+			frameDb.classIconEnabled = frameDef.classIconEnabled
+		end
+		if frameDb.classIconMode == nil then
+			frameDb.classIconMode = frameDef.classIconMode
+		end
+		if frameDb.classIconMaxLevelOnly == nil then
+			frameDb.classIconMaxLevelOnly = frameDef.classIconMaxLevelOnly
+		end
+		if frameDb.classIconPlayer == nil then
+			frameDb.classIconPlayer = frameDef.classIconPlayer
+		end
+		if frameDb.classIconX == nil then
+			frameDb.classIconX = frameDef.classIconX
+		end
+		if frameDb.classIconY == nil then
+			frameDb.classIconY = frameDef.classIconY
+		end
+		if frameDb.hideFrameLevel == nil then
+			frameDb.hideFrameLevel = frameDef.hideFrameLevel
+		end
+		if frameDb.classColoredNames == nil then
+			frameDb.classColoredNames = frameDef.classColoredNames
+		end
+		if frameDb.classColoredNamesExcludePlayer == nil then
+			frameDb.classColoredNamesExcludePlayer = frameDef.classColoredNamesExcludePlayer
+		end
+		if frameDb.changeBarFontSize == nil then
+			frameDb.changeBarFontSize = frameDef.changeBarFontSize
+		end
+		if frameDb.healthBarFontSize == nil then
+			frameDb.healthBarFontSize = frameDef.healthBarFontSize
+		end
+		if frameDb.manaBarFontSize == nil then
+			frameDb.manaBarFontSize = frameDef.manaBarFontSize
+		end
+		if frameDb.nameBackgroundEnabled == nil then
+			frameDb.nameBackgroundEnabled = frameDef.nameBackgroundEnabled
+		end
+		if frameDb.nameBackgroundMode == nil then
+			frameDb.nameBackgroundMode = frameDef.nameBackgroundMode
+		end
+		if frameDb.nameBackgroundColor == nil then
+			frameDb.nameBackgroundColor = frameDef.nameBackgroundColor
+		end
+		if frameDb.nameBackgroundExcludePlayer == nil then
+			frameDb.nameBackgroundExcludePlayer = frameDef.nameBackgroundExcludePlayer
+		end
+		if frameDb.enableFocusComboPoints == nil then
+			frameDb.enableFocusComboPoints = frameDef.enableFocusComboPoints
+		end
+		if frameDb._suiNameBgOffByDefault ~= 1 then
+			frameDb.nameBackgroundEnabled = 0
+			frameDb._suiNameBgOffByDefault = 1
+		end
 	end
-	-- Migrate aura settings from frame → auras (and legacy tools dispel).
+	if aurasDb and aurasDef and aurasDb.showPoisonIcons == nil then
+		aurasDb.showPoisonIcons = aurasDef.showPoisonIcons
+	end
+	-- Migrate aura settings from frame -> auras (and legacy tools dispel).
 	-- If frame still holds legacy keys, copy them over (overwrite fresh defaults).
 	if aurasDb then
 		local auraKeys = {
+			"hideTargetAuras",
 			"hideFocusAuras",
 			"hideTargetOfTargetAuras",
 			"enableDispelHighlight",
@@ -1459,9 +1651,36 @@ local function MigrateProfileDefaults(profile)
 		if aurasDb.enabled == nil then
 			aurasDb.enabled = true
 		end
+		if aurasDb.changeFrameAuraSize == nil then
+			aurasDb.changeFrameAuraSize = aurasDef and aurasDef.changeFrameAuraSize or 0
+		end
+		if aurasDb.frameAuraOtherSize == nil then
+			aurasDb.frameAuraOtherSize = aurasDef and aurasDef.frameAuraOtherSize or 23
+		end
+		if aurasDb.frameAuraSelfSize == nil then
+			aurasDb.frameAuraSelfSize = aurasDef and aurasDef.frameAuraSelfSize or 23
+		end
+		if aurasDb.frameAuraRowWidth == nil then
+			aurasDb.frameAuraRowWidth = aurasDef and aurasDef.frameAuraRowWidth or 122
+		end
+		if aurasDb.frameAurasGrowUp == nil then
+			aurasDb.frameAurasGrowUp = 0
+		end
+		if aurasDb.frameAurasGrowUpY == nil or aurasDb.frameAurasGrowUpY == 32 then
+			aurasDb.frameAurasGrowUpY = -17
+		end
+		if aurasDb.hideTargetAuras == nil then
+			aurasDb.hideTargetAuras = 0
+		end
+		if aurasDb.changePlayerBuffRow == nil then
+			aurasDb.changePlayerBuffRow = aurasDef and aurasDef.changePlayerBuffRow or 0
+		end
+		if aurasDb.playerBuffsPerRow == nil then
+			aurasDb.playerBuffsPerRow = aurasDef and aurasDef.playerBuffsPerRow or 8
+		end
 	end
 
-	-- cc.font: migrate legacy file paths → LibSharedMedia font names
+	-- cc.font: migrate legacy file paths -> LibSharedMedia font names
 	local ccDb = modules and modules.cc
 	local ccDef = SarychUI.defaults.profile.modules.cc
 	if ccDb then
@@ -1494,6 +1713,17 @@ local function MigrateProfileDefaults(profile)
 	local chatDef = SarychUI.defaults.profile.modules.chat
 	if chatDb and chatDef and chatDb.lfgAbbrev == nil then
 		chatDb.lfgAbbrev = chatDef.lfgAbbrev or "[Поиск]"
+	end
+	if chatDb then
+		if chatDb.classColorMentionsEnabled == nil then
+			chatDb.classColorMentionsEnabled = chatDef and chatDef.classColorMentionsEnabled or 1
+		end
+		if chatDb.classColorMentionsChat == nil then
+			chatDb.classColorMentionsChat = chatDef and chatDef.classColorMentionsChat or 1
+		end
+		if chatDb.classColorMentionsSpeech == nil then
+			chatDb.classColorMentionsSpeech = chatDef and chatDef.classColorMentionsSpeech or 1
+		end
 	end
 	if chatDb and chatDef and chatDef.chatWheel then
 		if type(chatDb.chatWheel) ~= "table" then
@@ -1555,6 +1785,26 @@ local function MigrateProfileDefaults(profile)
 	end
 
 	local addons = profile.addons
+	if modules and modules.arena then
+		if modules.arena.arenaNumbers == nil then
+			modules.arena.arenaNumbers = 0
+		end
+		-- Keep the old arenaNumbers toggle backward-compatible: existing profiles
+		-- continue to affect nameplates, while both destinations are enabled by
+		-- default for the expanded feature.
+		if modules.arena.arenaNumbersNameplates == nil then
+			modules.arena.arenaNumbersNameplates = 1
+		end
+		if modules.arena.arenaNumbersArenaFrames == nil then
+			modules.arena.arenaNumbersArenaFrames = 1
+		end
+		if modules.arena.hideGroupRaidText == nil then
+			modules.arena.hideGroupRaidText = 0
+		end
+		if modules.arena.retab == nil then
+			modules.arena.retab = 0
+		end
+	end
 	if modules and modules.arena and addons and addons.GladiusEx then
 		if addons.GladiusEx.enabled == true then
 			modules.arena.frameType = "gladiusex"
@@ -1568,27 +1818,23 @@ local function MigrateProfileDefaults(profile)
 	end
 
 	if modules and modules.map and addons then
-		addons.Mapster = addons.Mapster or { enabled = true }
 		addons.Carbonite = addons.Carbonite or { enabled = false }
 
+		if modules.map.mapType == "mapster" then
+			modules.map.mapType = "sarychui"
+		end
 		if modules.map.mapType == nil then
-			modules.map.mapType = "mapster"
+			modules.map.mapType = "sarychui"
 		end
 
 		if modules.map.mapType == "carbonite" then
 			if SarychUI and SarychUI.IsExternalCarboniteAvailable and not SarychUI:IsExternalCarboniteAvailable() then
-				modules.map.mapType = "mapster"
-				addons.Mapster.enabled = true
+				modules.map.mapType = "sarychui"
 				addons.Carbonite.enabled = false
 			else
 				addons.Carbonite.enabled = true
-				addons.Mapster.enabled = false
 			end
-		elseif modules.map.mapType == "mapster" then
-			addons.Mapster.enabled = true
-			addons.Carbonite.enabled = false
-		elseif modules.map.mapType == "classic" then
-			addons.Mapster.enabled = false
+		else
 			addons.Carbonite.enabled = false
 		end
 	end
@@ -1597,7 +1843,7 @@ local function MigrateProfileDefaults(profile)
 		addons.Postal.loadMode = "embedded"
 	end
 
-	-- Removed: custom automation mail collect (CollectAllMail) — use embedded Postal only.
+	-- Removed: custom automation mail collect (CollectAllMail) - use embedded Postal only.
 	-- Removed: sarAutoConfirm / WowCircle email confirm chain.
 	local automationDb = modules and modules.automation
 	if automationDb then
@@ -1611,10 +1857,10 @@ local function MigrateProfileDefaults(profile)
 
 	-- Removed: weather density override (tools).
 	-- Removed: raid target icons radial menu (tools.rti).
-	-- Moved: SpeedyLoad → system (Система).
-	-- Moved: castbar / invite / arena countdown timers → cc (Текст перезарядки).
-	-- Moved: pet name shortening → frame (Фреймы).
-	-- Moved: dispel highlight / buff management / focus-ToT auras → auras (Ауры).
+	-- Moved: SpeedyLoad -> system (Система).
+	-- Moved: castbar / invite / arena countdown timers -> cc (Текст перезарядки).
+	-- Moved: pet name shortening -> frame (Фреймы).
+	-- Moved: dispel highlight / buff management / focus-ToT auras -> auras (Ауры).
 	local toolsDb = modules and modules.tools
 	local frameDb = modules and modules.frame
 	local aurasDb = modules and modules.auras
@@ -1671,7 +1917,7 @@ local function MigrateProfileDefaults(profile)
 		end
 	end
 
-	-- Moved: floating text filter (errors / combat text / boss emotes) → floating_text.
+	-- Moved: floating text filter (errors / combat text / boss emotes) -> floating_text.
 	local floatingDb = modules and modules.floating_text
 	if toolsDb then
 		local floatingKeys = {

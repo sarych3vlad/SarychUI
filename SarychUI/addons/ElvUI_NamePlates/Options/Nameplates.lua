@@ -3421,4 +3421,3 @@ function E:RegisterOptions()
 	AC:RegisterOptionsTable(APP, E.Options)
 	if ACD then ACD:SetDefaultSize(APP, self:GetConfigDefaultSize()) end
 end
-

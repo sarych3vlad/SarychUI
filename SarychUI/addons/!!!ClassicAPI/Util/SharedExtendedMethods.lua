@@ -131,12 +131,23 @@ local function Method_SetSubTexCoord(Self, Left, Right, Top, Bottom)
 	Self:SetTexCoord(UL_X, UL_Y, LL_X, LL_Y, UR_X, UR_Y, LR_X, LR_Y)
 end
 
-local function Method_SetAtlas(Self, AtlasName, UseAtlasSize, FilterMode)
-	Assert(Self, "SetAtlas: not found object")
-	Assert(AtlasName, "SetAtlas: AtlasName must be specified")
-	Assert(ATLAS_INFO_STORAGE[AtlasName], "SetAtlas: Atlas named "..AtlasName.." does not exist")
+local NativeSetAtlas = FrameTexture.SetAtlas
+if ( type(NativeSetAtlas) ~= "function" ) then
+	NativeSetAtlas = nil
+end
 
-	local Atlas = ATLAS_INFO_STORAGE[AtlasName]
+local function Method_SetAtlas(Self, AtlasName, UseAtlasSize, FilterMode)
+	if ( not Self or not AtlasName or AtlasName == "" ) then
+		return
+	end
+
+	local Atlas = ATLAS_INFO_STORAGE and ATLAS_INFO_STORAGE[AtlasName]
+	if ( not Atlas ) then
+		if ( NativeSetAtlas ) then
+			return NativeSetAtlas(Self, AtlasName, UseAtlasSize, FilterMode)
+		end
+		return
+	end
 
 	Self:SetTexture(Atlas[CONST_ATLAS_TEXTUREPATH] or "", Atlas[CONST_ATLAS_TILESHORIZ], Atlas[CONST_ATLAS_TILESVERT])
 

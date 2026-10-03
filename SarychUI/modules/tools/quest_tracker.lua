@@ -82,7 +82,7 @@ local function GetSideBarOffsetX()
 	return tonumber(CONTAINER_OFFSET_X) or 0
 end
 
--- Base (no bars) → on-screen TOPRIGHT offsets (X follows side bars only).
+-- Base (no bars) -> on-screen TOPRIGHT offsets (X follows side bars only).
 local function GetEffectivePosition()
 	local baseX, baseY = GetBasePosition()
 	return baseX - GetSideBarOffsetX(), baseY

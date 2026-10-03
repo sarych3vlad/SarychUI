@@ -505,7 +505,7 @@ function ChatBar_OnLoad(self)
 	self:RegisterForDrag("LeftButton");
 	self.velocity = 0;
 	
-	-- До решения об активации — скрыто
+	-- До решения об активации - скрыто
 	self:Hide();
 	ChatBar_IsShown = false;
 	

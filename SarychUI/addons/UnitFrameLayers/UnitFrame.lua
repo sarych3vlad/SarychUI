@@ -3,7 +3,7 @@
 ------------------------------------------------------------------------
 --######################################################################
 
-local LibAbsorb  = LibStub:GetLibrary("SpecializedAbsorbs-1.0");
+local LibAbsorb  = LibStub:GetLibrary("AbsorbsMonitor-1.0", true);
 local HealComm   = LibStub:GetLibrary("LibHealComm-4.0");
 
 -- Global enabled state
@@ -116,7 +116,7 @@ function UnitGetTotalAbsorbs(unit)
 		return;
 	end
 
-	return LibAbsorb.UnitTotal(UnitGUID(unit));
+	return LibAbsorb.Unit_Total(UnitGUID(unit));
 end
 
 function UnitGetTotalHealAbsorbs(unit) -- there is nothing like this in the WotLK patch
@@ -306,52 +306,66 @@ local function LibEventCallback(self, event, ... )
 	if not IsEnabled() then
 		return;
 	end
-    local arg1, arg2, arg3, arg4, arg5 = ...;
-    if ( not self.unit) then
-        return;
-    end
+	if ( not self.unit ) then
+		return;
+	end
 
-	if ( event == "EffectApplied" and arg3 == UnitGUID(self.unit) ) then
-		UnitFrameHealPredictionBars_Update(self);
-	elseif ( arg1 == UnitGUID(self.unit) ) then
-		if ( event == "UnitUpdated" ) then
-			UnitFrameHealPredictionBars_Update(self);
-		elseif ( event == "EffectRemoved" ) then
-			UnitFrameHealPredictionBars_Update(self);
-		elseif ( event == "UnitCleared" ) then
-			UnitFrameHealPredictionBars_Update(self);
-		elseif ( event == "AreaCreated" ) then
-			UnitFrameHealPredictionBars_Update(self);
-		elseif ( event == "AreaCleared" ) then
-			UnitFrameHealPredictionBars_Update(self);
-		elseif ( event == "COMPACT_UNIT_FRAME_UNIT_AURA" ) then
+	local guid = UnitGUID(self.unit);
+	if ( not guid ) then
+		return;
+	end
+
+	local arg1, arg2, arg3, arg4, arg5 = ...;
+
+	-- AbsorbsMonitor-1.0: same events and GUID slots as CompactRaidFrame_HealEx.
+	if ( event == "EffectApplied" or event == "EffectUpdated" or event == "EffectRemoved" or
+	   event == "UnitUpdated" or event == "UnitCleared" or event == "AreaCreated" or
+	   event == "AreaUpdated" or event == "AreaCleared" ) then
+		if ( arg1 == guid or arg3 == guid ) then
 			UnitFrameHealPredictionBars_Update(self);
 		end
-	elseif ( arg5 == UnitGUID(self.unit) ) then
-		if ( event == "HealComm_HealUpdated" ) then
+		return;
+	end
+
+	if ( event == "COMPACT_UNIT_FRAME_UNIT_AURA" and arg1 == guid ) then
+		UnitFrameHealPredictionBars_Update(self);
+		return;
+	end
+
+	if ( arg5 == guid ) then
+		if ( event == "HealComm_HealUpdated" or event == "HealComm_HealStarted" or
+		   event == "HealComm_HealDelayed" or event == "HealComm_HealStopped" or
+		   event == "HealComm_ModifierChanged" or event == "HealComm_GUIDDisappeared" ) then
 			UnitFrameHealPredictionBars_Update(self);
-		elseif ( event == "HealComm_HealStarted" ) then
-			UnitFrameHealPredictionBars_Update(self);
-		elseif ( event == "HealComm_HealDelayed" ) then
-			UnitFrameHealPredictionBars_Update(self);
-		elseif ( event == "HealComm_HealStopped" ) then
-			UnitFrameHealPredictionBars_Update(self);
-		elseif ( event == "HealComm_ModifierChanged" ) then
-			UnitFrameHealPredictionBars_Update(self);
-		elseif ( event == "HealComm_GUIDDisappeared" ) then
-			UnitFrameHealPredictionBars_Update(self);
+		end
+		return;
+	end
+
+	if ( ... ) then
+		for i = 1, select("#", ...) do
+			if ( select(i, ...) == guid ) then
+				if ( event == "HealComm_HealUpdated" or event == "HealComm_HealStarted" or
+				   event == "HealComm_HealDelayed" or event == "HealComm_HealStopped" or
+				   event == "HealComm_ModifierChanged" or event == "HealComm_GUIDDisappeared" ) then
+					UnitFrameHealPredictionBars_Update(self);
+				end
+				break;
+			end
 		end
 	end
 end
 
 local function UnitFrame_RegisterCallback(self)
-	LibAbsorb.RegisterCallback(self, "EffectApplied", LibEventCallback, self);
-	LibAbsorb.RegisterCallback(self, "EffectUpdated", LibEventCallback, self);
-	LibAbsorb.RegisterCallback(self, "EffectRemoved", LibEventCallback, self);
-	LibAbsorb.RegisterCallback(self, "UnitUpdated", LibEventCallback, self);
-	LibAbsorb.RegisterCallback(self, "UnitCleared", LibEventCallback, self);
-	LibAbsorb.RegisterCallback(self, "AreaCreated", LibEventCallback, self);
-	LibAbsorb.RegisterCallback(self, "AreaCleared", LibEventCallback, self);
+	if ( LibAbsorb ) then
+		LibAbsorb.RegisterCallback(self, "EffectApplied", LibEventCallback, self);
+		LibAbsorb.RegisterCallback(self, "EffectUpdated", LibEventCallback, self);
+		LibAbsorb.RegisterCallback(self, "EffectRemoved", LibEventCallback, self);
+		LibAbsorb.RegisterCallback(self, "UnitUpdated", LibEventCallback, self);
+		LibAbsorb.RegisterCallback(self, "UnitCleared", LibEventCallback, self);
+		LibAbsorb.RegisterCallback(self, "AreaCreated", LibEventCallback, self);
+		LibAbsorb.RegisterCallback(self, "AreaUpdated", LibEventCallback, self);
+		LibAbsorb.RegisterCallback(self, "AreaCleared", LibEventCallback, self);
+	end
 
 	HealComm.RegisterCallback(self, "HealComm_HealStarted", LibEventCallback, self);
 	HealComm.RegisterCallback(self, "HealComm_HealUpdated", LibEventCallback, self);

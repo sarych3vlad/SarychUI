@@ -411,8 +411,8 @@ local function GetOptions()
                                     args = {
                                         hide_gryphons = {
                                             type = "toggle",
-                                            name = L["Hide_Gryphons"],
-                                            desc = L["Hide_Gryphons_Desc"],
+                                            name = L["Hide_Gryphons"] or "Скрыть грифонов",
+                                            desc = L["Hide_Gryphons_Desc"] or "Скрыть грифонов по бокам панели действий",
                                             order = 1,
                                             width = "full",
                                             get = function(info)
@@ -1085,7 +1085,7 @@ local function GetOptions()
                                         microMenuHideGreenLatency = {
                                             type = "toggle",
                                             name = "Скрывать индикатор при зелёной сети",
-                                            desc = "Прячет индикатор задержки на кнопке меню, пока пинг зелёный. При жёлтом или красном — показывает. Только для внешнего вида Dragonflight.",
+                                            desc = "Прячет индикатор задержки на кнопке меню, пока пинг зелёный. При жёлтом или красном - показывает. Только для внешнего вида Dragonflight.",
                                             order = 2,
                                             width = "full",
                                             hidden = function()

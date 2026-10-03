@@ -251,3 +251,8 @@ end
 C_LootHistory.GetNumItems = function()
   return #items_data
 end
+
+-- 3.3.5 не раздаёт добычу из истории: isMasterLoot всегда false, GiveMasterLoot нет.
+C_LootHistory.CanMasterLoot = function()
+  return false
+end

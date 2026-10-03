@@ -336,9 +336,28 @@ function E:StartBagsRuntime()
 end
 
 function E:ShutdownBagsRuntime()
+	-- Clear the runtime valve even when initialization stopped before a frame
+	-- was created (for example, while reconciling a disabled parent module).
+	if self.private and self.private.bags then
+		self.private.bags.enable = false
+	end
+
 	local B = self:GetModule("Bags", true)
 	if not B then return end
 	if not B.Initialized and not B.BagFrame then return end
+	if B.CancelTimer then
+		if B._suiNewItemScanTimer then
+			B:CancelTimer(B._suiNewItemScanTimer, true)
+			B._suiNewItemScanTimer = nil
+		end
+		if B._suiNewItemBaselineTimer then
+			B:CancelTimer(B._suiNewItemBaselineTimer, true)
+			B._suiNewItemBaselineTimer = nil
+			if not B._suiNewItemBaselineReady then
+				B._suiNewItemFrozen = nil
+			end
+		end
+	end
 
 	if B.CloseBags then B:CloseBags() end
 	if B.CloseBank then B:CloseBank() end
@@ -347,9 +366,6 @@ function E:ShutdownBagsRuntime()
 	if B.UnregisterAllEvents then B:UnregisterAllEvents() end
 	if B.SortUpdateTimer and B.SortUpdateTimer.Hide then
 		B.SortUpdateTimer:Hide()
-	end
-	if self.private and self.private.bags then
-		self.private.bags.enable = false
 	end
 	B.Initialized = false
 end

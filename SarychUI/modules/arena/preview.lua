@@ -1,4 +1,4 @@
--- SarychUI Arena — live options preview (3 classic arena frames + trinket/racial).
+-- SarychUI Arena - live options preview (3 classic arena frames + trinket/racial).
 
 local CreateFrame = CreateFrame
 local GetTime = GetTime
@@ -10,6 +10,12 @@ local tonumber = tonumber
 local format = string.format
 
 SarychUI = SarychUI or {}
+
+local function Tr(s)
+	if type(s) ~= "string" or s == "" then return s end
+	if SarychUI.T then return SarychUI:T(s) end
+	return s
+end
 
 local function ApplyPanelBg(host)
 	local T = SarychUI.OptionsTheme
@@ -176,7 +182,7 @@ local function MakeIcon(parent, texture)
 	end
 	btn._cooldown = cooldown
 
-	-- Border above icon (and above swipe rim) — same as Панель действий NormalTexture.
+	-- Border above icon (and above swipe rim) - same as Панель действий NormalTexture.
 	local borderHost = CreateFrame("Frame", nil, btn)
 	borderHost:SetAllPoints()
 	borderHost:SetFrameLevel(btn:GetFrameLevel() + 3)
@@ -251,7 +257,7 @@ local function MakeRow(parent, sample)
 	local row = CreateFrame("Frame", nil, parent)
 	row:SetSize(ROW_W, ROW_H)
 
-	-- BACKGROUND (under chrome): class portrait + dark fill — ArenaEnemyFrameTemplate.
+	-- BACKGROUND (under chrome): class portrait + dark fill - ArenaEnemyFrameTemplate.
 	local portrait = row:CreateTexture(nil, "BACKGROUND")
 	portrait:SetSize(30, 30)
 	portrait:SetPoint("TOPRIGHT", -1, -4)
@@ -271,7 +277,7 @@ local function MakeRow(parent, sample)
 	health:SetPoint("TOPLEFT", 3, -11)
 	health:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
 	health:SetMinMaxValues(0, 1)
-	health:SetValue(sample.hp)
+	health:SetValue(tonumber(sample.hp) or 0)
 	health:SetFrameLevel(row:GetFrameLevel() + 1)
 	row.health = health
 
@@ -280,7 +286,7 @@ local function MakeRow(parent, sample)
 	mana:SetPoint("TOPLEFT", 3, -19)
 	mana:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
 	mana:SetMinMaxValues(0, 1)
-	mana:SetValue(sample.mana)
+	mana:SetValue(tonumber(sample.mana) or 0)
 	mana:SetStatusBarColor(0.2, 0.35, 0.95)
 	mana:SetFrameLevel(row:GetFrameLevel() + 1)
 	row.mana = mana
@@ -301,7 +307,7 @@ local function MakeRow(parent, sample)
 	local name = chromeHost:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	name:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 3, 24)
 	name:SetJustifyH("LEFT")
-	name:SetText(sample.name)
+	name:SetText(Tr(sample.name))
 	row.name = name
 
 	local trinket = MakeIcon(row, "Interface\\Icons\\inv_jewelry_trinketpvp_02")
@@ -440,6 +446,388 @@ function Preview:Create(parent)
 		end)
 	end
 
+	Layout()
+	tinsert(self._instances, host)
+	return host
+end
+
+--------------------------------------------------------------------
+SarychUI.ArenaNumbersPreview = MakeBucket("ArenaNumbersPreview")
+local NumbersPreview = SarychUI.ArenaNumbersPreview
+NumbersPreview._activeKey = nil
+
+local NP_PREVIEW_H = 152
+local NP_PLATE_W = 110
+local NP_PLATE_H = 12
+local NP_COLUMN_GAP = 54
+local NP_ACTIVE = { 1, 0.82, 0.2, 1 }
+local NP_SAMPLES = {
+	{ name = "Воин", class = "WARRIOR", hp = 0.82, mana = 0.35 },
+	{ name = "Жрец", class = "PRIEST", hp = 0.61, mana = 0.78 },
+	{ name = "Маг", class = "MAGE", hp = 0.44, mana = 0.92 },
+}
+
+function NumbersPreview:SetActiveKey(key)
+	self._activeKey = key
+	self:RefreshAll()
+end
+
+function NumbersPreview:SetLiveValue(key, value)
+	self._live[key] = value
+	self._activeKey = key
+	if SarychUI and SarychUI.ApplyOptionsPreviewLive then
+		SarychUI.ApplyOptionsPreviewLive(self, key, value)
+	else
+		self:RefreshAll()
+	end
+end
+
+local function NumbersLiveFlag(key, fallback)
+	local live = NumbersPreview._live
+	if live[key] ~= nil then
+		local v = live[key]
+		return v == 1 or v == true
+	end
+	local db = ArenaDB()
+	local v = db[key]
+	if v == nil then return fallback == true end
+	return v == 1 or v == true
+end
+
+local function MakeMiniPlate(parent, sample, index)
+	local f = CreateFrame("Frame", nil, parent)
+	f:SetSize(NP_PLATE_W, 36)
+
+	local nameFs = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	nameFs:SetPoint("BOTTOM", f, "TOP", 0, -14)
+	nameFs:SetTextColor(1, 1, 1)
+	f.nameFs = nameFs
+
+	local plate = CreateFrame("Frame", nil, f)
+	plate:SetSize(NP_PLATE_W, NP_PLATE_H)
+	plate:SetPoint("BOTTOM", 0, 2)
+	plate:SetFrameLevel((f:GetFrameLevel() or 1) + 1)
+
+	local edge = plate:CreateTexture(nil, "BACKGROUND")
+	edge:SetPoint("TOPLEFT", -1, 1)
+	edge:SetPoint("BOTTOMRIGHT", 1, -1)
+	edge:SetTexture("Interface\\Buttons\\WHITE8X8")
+	edge:SetVertexColor(0, 0, 0, 0.85)
+
+	local bar = plate:CreateTexture(nil, "ARTWORK")
+	bar:SetPoint("TOPLEFT")
+	bar:SetPoint("BOTTOMLEFT")
+	bar:SetWidth(NP_PLATE_W * (sample.hp or 0.7))
+	local colors = RAID_CLASS_COLORS and RAID_CLASS_COLORS[sample.class]
+	if colors then
+		bar:SetTexture("Interface\\Buttons\\WHITE8X8")
+		bar:SetVertexColor(colors.r, colors.g, colors.b, 0.95)
+	else
+		bar:SetTexture("Interface\\Buttons\\WHITE8X8")
+		bar:SetVertexColor(0.12, 0.72, 0.12, 0.95)
+	end
+
+	local fillBg = plate:CreateTexture(nil, "BACKGROUND")
+	fillBg:SetAllPoints()
+	fillBg:SetTexture("Interface\\Buttons\\WHITE8X8")
+	fillBg:SetVertexColor(0.08, 0.08, 0.08, 0.95)
+
+	f._index = index
+	f._sampleName = Tr(sample.name)
+	return f
+end
+
+function NumbersPreview:Create(parent)
+	self:ClearStickyHosts()
+
+	local host = CreateFrame("Frame", nil, parent)
+	host:SetHeight(NP_PREVIEW_H)
+	host.spacer = host
+	ApplyPanelBg(host)
+
+	local stage = CreateFrame("Frame", nil, host)
+	stage:SetPoint("TOPLEFT", 8, -10)
+	stage:SetPoint("BOTTOMRIGHT", -8, 8)
+
+	local plateColumn = CreateFrame("Frame", nil, stage)
+	plateColumn:SetSize(NP_PLATE_W, 3 * 36)
+	plateColumn:SetPoint("RIGHT", stage, "CENTER", -(NP_COLUMN_GAP / 2), -7)
+
+	local plateTitle = stage:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	plateTitle:SetPoint("BOTTOM", plateColumn, "TOP", 0, 3)
+	plateTitle:SetText(Tr("Неймплейты"))
+	plateTitle:SetTextColor(0.72, 0.72, 0.72)
+
+	local plates = {}
+	for i, sample in ipairs(NP_SAMPLES) do
+		local plate = MakeMiniPlate(plateColumn, sample, i)
+		plates[i] = plate
+		if i == 1 then
+			plate:SetPoint("TOP", plateColumn, "TOP", 0, 0)
+		else
+			plate:SetPoint("TOP", plates[i - 1], "BOTTOM", 0, 0)
+		end
+	end
+
+	-- Reuse the arena rows from Arena -> Settings, but keep this preview focused
+	-- on names: racial and PvP-trinket icons are intentionally hidden here.
+	local frameColumnWidth = ROW_W
+	local frameColumn = CreateFrame("Frame", nil, stage)
+	frameColumn:SetSize(frameColumnWidth, 3 * ROW_H + 2 * GAP)
+	frameColumn:SetPoint("LEFT", stage, "CENTER", NP_COLUMN_GAP / 2, -3)
+
+	local frameTitle = stage:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	frameTitle:SetPoint("BOTTOM", frameColumn, "TOP", 0, 3)
+	frameTitle:SetText(Tr("Арена-фреймы"))
+	frameTitle:SetTextColor(0.72, 0.72, 0.72)
+
+	local arenaRows = {}
+	for i, sample in ipairs(NP_SAMPLES) do
+		local row = MakeRow(frameColumn, sample)
+		row.trinket:Hide()
+		row.racial:Hide()
+		if i == 1 then
+			row:SetPoint("TOPLEFT", frameColumn, "TOPLEFT", 0, 0)
+		else
+			row:SetPoint("TOPLEFT", arenaRows[i - 1], "BOTTOMLEFT", 0, -GAP)
+		end
+		arenaRows[i] = row
+	end
+
+	local function Layout()
+		local activeKey = NumbersPreview._activeKey
+		local masterHovered = activeKey == "arenaNumbers"
+		local plateHovered = activeKey == "arenaNumbersNameplates"
+		local framesHovered = activeKey == "arenaNumbersArenaFrames"
+		-- Hover only highlights the affected text. The actual preview state always
+		-- follows the toggle value, matching the Group/Raid-title preview.
+		local enabled = NumbersLiveFlag("arenaNumbers", false)
+		local platesNumbered = enabled and NumbersLiveFlag("arenaNumbersNameplates", true)
+		local framesNumbered = enabled and NumbersLiveFlag("arenaNumbersArenaFrames", true)
+
+		for i, plate in ipairs(plates) do
+			if platesNumbered then
+				plate.nameFs:SetFont(STANDARD_TEXT_FONT, 16, "OUTLINE")
+				plate.nameFs:SetText(tostring(i))
+			else
+				plate.nameFs:SetFont(STANDARD_TEXT_FONT, 12, "")
+				plate.nameFs:SetText(plate._sampleName)
+			end
+			if masterHovered or plateHovered then
+				plate.nameFs:SetTextColor(NP_ACTIVE[1], NP_ACTIVE[2], NP_ACTIVE[3], 1)
+			else
+				plate.nameFs:SetTextColor(1, 1, 1, 1)
+			end
+		end
+
+		for i, row in ipairs(arenaRows) do
+			if framesNumbered then
+				row.name:SetText(tostring(i))
+			else
+				row.name:SetText(Tr(NP_SAMPLES[i].name))
+			end
+			if masterHovered or framesHovered then
+				row.name:SetTextColor(NP_ACTIVE[1], NP_ACTIVE[2], NP_ACTIVE[3], 1)
+			else
+				row.name:SetTextColor(1, 0.82, 0, 1)
+			end
+
+			local r, g, b = ClassColor(row.class)
+			row.health:SetStatusBarColor(r, g, b)
+		end
+	end
+
+	host.LayoutLive = Layout
+	host.Refresh = Layout
+	host:SetScript("OnShow", Layout)
+	host:SetScript("OnSizeChanged", Layout)
+	Layout()
+	tinsert(self._instances, host)
+	return host
+end
+
+--------------------------------------------------------------------
+-- Hide Group/Raid titles - player frame (PlayerFrame.xml) + compact party title
+--------------------------------------------------------------------
+SarychUI.ArenaGroupTitlesPreview = MakeBucket("ArenaGroupTitlesPreview")
+local TitlesPreview = SarychUI.ArenaGroupTitlesPreview
+TitlesPreview._activeKey = nil
+
+local GT_SCALE = 0.85
+local GT_FRAME_W = 232 * GT_SCALE
+local GT_FRAME_H = 100 * GT_SCALE
+local GT_PREVIEW_H = 110
+local GT_ACTIVE = { 1, 0.92, 0.35, 1 }
+local GT_INDICATOR = "Interface\\CharacterFrame\\UI-CharacterFrame-GroupIndicator"
+local GT_BORDER = "Interface\\TargetingFrame\\UI-TargetingFrame"
+local GT_PORTRAIT = "Interface\\CharacterFrame\\TemporaryPortrait-Male-Human"
+
+function TitlesPreview:SetActiveKey(key)
+	self._activeKey = key
+	self:RefreshAll()
+end
+
+function TitlesPreview:SetLiveValue(key, value)
+	self._live[key] = value
+	self._activeKey = key
+	if SarychUI and SarychUI.ApplyOptionsPreviewLive then
+		SarychUI.ApplyOptionsPreviewLive(self, key, value)
+	else
+		self:RefreshAll()
+	end
+end
+
+local function GS(n)
+	return n * GT_SCALE
+end
+
+local function TitlesLiveFlag()
+	local live = TitlesPreview._live
+	if live.hideGroupRaidText ~= nil then
+		local v = live.hideGroupRaidText
+		return v == 1 or v == true
+	end
+	local db = ArenaDB()
+	return db.hideGroupRaidText == 1 or db.hideGroupRaidText == true
+end
+
+-- PlayerFrame.xml: PlayerFrameGroupIndicator (UI-CharacterFrame-GroupIndicator + GROUP n)
+local function MakeGroupIndicator(parent)
+	local wrap = CreateFrame("Frame", nil, parent)
+	wrap:SetHeight(GS(16))
+	wrap:SetPoint("BOTTOMLEFT", parent, "TOPLEFT", GS(97), -GS(20))
+	wrap:SetFrameLevel((parent:GetFrameLevel() or 1) + 6)
+
+	local left = wrap:CreateTexture(nil, "BACKGROUND")
+	left:SetSize(GS(24), GS(16))
+	left:SetPoint("TOPLEFT")
+	left:SetTexture(GT_INDICATOR)
+	left:SetTexCoord(0, 0.1875, 0, 1)
+	left:SetAlpha(0.3)
+
+	local right = wrap:CreateTexture(nil, "BACKGROUND")
+	right:SetSize(GS(24), GS(16))
+	right:SetPoint("TOPRIGHT")
+	right:SetTexture(GT_INDICATOR)
+	right:SetTexCoord(0.53125, 0.71875, 0, 1)
+	right:SetAlpha(0.3)
+
+	local mid = wrap:CreateTexture(nil, "BACKGROUND")
+	mid:SetPoint("LEFT", left, "RIGHT")
+	mid:SetPoint("RIGHT", right, "LEFT")
+	mid:SetHeight(GS(16))
+	mid:SetTexture(GT_INDICATOR)
+	mid:SetTexCoord(0.1875, 0.53125, 0, 1)
+	mid:SetAlpha(0.3)
+
+	local fs = wrap:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	fs:SetPoint("LEFT", wrap, "LEFT", GS(20), -GS(2))
+	fs:SetText(Tr(GROUP or "Группа") .. " 1")
+	fs:SetAlpha(0.7)
+	wrap.left, wrap.right, wrap.mid, wrap.fs = left, right, mid, fs
+
+	wrap:SetWidth((fs:GetStringWidth() or 36) + 40)
+	return wrap
+end
+
+-- PlayerFrame.xml: 232x100, flipped UI-TargetingFrame, bars 119x12 at 106,-41 / 106,-52
+local function MakePreviewPlayer(parent)
+	local f = CreateFrame("Frame", nil, parent)
+	f:SetSize(GT_FRAME_W, GT_FRAME_H)
+
+	local bg = f:CreateTexture(nil, "BACKGROUND")
+	bg:SetSize(GS(119), GS(41))
+	bg:SetPoint("TOPLEFT", GS(106), -GS(22))
+	bg:SetTexture("Interface\\Buttons\\WHITE8X8")
+	bg:SetVertexColor(0, 0, 0, 0.5)
+
+	local portrait = f:CreateTexture(nil, "ARTWORK")
+	portrait:SetSize(GS(64), GS(64))
+	portrait:SetPoint("TOPLEFT", GS(42), -GS(12))
+	portrait:SetTexture(GT_PORTRAIT)
+
+	local nameFs = f:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	nameFs:SetSize(GS(100), GS(12))
+	nameFs:SetPoint("CENTER", GS(50), GS(19))
+	nameFs:SetJustifyH("CENTER")
+	nameFs:SetTextColor(1.0, 0.82, 0)
+	local playerName = UnitName and UnitName("player")
+	nameFs:SetText((playerName and playerName ~= "") and playerName or Tr("Игрок"))
+
+	local health = CreateFrame("StatusBar", nil, f)
+	health:SetSize(GS(119), GS(12))
+	health:SetPoint("TOPLEFT", GS(106), -GS(41))
+	health:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+	health:SetMinMaxValues(0, 1)
+	health:SetValue(0.78)
+	health:SetStatusBarColor(0, 1, 0)
+	health:SetFrameLevel(f:GetFrameLevel() + 1)
+
+	local mana = CreateFrame("StatusBar", nil, f)
+	mana:SetSize(GS(119), GS(12))
+	mana:SetPoint("TOPLEFT", GS(106), -GS(52))
+	mana:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+	mana:SetMinMaxValues(0, 1)
+	mana:SetValue(0.55)
+	mana:SetStatusBarColor(0, 0, 1)
+	mana:SetFrameLevel(f:GetFrameLevel() + 1)
+
+	local borderFrame = CreateFrame("Frame", nil, f)
+	borderFrame:SetAllPoints()
+	borderFrame:SetFrameLevel(f:GetFrameLevel() + 3)
+	local border = borderFrame:CreateTexture(nil, "ARTWORK")
+	border:SetAllPoints()
+	border:SetTexture(GT_BORDER)
+	border:SetTexCoord(1.0, 0.09375, 0, 0.78125)
+
+	local level = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	level:SetPoint("CENTER", f, "CENTER", GS(-63), GS(-16))
+	level:SetText("80")
+	level:SetTextColor(1.0, 0.82, 0)
+
+	f.group = MakeGroupIndicator(f)
+	return f
+end
+
+function TitlesPreview:Create(parent)
+	self:ClearStickyHosts()
+
+	local host = CreateFrame("Frame", nil, parent)
+	host:SetHeight(GT_PREVIEW_H)
+	host.spacer = host
+	ApplyPanelBg(host)
+
+	local stage = CreateFrame("Frame", nil, host)
+	stage:SetPoint("TOPLEFT", 6, -6)
+	stage:SetPoint("BOTTOMRIGHT", -6, 6)
+
+	local player = MakePreviewPlayer(stage)
+	player:SetPoint("CENTER", stage, "CENTER", 0, -2)
+
+	local function Layout()
+		local hovered = TitlesPreview._activeKey == "hideGroupRaidText"
+		if TitlesLiveFlag() then
+			player.group:Hide()
+			return
+		end
+		player.group:Show()
+		local r, g, b = 1, 1, 1
+		local textAlpha = 0.7
+		if hovered then
+			r, g, b = GT_ACTIVE[1], GT_ACTIVE[2], GT_ACTIVE[3]
+			textAlpha = 1
+		end
+		player.group.fs:SetTextColor(r, g, b)
+		player.group.fs:SetAlpha(textAlpha)
+		player.group.left:SetVertexColor(r, g, b)
+		player.group.right:SetVertexColor(r, g, b)
+		player.group.mid:SetVertexColor(r, g, b)
+	end
+
+	host.LayoutLive = Layout
+	host.Refresh = Layout
+	host:SetScript("OnShow", Layout)
+	host:SetScript("OnSizeChanged", Layout)
 	Layout()
 	tinsert(self._instances, host)
 	return host

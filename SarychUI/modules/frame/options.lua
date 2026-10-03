@@ -662,6 +662,32 @@ function module:GetOptions()
                             },
                         },
                     },
+                    focusComboBox = {
+                        type = "group",
+                        name = L and (L["Focus Combo Points"] or "Комбопоинты на фрейме фокуса") or "Комбопоинты на фрейме фокуса",
+                        desc = L and (L["Added by suggestion: Hannahmckay"] or "Добавлено по предложению: Hannahmckay") or "Добавлено по предложению: Hannahmckay",
+                        order = 6,
+                        inline = true,
+                        suiHelpIcon = true,
+                        args = {
+                            enable_focus_combo_points = {
+                                type = "toggle",
+                                name = L and (L["Enable"] or "Включить") or "Включить",
+                                desc = L and (L["Focus Combo Points Desc"] or "Показывать накопленные на фокусе комбопоинты на его фрейме.") or "Показывать накопленные на фокусе комбопоинты на его фрейме.",
+                                order = 1,
+                                width = "full",
+                                suiPreviewKey = "enableFocusComboPoints",
+                                get = function() return isOn("enableFocusComboPoints") end,
+                                set = function(_, value)
+                                    local db = FrameDB(); if not db then return end
+                                    db.enableFocusComboPoints = value and 1 or 0
+                                    ApplyFrameSettings()
+                                    NotifyCombatPreview("enableFocusComboPoints", value and 1 or 0)
+                                    RefreshConfig()
+                                end,
+                            },
+                        },
+                    },
                 },
             },
 
@@ -734,10 +760,68 @@ function module:GetOptions()
                             },
                         },
                     },
+                    fontSizeBox = {
+                        type = "group",
+                        name = "Размер шрифта здоровья и маны",
+                        order = 2,
+                        inline = true,
+                        args = {
+                            change_bar_font = {
+                                type = "toggle",
+                                name = "Включить",
+                                desc = "Заменяет размер текста здоровья и маны на рамках персонажа, цели, фокуса и питомца.",
+                                order = 1,
+                                width = "full",
+                                get = function() return isOn("changeBarFontSize") end,
+                                set = function(_, value)
+                                    local db = FrameDB(); if not db then return end
+                                    db.changeBarFontSize = value and 1 or 0
+                                    ApplyFrameSettings()
+                                    RefreshConfig()
+                                end,
+                            },
+                            health_font_size = {
+                                type = "range",
+                                name = "Размер шрифта здоровья",
+                                desc = "Размер текста здоровья на рамках. У питомца на 2 пункта меньше.",
+                                min = 8, max = 16, step = 1,
+                                order = 2,
+                                width = "full",
+                                hidden = function() return not isOn("changeBarFontSize") end,
+                                get = function()
+                                    local db = FrameDB()
+                                    return db and db.healthBarFontSize or 14
+                                end,
+                                set = function(_, val)
+                                    local db = FrameDB(); if not db then return end
+                                    db.healthBarFontSize = val
+                                    ApplyFrameSettings()
+                                end,
+                            },
+                            mana_font_size = {
+                                type = "range",
+                                name = "Размер шрифта маны",
+                                desc = "Размер текста маны на рамках. У питомца на 2 пункта меньше.",
+                                min = 8, max = 16, step = 1,
+                                order = 3,
+                                width = "full",
+                                hidden = function() return not isOn("changeBarFontSize") end,
+                                get = function()
+                                    local db = FrameDB()
+                                    return db and db.manaBarFontSize or 14
+                                end,
+                                set = function(_, val)
+                                    local db = FrameDB(); if not db then return end
+                                    db.manaBarFontSize = val
+                                    ApplyFrameSettings()
+                                end,
+                            },
+                        },
+                    },
                     percentagesBox = {
                         type = "group",
                         name = "Проценты здоровья",
-                        order = 2,
+                        order = 3,
                         inline = true,
                         args = {
                             target_percent = {
@@ -773,7 +857,7 @@ function module:GetOptions()
                     classBox = {
                         type = "group",
                         name = "Классовые правила отображения процентов",
-                        order = 3,
+                        order = 4,
                         inline = true,
                         args = {
                             warlock_always = {
@@ -811,10 +895,10 @@ function module:GetOptions()
                 disabled = function() return not isEnabled() end,
                 childGroups = "tab",
                 args = {
-                    -- PVP tab
+                    -- Frames appearance tab (preview + PVP + portraits)
                     pvp = {
                         type = "group",
-                        name = "PVP",
+                        name = "Фреймы",
                         order = 1,
                         args = {
                             preview = {
@@ -824,10 +908,169 @@ function module:GetOptions()
                                 width = "full",
                                 suiFramePvpPreview = true,
                             },
+                            hideLevelBox = {
+                                type = "group",
+                                name = "Скрыть уровень на рамках",
+                                order = 1,
+                                inline = true,
+                                args = {
+                                    hide_frame_level = {
+                                        type = "toggle",
+                                        name = "Включить",
+                                        desc = "Скрывает цифру уровня на рамках персонажа, цели и фокуса.",
+                                        order = 1,
+                                        width = "full",
+                                        suiPreviewKey = "hideFrameLevel",
+                                        get = function() return SarychUI.db.profile.modules.frame.hideFrameLevel == 1 end,
+                                        set = function(_, v) SarychUI.db.profile.modules.frame.hideFrameLevel = v and 1 or 0; ApplyFrameSettings() end,
+                                    },
+                                },
+                            },
+                            classNamesBox = {
+                                type = "group",
+                                name = "Имена в цвет класса",
+                                order = 1.1,
+                                inline = true,
+                                args = {
+                                    class_colored_names = {
+                                        type = "toggle",
+                                        name = "Включить",
+                                        desc = "Окрашивает имена на рамках цели и фокуса в цвет класса персонажа.",
+                                        order = 1,
+                                        width = "full",
+                                        suiPreviewKey = "classColoredNames",
+                                        get = function() return SarychUI.db.profile.modules.frame.classColoredNames == 1 end,
+                                        set = function(_, v)
+                                            SarychUI.db.profile.modules.frame.classColoredNames = v and 1 or 0
+                                            ApplyFrameSettings()
+                                            RefreshConfig()
+                                        end,
+                                    },
+                                    class_colored_names_exclude_player = {
+                                        type = "toggle",
+                                        name = "Исключить фрейм игрока",
+                                        desc = "Не красить имя на рамке игрока. Настройка действует только на цель и фокус.",
+                                        order = 2,
+                                        width = "full",
+                                        hidden = function() return SarychUI.db.profile.modules.frame.classColoredNames ~= 1 end,
+                                        suiPreviewKey = "classColoredNamesExcludePlayer",
+                                        get = function() return SarychUI.db.profile.modules.frame.classColoredNamesExcludePlayer == 1 end,
+                                        set = function(_, v)
+                                            SarychUI.db.profile.modules.frame.classColoredNamesExcludePlayer = v and 1 or 0
+                                            ApplyFrameSettings()
+                                        end,
+                                    },
+                                },
+                            },
+                            restStateBox = {
+                                type = "group",
+                                name = "Режим отдыха",
+                                order = 1.2,
+                                inline = true,
+                                args = {
+                                    hide_player_rest_state = {
+                                        type = "toggle",
+                                        name = "Скрыть обводку и значок отдыха",
+                                        desc = "Скрывает обводку состояния и значок отдыха на рамке игрока. Боевые иконки справа остаются без изменений.",
+                                        order = 1,
+                                        width = "full",
+                                        suiPreviewKey = "hidePlayerRestState",
+                                        get = function() return SarychUI.db.profile.modules.frame.hidePlayerRestState == 1 end,
+                                        set = function(_, v)
+                                            SarychUI.db.profile.modules.frame.hidePlayerRestState = v and 1 or 0
+                                            ApplyFrameSettings()
+                                        end,
+                                    },
+                                },
+                            },
+                            nameBgBox = {
+                                type = "group",
+                                name = "Фон имени",
+                                order = 2,
+                                inline = true,
+                                suiSelectWithColor = true,
+                                args = {
+                                    enabled = {
+                                        type = "toggle",
+                                        name = "Включить",
+                                        desc = "Заменяет стандартный цветной фон за именем на рамках.",
+                                        order = 1,
+                                        width = "full",
+                                        suiPreviewKey = "nameBackgroundEnabled",
+                                        get = function() return SarychUI.db.profile.modules.frame.nameBackgroundEnabled == 1 end,
+                                        set = function(_, v)
+                                            SarychUI.db.profile.modules.frame.nameBackgroundEnabled = v and 1 or 0
+                                            ApplyFrameSettings()
+                                            RefreshConfig()
+                                        end,
+                                    },
+                                    mode = {
+                                        type = "select",
+                                        name = "",
+                                        desc = "Изменить фон - свой цвет и прозрачность. Цвет класса - фон в цвет класса персонажа.",
+                                        order = 2,
+                                        values = {
+                                            custom = "Изменить фон",
+                                            class = "Цвет класса",
+                                            __order = { "custom", "class" },
+                                        },
+                                        hidden = function() return SarychUI.db.profile.modules.frame.nameBackgroundEnabled ~= 1 end,
+                                        suiPreviewKey = "nameBackgroundMode",
+                                        get = function() return SarychUI.db.profile.modules.frame.nameBackgroundMode or "custom" end,
+                                        set = function(_, v)
+                                            SarychUI.db.profile.modules.frame.nameBackgroundMode = v
+                                            ApplyFrameSettings()
+                                            RefreshConfig()
+                                        end,
+                                    },
+                                    color = {
+                                        type = "color",
+                                        name = "",
+                                        desc = "Цвет и прозрачность фона за именем. Альфа 0 - фон полностью скрыт.",
+                                        hasAlpha = true,
+                                        order = 3,
+                                        hidden = function()
+                                            local db = SarychUI.db.profile.modules.frame
+                                            return db.nameBackgroundEnabled ~= 1 or db.nameBackgroundMode ~= "custom"
+                                        end,
+                                        suiPreviewKey = "nameBackgroundColor",
+                                        get = function()
+                                            local c = SarychUI.db.profile.modules.frame.nameBackgroundColor or { 0, 0, 0, 0 }
+                                            local r, g, b, a = c[1], c[2], c[3], c[4]
+                                            if r == nil then r = 0 end
+                                            if g == nil then g = 0 end
+                                            if b == nil then b = 0 end
+                                            if a == nil then a = 0 end
+                                            return r, g, b, a
+                                        end,
+                                        set = function(_, r, g, b, a)
+                                            SarychUI.db.profile.modules.frame.nameBackgroundColor = { r, g, b, a }
+                                            ApplyFrameSettings()
+                                        end,
+                                    },
+                                    excludePlayer = {
+                                        type = "toggle",
+                                        name = "Исключить фрейм игрока",
+                                        desc = "Не менять фон имени на рамке игрока. Настройка действует только на цель и фокус.",
+                                        order = 4,
+                                        width = "full",
+                                        hidden = function()
+                                            local db = SarychUI.db.profile.modules.frame
+                                            return db.nameBackgroundEnabled ~= 1 or db.nameBackgroundMode ~= "class"
+                                        end,
+                                        suiPreviewKey = "nameBackgroundExcludePlayer",
+                                        get = function() return SarychUI.db.profile.modules.frame.nameBackgroundExcludePlayer == 1 end,
+                                        set = function(_, v)
+                                            SarychUI.db.profile.modules.frame.nameBackgroundExcludePlayer = v and 1 or 0
+                                            ApplyFrameSettings()
+                                        end,
+                                    },
+                                },
+                            },
                             iconsBox = {
                                 type = "group",
                                 name = "PVP-иконки",
-                                order = 1,
+                                order = 4,
                                 inline = true,
                                 args = {
                                     hide_player_pvp = {
@@ -865,7 +1108,7 @@ function module:GetOptions()
                             timerBox = {
                                 type = "group",
                                 name = "PVP-таймер",
-                                order = 2,
+                                order = 5,
                                 inline = true,
                                 args = {
                                     pvp_timer = {
@@ -895,7 +1138,7 @@ function module:GetOptions()
                             portraitsBox = {
                                 type = "group",
                                 name = "Портреты",
-                                order = 3,
+                                order = 6,
                                 inline = true,
                                 args = {
                                     classIconPortraits = {
@@ -924,6 +1167,125 @@ function module:GetOptions()
                                         get = function() return SarychUI.db.profile.modules.frame.classIconPortraitsPlayer == 1 end,
                                         set = function(_, v)
                                             SarychUI.db.profile.modules.frame.classIconPortraitsPlayer = v and 1 or 0
+                                            ApplyFrameSettings()
+                                        end,
+                                    },
+                                },
+                            },
+                            classIconBox = {
+                                type = "group",
+                                name = "Иконка класса",
+                                desc = "Добавлено по просьбе: Elamaunt",
+                                order = 7,
+                                inline = true,
+                                suiHelpIcon = true,
+                                args = {
+                                    classIconEnabled = {
+                                        type = "toggle",
+                                        name = "Включить",
+                                        desc = "Показывает круглую иконку класса на фреймах игрока, цели и фокуса. На мобов и NPC не действует.",
+                                        order = 1,
+                                        width = "full",
+                                        suiPreviewKey = "classIconEnabled",
+                                        get = function() return SarychUI.db.profile.modules.frame.classIconEnabled == 1 end,
+                                        set = function(_, v)
+                                            SarychUI.db.profile.modules.frame.classIconEnabled = v and 1 or 0
+                                            ApplyFrameSettings()
+                                            RefreshConfig()
+                                        end,
+                                    },
+                                    classIconMode = {
+                                        type = "select",
+                                        name = "",
+                                        desc = "Вместо уровня прячет цифру и ставит иконку в кружок уровня. Отдельно оставляет уровень и ставит такой же кружок рядом с ним.",
+                                        order = 2,
+                                        width = "full",
+                                        values = {
+                                            replace = "Показывать иконку класса вместо уровня",
+                                            separate = "Показывать отдельно иконку класса",
+                                            __order = { "replace", "separate" },
+                                        },
+                                        hidden = function() return SarychUI.db.profile.modules.frame.classIconEnabled ~= 1 end,
+                                        suiPreviewKey = "classIconMode",
+                                        get = function() return SarychUI.db.profile.modules.frame.classIconMode or "replace" end,
+                                        set = function(_, v)
+                                            SarychUI.db.profile.modules.frame.classIconMode = v
+                                            ApplyFrameSettings()
+                                            RefreshConfig()
+                                        end,
+                                    },
+                                    classIconPlayer = {
+                                        type = "toggle",
+                                        name = "Иконка класса на фрейме |cFFFFD700игрока|r",
+                                        desc = "Показывать иконку класса на фрейме игрока. Если выключено, настройка действует только на цель и фокус.",
+                                        order = 3,
+                                        width = "full",
+                                        suiPreviewKey = "classIconPlayer",
+                                        disabled = function() return SarychUI.db.profile.modules.frame.classIconEnabled ~= 1 end,
+                                        get = function() return SarychUI.db.profile.modules.frame.classIconPlayer ~= 0 end,
+                                        set = function(_, v)
+                                            SarychUI.db.profile.modules.frame.classIconPlayer = v and 1 or 0
+                                            ApplyFrameSettings()
+                                        end,
+                                    },
+                                    classIconX = {
+                                        type = "range",
+                                        name = "Смещение по X",
+                                        desc = "Сдвиг иконки класса по горизонтали от кружка уровня. Вправо — плюс, влево — минус.",
+                                        min = -80, max = 80, step = 1,
+                                        order = 4,
+                                        width = "full",
+                                        suiPreviewKey = "classIconX",
+                                        hidden = function()
+                                            local db = SarychUI.db.profile.modules.frame
+                                            return db.classIconEnabled ~= 1 or (db.classIconMode or "replace") ~= "separate"
+                                        end,
+                                        get = function()
+                                            local v = SarychUI.db.profile.modules.frame.classIconX
+                                            if v == nil then return -73 end
+                                            return v
+                                        end,
+                                        set = function(_, v)
+                                            SarychUI.db.profile.modules.frame.classIconX = v
+                                            ApplyFrameSettings()
+                                        end,
+                                    },
+                                    classIconY = {
+                                        type = "range",
+                                        name = "Смещение по Y",
+                                        desc = "Сдвиг иконки класса по вертикали от кружка уровня. Вверх — плюс, вниз — минус.",
+                                        min = -80, max = 80, step = 1,
+                                        order = 5,
+                                        width = "full",
+                                        suiPreviewKey = "classIconY",
+                                        hidden = function()
+                                            local db = SarychUI.db.profile.modules.frame
+                                            return db.classIconEnabled ~= 1 or (db.classIconMode or "replace") ~= "separate"
+                                        end,
+                                        get = function()
+                                            local v = SarychUI.db.profile.modules.frame.classIconY
+                                            if v == nil then return 43 end
+                                            return v
+                                        end,
+                                        set = function(_, v)
+                                            SarychUI.db.profile.modules.frame.classIconY = v
+                                            ApplyFrameSettings()
+                                        end,
+                                    },
+                                    classIconMaxLevelOnly = {
+                                        type = "toggle",
+                                        name = "Только если максимальный уровень",
+                                        desc = "Заменять уровень иконкой класса только у персонажей максимального уровня.",
+                                        order = 6,
+                                        width = "full",
+                                        suiPreviewKey = "classIconMaxLevelOnly",
+                                        hidden = function()
+                                            local db = SarychUI.db.profile.modules.frame
+                                            return db.classIconEnabled ~= 1 or (db.classIconMode or "replace") == "separate"
+                                        end,
+                                        get = function() return SarychUI.db.profile.modules.frame.classIconMaxLevelOnly == 1 end,
+                                        set = function(_, v)
+                                            SarychUI.db.profile.modules.frame.classIconMaxLevelOnly = v and 1 or 0
                                             ApplyFrameSettings()
                                         end,
                                     },
@@ -970,5 +1332,3 @@ function module:GetOptions()
         },
     }
 end
-
-

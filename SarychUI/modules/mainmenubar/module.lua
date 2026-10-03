@@ -218,6 +218,14 @@ function module:Disable()
             end
         end
     end
+
+    if MainMenuBarArtFrame then
+        if MainMenuBarArtFrame.SetScript then
+            MainMenuBarArtFrame:SetScript("OnShow", nil)
+        end
+        MainMenuBarArtFrame:Show()
+        MainMenuBarArtFrame:SetAlpha(1)
+    end
     
     -- Reset ACTION BAR BACKGROUNDS
     local actionBars = {
@@ -494,6 +502,14 @@ function module:ForceResetAllElements()
                 texture:SetScript("OnShow", nil)
             end
         end
+    end
+
+    if MainMenuBarArtFrame then
+        if MainMenuBarArtFrame.SetScript then
+            MainMenuBarArtFrame:SetScript("OnShow", nil)
+        end
+        MainMenuBarArtFrame:Show()
+        MainMenuBarArtFrame:SetAlpha(1)
     end
     
     -- Force show bonus textures

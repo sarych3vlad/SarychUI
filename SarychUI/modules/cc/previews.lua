@@ -1,4 +1,4 @@
--- SarychUI «Перезарядка и таймеры» — options previews.
+-- SarychUI «Перезарядка и таймеры» - options previews.
 -- Layouts match Blizzard 3.3.5 FrameXML (CastingBarFrame / TargetSpellBar / LFDDungeonReadyDialog)
 -- and SarychUI timer offsets from modules/tools/module.lua.
 
@@ -16,6 +16,12 @@ local pcall = pcall
 local next = next
 
 SarychUI = SarychUI or {}
+
+local function Tr(s)
+	if type(s) ~= "string" or s == "" then return s end
+	if SarychUI.T then return SarychUI:T(s) end
+	return s
+end
 
 local FALLBACK_FONT = "Fonts\\FRIZQT__.TTF"
 local DEFAULT_FONT_NAME = "Friz Quadrata TT"
@@ -167,7 +173,7 @@ local function ClearBucket(bucket)
 end
 
 --------------------------------------------------------------------
--- 1) Cooldown text: 3 action buttons (<60s / 1–10m / >10m)
+-- 1) Cooldown text: 3 action buttons (<60s / 1-10m / >10m)
 --------------------------------------------------------------------
 SarychUI.CooldownTextPreview = SarychUI.CooldownTextPreview or {}
 local CdPreview = SarychUI.CooldownTextPreview
@@ -176,7 +182,7 @@ CdPreview._live = CdPreview._live or {}
 
 function CdPreview:SetLiveValue(key, value)
 	self._live[key] = value
-	-- Style only — never restart SetCooldown on drag.
+	-- Style only - never restart SetCooldown on drag.
 	if SarychUI and SarychUI.ApplyOptionsPreviewLive then
 		SarychUI.ApplyOptionsPreviewLive(self, key, value)
 	else
@@ -274,7 +280,7 @@ function CdPreview:Create(parent)
 	-- Fixed remain samples for the three size buckets used by formatCooldownText.
 	local samples = {
 		{ remain = 45, label = "< 60 сек" },
-		{ remain = 185, label = "1–10 мин" }, -- 3:05
+		{ remain = 185, label = "1-10 мин" }, -- 3:05
 		{ remain = 720, label = "> 10 мин" }, -- 12 м.
 	}
 
@@ -360,8 +366,8 @@ end
 
 --------------------------------------------------------------------
 -- 1b) GCD preview: one action button above «Не отображать при ГКД»
--- hideOnGCD on  → icon + swipe, no text
--- hideOnGCD off → countdown 1.0 → 0.0 looping
+-- hideOnGCD on  -> icon + swipe, no text
+-- hideOnGCD off -> countdown 1.0 -> 0.0 looping
 --------------------------------------------------------------------
 SarychUI.GcdCooldownPreview = SarychUI.GcdCooldownPreview or {}
 local GcdPreview = SarychUI.GcdCooldownPreview
@@ -507,7 +513,7 @@ function GcdPreview:Create(parent)
 end
 
 --------------------------------------------------------------------
--- 2) Castbar timers — player vs target Blizzard aspects + SarychUI offsets
+-- 2) Castbar timers - player vs target Blizzard aspects + SarychUI offsets
 -- Player: CastingBarFrameTemplate (Border 256x64), icon hidden
 -- Target: SetTargetSpellbarAspect (Border-Small 197x49), icon shown
 --------------------------------------------------------------------
@@ -528,7 +534,7 @@ local function IsCcFlagOn(key)
 	return v == 1 or v == true
 end
 
--- style: "player" | "target" — matches FrameXML CastingBarFrame / SetTargetSpellbarAspect
+-- style: "player" | "target" - matches FrameXML CastingBarFrame / SetTargetSpellbarAspect
 local function MakeBlizzardCastBar(parent, style, spellName, iconPath)
 	local isTarget = style == "target"
 	local width = isTarget and 150 or 195
@@ -590,7 +596,7 @@ local function MakeBlizzardCastBar(parent, style, spellName, iconPath)
 	text:SetJustifyV("MIDDLE")
 	-- Slightly above geometric center; player bar is taller so nudge a bit more.
 	text:SetPoint("CENTER", bar, "CENTER", 0, isTarget and 2 or 3)
-	text:SetText(spellName or "")
+	text:SetText(Tr(spellName or ""))
 
 	local icon = bar:CreateTexture(nil, "ARTWORK")
 	icon:SetSize(16, 16)
@@ -638,7 +644,7 @@ function CastPreview:Create(parent)
 
 	local playerLabel = stage:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	playerLabel:SetPoint("TOP", stage, "TOP", 0, -2)
-	playerLabel:SetText("Игрок")
+	playerLabel:SetText(Tr("Игрок"))
 	playerLabel:SetTextColor(1, 0.82, 0, 1)
 
 	local playerWrap, playerBar = MakeBlizzardCastBar(stage, "player", FLASH_OF_LIGHT, SAMPLE_ICON_FLASH)
@@ -647,7 +653,7 @@ function CastPreview:Create(parent)
 
 	local targetLabel = stage:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	targetLabel:SetPoint("TOP", stage, "TOP", 0, -78)
-	targetLabel:SetText("Цель")
+	targetLabel:SetText(Tr("Цель"))
 	targetLabel:SetTextColor(1, 0.82, 0, 1)
 
 	local targetWrap, targetBar = MakeBlizzardCastBar(stage, "target", FIREBALL, SAMPLE_ICON_FIREBALL)
@@ -679,7 +685,7 @@ function CastPreview:Create(parent)
 end
 
 --------------------------------------------------------------------
--- 3) LFG countdown — LFDDungeonReadyDialog + animated Enter " (N)" 24→20
+-- 3) LFG countdown - LFDDungeonReadyDialog + animated Enter " (N)" 24->20
 --------------------------------------------------------------------
 SarychUI.CountdownTimerPreview = SarychUI.CountdownTimerPreview or {}
 local CdwnPreview = SarychUI.CountdownTimerPreview
@@ -776,15 +782,15 @@ function CdwnPreview:Create(parent)
 	label:SetSize(150, 0)
 	label:SetPoint("TOP", dialog, "TOP", 0, -15)
 	label:SetJustifyH("CENTER")
-	label:SetText("Случайное подземелье")
+	label:SetText(Tr("Случайное подземелье"))
 
 	local close = dialog:CreateTexture(nil, "ARTWORK")
 	close:SetTexture("Interface\\Buttons\\UI-Panel-HideButton-Up")
 	close:SetSize(32, 32)
 	close:SetPoint("TOPRIGHT", dialog, "TOPRIGHT", -2, -2)
 
-	local enterBase = ENTER_DUNGEON or "Войти в подземелье"
-	local leaveBase = LEAVE_QUEUE or "Покинуть очередь"
+	local enterBase = Tr("Войти в подземелье")
+	local leaveBase = Tr("Покинуть очередь")
 
 	local enterBtn = MakePanelButton(dialog, 115, 22, enterBase)
 	enterBtn:SetPoint("BOTTOMRIGHT", dialog, "BOTTOM", -7, 25)

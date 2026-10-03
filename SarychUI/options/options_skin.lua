@@ -496,7 +496,7 @@ function SarychUI:InstallDropdownListSkinGuard()
 		button.checked = info.checked
 	end)
 
-	-- Scrub only after an open we skinned — never on every random UI dropdown hide.
+	-- Scrub only after an open we skinned - never on every random UI dropdown hide.
 	if UIDropDownMenu_OnHide then
 		hooksecurefunc("UIDropDownMenu_OnHide", function()
 			if not skinnedOpen then

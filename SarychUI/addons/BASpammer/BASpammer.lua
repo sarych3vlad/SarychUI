@@ -284,7 +284,7 @@ function BASpammerSettingTextBox_OnEnterPressed()
 end
 
 function BASpammerSettingTextBox_OnTabPressed()
-    BASpammerSettingTextBox:Insert("    ")
+    BASpammerSettingTextBox:Insert("    ")
 end
 
 function BASpammer_OnEvent(BASpammer_self, BASpammer_event, BASpammer_arg1, ...)
@@ -443,7 +443,7 @@ local function BASpammer_InsertLink(link)
         end
     else
         ChatEdit_InsertLink(link)
-        DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[BA] Поле \"Текст:\" не найдено — вставлено в чат.|r")
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[BA] Поле \"Текст:\" не найдено - вставлено в чат.|r")
     end
 end
 

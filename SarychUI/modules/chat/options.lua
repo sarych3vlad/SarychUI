@@ -178,15 +178,25 @@ local function BuildChatWheelPhraseOptionEntries()
         local defaultText = CHAT_WHEEL_PHRASE_DEFAULTS[i] or ("Фраза " .. i)
         phraseArgs["chat_wheel_phrase_" .. i .. "_text"] = {
             type = "input",
-            name = "Фраза " .. i .. " — текст",
+            name = function()
+                return SarychUI:T("Фраза %d - текст", i)
+            end,
             order = 1 + (i - 1) * 2,
             width = "full",
             suiSaveButton = "OK",
             suiKeepInput = true,
             get = function()
                 local cw = SarychUI.db.profile.modules[moduleName].chatWheel
-                if not cw or cw[textKey] == nil then return defaultText end
-                return cw[textKey]
+                local value
+                if not cw or cw[textKey] == nil then
+                    value = defaultText
+                else
+                    value = cw[textKey]
+                end
+                if value == defaultText then
+                    return SarychUI:T(defaultText)
+                end
+                return value
             end,
             set = function(_, value)
                 local db = SarychUI.db.profile.modules[moduleName]
@@ -202,7 +212,9 @@ local function BuildChatWheelPhraseOptionEntries()
         }
         phraseArgs["chat_wheel_phrase_" .. i .. "_emote"] = {
             type = "input",
-            name = "Фраза " .. i .. " — эмоция",
+            name = function()
+                return SarychUI:T("Фраза %d - эмоция", i)
+            end,
             desc = "Slash-команда после текста, например /dance или /танец",
             order = 2 + (i - 1) * 2,
             width = "full",
@@ -241,7 +253,7 @@ function module:GetOptions()
         desc = L and (L["Chat_Description"] or "Настройка чата и сообщений") or "Настройка чата и сообщений",
         childGroups = "tab",
         args = {
-            -- General Tab (enable only — WrapModuleOptionsWithEnableHeader
+            -- General Tab (enable only - WrapModuleOptionsWithEnableHeader
             -- lifts it to the title bar and removes this empty tab)
             general = {
                 type = "group",
@@ -319,6 +331,60 @@ function module:GetOptions()
                                     },
                                 },
                             },
+                            classMentionsBox = {
+                                type = "group",
+                                name = "Упоминания цветом класса",
+                                desc = "Окрашивать имена игроков цветом их класса, когда их упоминают.",
+                                order = 1.5,
+                                inline = true,
+                                args = {
+                                    classColorMentionsEnabled = {
+                                        type = "toggle",
+                                        name = "Включить упоминания цветом класса",
+                                        desc = "Окрашивать имена игроков цветом их класса, когда их упоминают.",
+                                        order = 1,
+                                        width = "full",
+                                        get = function() return GetSetting("classColorMentionsEnabled", 1) == 1 end,
+                                        set = function(_, value)
+                                            SarychUI.db.profile.modules[moduleName].classColorMentionsEnabled = value and 1 or 0
+                                            if _G.ApplyClassMentions then
+                                                _G.ApplyClassMentions()
+                                            end
+                                            RefreshChatOptionsPanel()
+                                        end,
+                                    },
+                                    classColorMentionsChat = {
+                                        type = "toggle",
+                                        name = "Чат",
+                                        desc = "Окрашивать упомянутые имена игроков цветом класса в окне чата.",
+                                        order = 2,
+                                        width = "full",
+                                        get = function() return GetSetting("classColorMentionsChat", 1) == 1 end,
+                                        set = function(_, value)
+                                            SarychUI.db.profile.modules[moduleName].classColorMentionsChat = value and 1 or 0
+                                            if _G.ApplyClassMentions then
+                                                _G.ApplyClassMentions()
+                                            end
+                                        end,
+                                        hidden = function() return GetSetting("classColorMentionsEnabled", 1) ~= 1 end,
+                                    },
+                                    classColorMentionsSpeech = {
+                                        type = "toggle",
+                                        name = "Облачка сообщений",
+                                        desc = "Окрашивать упомянутые имена игроков цветом класса в облачках над персонажами.\n\n|cffff8080Влияет на производительность:|r облачка - безымянные фреймы без событий, поэтому их приходится искать постоянным опросом WorldFrame несколько раз в секунду. Если уже включены эмодзи в облачках, дополнительной нагрузки нет.",
+                                        order = 3,
+                                        width = "full",
+                                        get = function() return GetSetting("classColorMentionsSpeech", 1) == 1 end,
+                                        set = function(_, value)
+                                            SarychUI.db.profile.modules[moduleName].classColorMentionsSpeech = value and 1 or 0
+                                            if _G.ApplyClassMentions then
+                                                _G.ApplyClassMentions()
+                                            end
+                                        end,
+                                        hidden = function() return GetSetting("classColorMentionsEnabled", 1) ~= 1 end,
+                                    },
+                                },
+                            },
                             emojiBox = {
                                 type = "group",
                                 name = "Эмодзи",
@@ -345,7 +411,7 @@ function module:GetOptions()
                                     emotionBubbles = {
                                         type = "toggle",
                                         name = "Эмодзи в облачках над персонажами",
-                                        desc = "Заменяет смайлики на иконки в облачках речи над персонажами.\n\n|cffff8080Влияет на производительность:|r облачка — безымянные фреймы без событий, поэтому их приходится искать постоянным опросом WorldFrame несколько раз в секунду. В людных местах это заметно нагружает процессор. В самом чате эмодзи работают без этой платы.",
+                                        desc = "Заменяет смайлики на иконки в облачках речи над персонажами.\n\n|cffff8080Влияет на производительность:|r облачка - безымянные фреймы без событий, поэтому их приходится искать постоянным опросом WorldFrame несколько раз в секунду. В людных местах это заметно нагружает процессор. В самом чате эмодзи работают без этой платы.",
                                         order = 2,
                                         width = "full",
                                         get = function() return GetSetting("emotionBubbles", 0) == 1 end,
@@ -450,7 +516,9 @@ function module:GetOptions()
                                 args = {
                                     chatHotkeysEnabled = {
                                         type = "toggle",
-                                        name = L and (L["Enable_Chat_Hotkeys"] or "Включить горячие клавиши чата") or "Включить горячие клавиши чата",
+                                        name = function()
+                                            return SarychUI:T("Включить горячие клавиши чата")
+                                        end,
                                         desc = "Включить или выключить все горячие клавиши чата",
                                         order = 1,
                                         width = "full",
@@ -467,8 +535,7 @@ function module:GetOptions()
                                     hotkeysYell = {
                                         type = "toggle",
                                         name = function()
-                                            local color = "|cFFFFD700"
-                                            return L and (L["Hotkey_Yell"] or color .. "Ctrl+Shift+Enter|r: Крик") or color .. "Ctrl+Shift+Enter|r: Крик"
+                                            return SarychUI:T("|cFFFFD700Ctrl+Shift+Enter|r: Крик")
                                         end,
                                         desc = "Включить горячую клавишу для крика в чате",
                                         order = 2,
@@ -488,8 +555,7 @@ function module:GetOptions()
                                     hotkeysSay = {
                                         type = "toggle",
                                         name = function()
-                                            local color = "|cFFFFD700"
-                                            return L and (L["Hotkey_Say"] or color .. "Shift+Enter|r: Сказать") or color .. "Shift+Enter|r: Сказать"
+                                            return SarychUI:T("|cFFFFD700Shift+Enter|r: Сказать")
                                         end,
                                         desc = "Включить горячую клавишу для обычного сообщения в чате",
                                         order = 3,
@@ -509,8 +575,7 @@ function module:GetOptions()
                                     hotkeysAuto = {
                                         type = "toggle",
                                         name = function()
-                                            local color = "|cFFFFD700"
-                                            return L and (L["Hotkey_Auto"] or color .. "Ctrl+Enter|r: Авто") or color .. "Ctrl+Enter|r: Авто"
+                                            return SarychUI:T("|cFFFFD700Ctrl+Enter|r: Авто")
                                         end,
                                         desc = "Включить горячую клавишу для автоматического выбора канала (группа/рейд/поле боя/арена)",
                                         order = 4,
@@ -863,7 +928,7 @@ function module:GetOptions()
                                 args = {
                                     copyOnCtrlClickEnabled = {
                                         type = "toggle",
-                                        name = "Ctrl + левая кнопка мыши по вкладке – |cFFFFD700окно копирования|r",
+                                        name = "Ctrl + левая кнопка мыши по вкладке - |cFFFFD700окно копирования|r",
                                         desc = "Включить копирование чата по Ctrl + левая кнопка мыши по вкладке чата",
                                         order = 1,
                                         width = "full",
@@ -936,6 +1001,53 @@ function module:GetOptions()
                                         end,
                                         hidden = function()
                                             return GetSetting("fastScrollEnabled", 1) ~= 1 or not isEnabled()
+                                        end,
+                                    },
+                                },
+                            },
+                            lagBarBox = {
+                                type = "group",
+                                name = "Лаг-бар",
+                                order = 3,
+                                inline = true,
+                                args = {
+                                    lagBarEnabled = {
+                                        type = "toggle",
+                                        name = "Включить лаг-бар",
+                                        desc = "Показывает FPS, задержку (мс) и память аддонов (МБ) под окном чата — те же данные, что в подсказке кнопки главного меню. Видимость следует за чатом; при открытии строки ввода индикатор смещается ниже.",
+                                        order = 1,
+                                        width = "full",
+                                        get = function()
+                                            return GetSetting("lagBarEnabled", 0) == 1
+                                        end,
+                                        set = function(info, value)
+                                            SarychUI.db.profile.modules[moduleName].lagBarEnabled = value and 1 or 0
+                                            if SarychUI.modules and SarychUI.modules[moduleName] then
+                                                SarychUI.modules[moduleName]:ApplyLagBarSettings()
+                                            elseif _G.ApplyLagBarSettings then
+                                                _G.ApplyLagBarSettings()
+                                            end
+                                        end,
+                                    },
+                                    lagBarLabelsEnabled = {
+                                        type = "toggle",
+                                        name = "Добавить текст",
+                                        desc = "Добавляет подписи mb:, ms: и fps: к значениям лаг-бара.",
+                                        order = 2,
+                                        width = "full",
+                                        disabled = function()
+                                            return GetSetting("lagBarEnabled", 0) ~= 1
+                                        end,
+                                        get = function()
+                                            return GetSetting("lagBarLabelsEnabled", 0) == 1
+                                        end,
+                                        set = function(info, value)
+                                            SarychUI.db.profile.modules[moduleName].lagBarLabelsEnabled = value and 1 or 0
+                                            if SarychUI.modules and SarychUI.modules[moduleName] then
+                                                SarychUI.modules[moduleName]:ApplyLagBarSettings()
+                                            elseif _G.ApplyLagBarSettings then
+                                                _G.ApplyLagBarSettings()
+                                            end
                                         end,
                                     },
                                 },
@@ -1529,7 +1641,7 @@ function module:GetOptions()
                             chat_wheel_channel_mode = {
                                 type = "select",
                                 name = "Канал отправки",
-                                desc = "Куда отправлять фразу при отпускании бинда. Адаптивно: рейд → группа → сказать.",
+                                desc = "Куда отправлять фразу при отпускании бинда. Адаптивно: рейд -> группа -> сказать.",
                                 order = 1,
                                 width = "full",
                                 values = {

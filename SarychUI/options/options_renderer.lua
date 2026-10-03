@@ -1,4 +1,4 @@
--- SarychUI Options Renderer — AceConfig option tables → custom widgets.
+-- SarychUI Options Renderer - AceConfig option tables -> custom widgets.
 local SUI = SarychUI
 local W = SUI.OptionsWidgets
 local T = SUI.OptionsTheme
@@ -64,21 +64,38 @@ local function TUI(text)
 	return text
 end
 
+local function TTip(value)
+	if SarychUI and SarychUI.TLines then
+		return SarychUI:TLines(value)
+	end
+	if type(value) == "string" then
+		return TUI(value)
+	end
+	return value
+end
+
+local function WrapTip(fn)
+	if type(fn) ~= "function" then
+		return fn
+	end
+	return function(...)
+		return TTip(fn(...))
+	end
+end
+
 local function MakeTooltip(opt, info)
 	if type(opt.suiTooltip) == "function" then
-		return function()
-			return TUI(opt.suiTooltip())
-		end
+		return WrapTip(opt.suiTooltip)
 	end
 	if type(opt.desc) == "function" then
 		return function()
-			return TUI(Safe(opt.desc, info))
+			return TTip(Safe(opt.desc, info))
 		end
 	end
 	if type(opt.desc) == "string" and opt.desc ~= "" then
-		local text = TUI(opt.desc)
+		local src = opt.desc
 		return function()
-			return text
+			return TTip(src)
 		end
 	end
 end
@@ -165,7 +182,11 @@ local function CallGetColor(opt, info)
 	if not ok then
 		return 1, 1, 1, 1
 	end
-	return r or 1, g or 1, b or 1, a or 1
+	if r == nil then r = 1 end
+	if g == nil then g = 1 end
+	if b == nil then b = 1 end
+	if a == nil then a = 1 end
+	return r, g, b, a
 end
 
 local function CallSet(opt, info, value)
@@ -425,7 +446,7 @@ local function ResolveTwoPaneRightWidth(shellOrParent)
 	return math.max(200, parentW - listW - 4)
 end
 
--- Remeasure wrapped text, restack children top→bottom, return content bottom + count.
+-- Remeasure wrapped text, restack children top->bottom, return content bottom + count.
 -- When parent._suiTwoCol is set, pack consecutive half-width widgets two-per-row.
 -- When parent._suiThreeCol is set, pack consecutive third-width widgets three-per-row.
 local function RemeasureWrappedChildren(parent, padX)
@@ -596,7 +617,7 @@ function R:LayoutChild(parent, widget, y, padX)
 		availW = math.max(80, pw - padX * 2)
 		widget:SetWidth(availW)
 	end
-	-- Descriptions wrap only after width is known — measure now so parents get real height.
+	-- Descriptions wrap only after width is known - measure now so parents get real height.
 	if widget.MeasureHeight and availW then
 		widget:MeasureHeight(availW)
 	end
@@ -758,7 +779,7 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 			return CallGetColor(opt, info)
 		end, function(r, g, b, a)
 			CallSetColor(opt, info, r, g, b, a)
-		end, opt.hasAlpha and true or false, MakeTooltip(opt, info))
+		end, opt.hasAlpha and true or false, MakeTooltip(opt, info), opt.suiPreviewKey)
 		compactW = nil
 	elseif t == "range" then
 		widget = W:Slider(parent, name, opt.min, opt.max, opt.bigStep or opt.step, function()
@@ -817,14 +838,25 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 		if compactW then
 			widget:SetWidth(compactW)
 		elseif opt.width == "full" then
-			-- Stretch to content width (e.g. Быстрые настройки → Применить).
+			-- Stretch to content width (e.g. Быстрые настройки -> Применить).
 			compactW = nil
 		else
 			widget:SetWidth(180)
 			compactW = 180
 		end
 	elseif t == "description" then
-		if opt.suiLayoutPreview and SUI.PlatesAurasLayoutPreview and SUI.PlatesAurasLayoutPreview.Create then
+		if opt.suiStickyBottom and SUI.OptionsWindow and SUI.OptionsWindow.SetContentBottomNote then
+			local text = name
+			if text == "" and type(opt.name) == "function" then
+				text = tostring(Safe(opt.name, info) or "")
+				text = TUI(text)
+			end
+			if type(text) == "string" then
+				text = text:gsub("^[%s\r\n]+", ""):gsub("[%s\r\n]+$", "")
+			end
+			SUI.OptionsWindow:SetContentBottomNote(text)
+			return y
+		elseif opt.suiLayoutPreview and SUI.PlatesAurasLayoutPreview and SUI.PlatesAurasLayoutPreview.Create then
 			widget = SUI.PlatesAurasLayoutPreview:Create(parent, opt.suiLayoutPreview, opt.suiLayoutPreviewNotice)
 			compactW = nil
 		elseif (opt.suiDistancePreview or opt.suiLayoutPreview == "distance")
@@ -952,6 +984,24 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 				compactW = nil
 			else
 				widget = W:Description(parent, "|cffff8080Arena preview unavailable|r")
+			end
+		elseif opt.suiArenaNumbersPreview
+			and (SUI.ArenaNumbersPreview or SarychUI.ArenaNumbersPreview) then
+			local ArenaNumPreview = SUI.ArenaNumbersPreview or SarychUI.ArenaNumbersPreview
+			if ArenaNumPreview and ArenaNumPreview.Create then
+				widget = ArenaNumPreview:Create(parent)
+				compactW = nil
+			else
+				widget = W:Description(parent, "|cffff8080Arena numbers preview unavailable|r")
+			end
+		elseif opt.suiArenaGroupTitlesPreview
+			and (SUI.ArenaGroupTitlesPreview or SarychUI.ArenaGroupTitlesPreview) then
+			local GroupTitlesPreview = SUI.ArenaGroupTitlesPreview or SarychUI.ArenaGroupTitlesPreview
+			if GroupTitlesPreview and GroupTitlesPreview.Create then
+				widget = GroupTitlesPreview:Create(parent)
+				compactW = nil
+			else
+				widget = W:Description(parent, "|cffff8080Group titles preview unavailable|r")
 			end
 		elseif opt.suiAurasPreview
 			and (SUI.AurasPreview or SarychUI.AurasPreview) then
@@ -1088,11 +1138,12 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 		local tipFn
 		if type(opt.desc) == "function" then
 			tipFn = function()
-				return Safe(opt.desc, info)
+				return TTip(Safe(opt.desc, info))
 			end
 		elseif type(opt.desc) == "string" and opt.desc ~= "" then
+			local src = opt.desc
 			tipFn = function()
-				return opt.desc
+				return TTip(src)
 			end
 		end
 		widget = W:Header(parent, name, tipFn)
@@ -1173,7 +1224,7 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 					ResolveName(idOpt, idInfo),
 					function() return CallGet(idOpt, idInfo) end,
 					function(value) CallSet(idOpt, idInfo, value) end,
-					tostring(idOpt.suiSaveButton or "Добавить"),
+					TUI(tostring(idOpt.suiSaveButton or "Добавить")),
 					onDraft
 				)
 				y = self:LayoutChild(parent, widget, y, padX)
@@ -1185,15 +1236,16 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 			local sorted = SortedKeys(opt.args)
 			local childHandler = opt.handler or handler
 
-			if showHeader then
+				if showHeader then
 				local tipFn
 				if type(opt.desc) == "function" then
 					tipFn = function()
-						return Safe(opt.desc, MakeInfo(path, opt, childHandler))
+						return TTip(Safe(opt.desc, MakeInfo(path, opt, childHandler)))
 					end
 				elseif type(opt.desc) == "string" and opt.desc ~= "" then
+					local src = opt.desc
 					tipFn = function()
-						return opt.desc
+						return TTip(src)
 					end
 				end
 				local header = W:Header(parent, name, tipFn, opt.suiHeaderIcon, opt.suiHelpIcon)
@@ -1258,11 +1310,12 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 			local function BuildInlineWidget(eOpt, eInfo, eName)
 				local tipFn
 				if type(eOpt.suiTooltip) == "function" then
-					tipFn = eOpt.suiTooltip
+					tipFn = WrapTip(eOpt.suiTooltip)
 				elseif type(eOpt.desc) == "function" then
-					tipFn = function() return Safe(eOpt.desc, eInfo) end
+					tipFn = function() return TTip(Safe(eOpt.desc, eInfo)) end
 				elseif type(eOpt.desc) == "string" and eOpt.desc ~= "" then
-					tipFn = function() return eOpt.desc end
+					local src = eOpt.desc
+					tipFn = function() return TTip(src) end
 				end
 				local widget
 				if eOpt.type == "range" then
@@ -1305,6 +1358,7 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 					end
 				end
 				if widget then
+					widget._suiExternalSyncKey = eOpt.suiExternalSyncKey
 					BindDisabled(widget, eOpt, eInfo)
 				end
 				return widget
@@ -1328,9 +1382,10 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 					local buttonInfo = MakeInfo(buttonPath, buttonOpt, childHandler)
 					local buttonTooltipFn
 					if type(buttonOpt.desc) == "function" then
-						buttonTooltipFn = function() return Safe(buttonOpt.desc, buttonInfo) end
+						buttonTooltipFn = function() return TTip(Safe(buttonOpt.desc, buttonInfo)) end
 					elseif type(buttonOpt.desc) == "string" and buttonOpt.desc ~= "" then
-						buttonTooltipFn = function() return buttonOpt.desc end
+						local src = buttonOpt.desc
+						buttonTooltipFn = function() return TTip(src) end
 					end
 					local rowWidget = W:SelectWithButton(
 						panel,
@@ -1376,6 +1431,108 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 							end
 						end
 					end
+					panel._relayoutInline = function(self)
+						if self._relayoutLock then return end
+						self._relayoutLock = true
+						local bottom, count = RemeasureWrappedChildren(self, pad)
+						local h = (count > 0) and math.max(pad * 2, bottom + pad) or (pad * 2)
+						if math.abs((self:GetHeight() or 0) - h) > 0.5 then
+							self:SetHeight(h)
+						end
+						if self._placeDecorIcon then
+							self:_placeDecorIcon()
+						end
+						self._relayoutLock = nil
+					end
+					if rendered > 0 then
+						panel:SetHeight(math.max(pad * 2, -innerY - gap + pad))
+					else
+						panel:SetHeight(pad * 2)
+					end
+					AttachPanelDecorIcon(panel, opt.suiPanelDecorIcon, pad)
+					panel:SetScript("OnSizeChanged", function(self)
+						self:_relayoutInline()
+					end)
+					y = self:LayoutChild(parent, panel, y)
+					panel:_relayoutInline()
+					return y
+				end
+			end
+
+			if opt.suiSelectWithColor and W.SelectWithColor then
+				local selectOpt = opt.args and (opt.args.mode or opt.args.select or opt.args.choose)
+				local colorOpt = opt.args and (opt.args.color or opt.args.nameBackgroundColor)
+				if selectOpt and colorOpt then
+					local selectPath, colorPath = {}, {}
+					for i = 1, #path do
+						selectPath[i] = path[i]
+						colorPath[i] = path[i]
+					end
+					for k, v in pairs(opt.args) do
+						if v == selectOpt then tinsert(selectPath, k) end
+						if v == colorOpt then tinsert(colorPath, k) end
+					end
+					local selectInfo = MakeInfo(selectPath, selectOpt, childHandler)
+					local colorInfo = MakeInfo(colorPath, colorOpt, childHandler)
+					local colorTooltipFn
+					if type(colorOpt.desc) == "function" then
+						colorTooltipFn = function() return TTip(Safe(colorOpt.desc, colorInfo)) end
+					elseif type(colorOpt.desc) == "string" and colorOpt.desc ~= "" then
+						local src = colorOpt.desc
+						colorTooltipFn = function() return TTip(src) end
+					end
+					local skip = {}
+					for k, v in pairs(opt.args) do
+						if v == selectOpt or v == colorOpt then
+							skip[k] = true
+						end
+					end
+					local selectOrder = tonumber(selectOpt.order) or 0
+					local beforeSelect, afterSelect = {}, {}
+					for _, entry in ipairs(sorted) do
+						if not skip[entry.key] then
+							if (tonumber(entry.opt.order) or 0) < selectOrder then
+								tinsert(beforeSelect, entry)
+							else
+								tinsert(afterSelect, entry)
+							end
+						end
+					end
+					local function RenderInlineEntries(list)
+						for _, entry in ipairs(list) do
+							local childPath = {}
+							for i = 1, #path do childPath[i] = path[i] end
+							tinsert(childPath, entry.key)
+							local before = innerY
+							innerY = self:RenderControl(panel, entry.key, entry.opt, childPath, innerY, pad, childHandler)
+							if innerY ~= before then
+								rendered = rendered + 1
+							end
+						end
+					end
+					RenderInlineEntries(beforeSelect)
+					if not IsHidden(selectOpt, selectInfo) then
+						local rowWidget = W:SelectWithColor(
+							panel,
+							ResolveName(selectOpt, selectInfo),
+							function() return ResolveValues(selectOpt, selectInfo) end,
+							function() return CallGet(selectOpt, selectInfo) end,
+							function(value) CallSet(selectOpt, selectInfo, value) end,
+							function() return CallGetColor(colorOpt, colorInfo) end,
+							function(r, g, b, a) CallSetColor(colorOpt, colorInfo, r, g, b, a) end,
+							colorOpt.hasAlpha and true or false,
+							colorTooltipFn,
+							function()
+								return IsHidden(colorOpt, colorInfo)
+							end,
+							colorOpt.suiPreviewKey,
+							selectOpt.suiPreviewKey
+						)
+						BindDisabled(rowWidget, selectOpt, selectInfo)
+						innerY = self:LayoutChild(panel, rowWidget, innerY, pad)
+						rendered = rendered + 1
+					end
+					RenderInlineEntries(afterSelect)
 					panel._relayoutInline = function(self)
 						if self._relayoutLock then return end
 						self._relayoutLock = true
@@ -1550,6 +1707,7 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 	end
 
 	if widget then
+		widget._suiExternalSyncKey = opt.suiExternalSyncKey
 		if compactW then
 			widget._fixedWidth = compactW
 		end
@@ -1591,7 +1749,7 @@ function R:RenderSection(parent, sectionOpt, path)
 	local y = -contentPad
 	local sectionHandler = sectionOpt and sectionOpt.handler
 	if not sectionOpt then
-		local d = W:Description(parent, "Секция не найдена.")
+		local d = W:Description(parent, TUI("Секция не найдена."))
 		self:LayoutChild(parent, d, y, contentPad)
 		parent:SetHeight(40)
 		return
@@ -1610,7 +1768,7 @@ function R:RenderSection(parent, sectionOpt, path)
 	end
 	local skipTreeChildren = sectionOpt.childGroups == "tree"
 	if #sorted == 0 then
-		local d = W:Description(parent, ResolveName(sectionOpt) ~= "" and ResolveName(sectionOpt) or "Нет настроек в этой секции.")
+		local d = W:Description(parent, ResolveName(sectionOpt) ~= "" and ResolveName(sectionOpt) or TUI("Нет настроек в этой секции."))
 		y = self:LayoutChild(parent, d, y, contentPad)
 	else
 		for _, entry in ipairs(sorted) do
@@ -1618,7 +1776,7 @@ function R:RenderSection(parent, sectionOpt, path)
 			-- Skip non-inline groups when parent is shown via tabs/subtabs or tree nav.
 			local optInline = opt.inline or opt.dialogInline or opt.guiInline
 			if opt.type == "group" and not optInline and (hasContentTabs or skipTreeChildren) then
-				-- skip — rendered as tab/subtab content or left-nav section
+				-- skip - rendered as tab/subtab content or left-nav section
 			else
 				local childPath = {}
 				for i = 1, #(path or {}) do childPath[i] = path[i] end
@@ -1653,7 +1811,7 @@ function R:RenderSection(parent, sectionOpt, path)
 end
 
 -----------------------------------------------------------------------
--- Two-pane lists: left names / right settings (Аддоны → Список, Миникарта → Кнопки).
+-- Two-pane lists: left names / right settings (Аддоны -> Список, Миникарта -> Кнопки).
 -----------------------------------------------------------------------
 local function PathKey(path)
 	if not path or #path == 0 then return "root" end
@@ -1692,7 +1850,7 @@ local function CollectTwoPaneEntries(groupOpt)
 					listGroupOrder = tonumber(v.suiListGroupOrder),
 				})
 			elseif not IsHidden(v, MakeInfo({ k }, v)) then
-				-- Shared controls above the two-pane (headers, toggles, buttons…).
+				-- Shared controls above the two-pane (headers, toggles, buttons...).
 				tinsert(shared, {
 					key = k,
 					order = tonumber(v.order) or 100,
@@ -1875,17 +2033,18 @@ function R:_RenderAddonDetail(detailHost, addonOpt, addonPath, addonKey)
 			local enableName = ResolveName(enableOpt, enableInfo)
 			local tooltipFn
 			if type(enableOpt.suiTooltip) == "function" then
-				tooltipFn = enableOpt.suiTooltip
+				tooltipFn = WrapTip(enableOpt.suiTooltip)
 			elseif type(enableOpt.desc) == "function" then
 				tooltipFn = function()
-					return Safe(enableOpt.desc, enableInfo)
+					return TTip(Safe(enableOpt.desc, enableInfo))
 				end
 			elseif type(enableOpt.desc) == "string" and enableOpt.desc ~= "" then
+				local src = enableOpt.desc
 				tooltipFn = function()
-					return enableOpt.desc
+					return TTip(src)
 				end
 			end
-			local widget = W:Checkbox(enableHost, enableName or "Включить", function()
+			local widget = W:Checkbox(enableHost, enableName or TUI("Включить"), function()
 				return CallGet(enableOpt, enableInfo)
 			end, function(value)
 				CallSet(enableOpt, enableInfo, value)
@@ -2105,7 +2264,7 @@ function R:RenderTwoPaneAddonList(parent, groupOpt, path)
 
 	local entries, shared = CollectTwoPaneEntries(groupOpt)
 
-	-- Shared controls (refresh, toggles…) above the two-pane split.
+	-- Shared controls (refresh, toggles...) above the two-pane split.
 	local yTop = -contentPad
 	if #shared > 0 then
 		for _, entry in ipairs(shared) do
@@ -2118,13 +2277,13 @@ function R:RenderTwoPaneAddonList(parent, groupOpt, path)
 	end
 
 	if #entries == 0 then
-		local d = W:Description(parent, "Нет элементов в списке.")
+		local d = W:Description(parent, TUI("Нет элементов в списке."))
 		self:LayoutChild(parent, d, yTop, contentPad)
 		parent:SetHeight(math.max(40, -yTop + 40))
 		return
 	end
 
-	-- Runtime selection (compat: Аддоны → Список still uses _addonListSelected).
+	-- Runtime selection (compat: Аддоны -> Список still uses _addonListSelected).
 	OC._twoPaneSelected = OC._twoPaneSelected or {}
 	OC._twoPaneScroll = OC._twoPaneScroll or {}
 	local selected = OC._twoPaneSelected[pathKey]
@@ -2682,7 +2841,7 @@ function R:RenderTwoPaneAddonList(parent, groupOpt, path)
 		parent:SetHeight(math.max(40, -yTop + viewportH + 8))
 
 		-- Clamp the outer content child to the scroll viewport so the page
-		-- itself cannot scroll — only the spell list / detail panes do.
+		-- itself cannot scroll - only the spell list / detail panes do.
 		if OW and OW.contentScroll and OW.contentChild then
 			local scrollH = OW.contentScroll:GetHeight() or 0
 			if scrollH > 40 then
@@ -2788,7 +2947,7 @@ function R:RenderTwoPaneAddonList(parent, groupOpt, path)
 			hdr:SetPoint("TOPLEFT", listChild, "TOPLEFT", 6, -y)
 			hdr:SetPoint("TOPRIGHT", listChild, "TOPRIGHT", -4, -y)
 			hdr:SetJustifyH("LEFT")
-			hdr:SetText(entry.listGroup)
+			hdr:SetText(TUI(entry.listGroup))
 			T:SetTextColor(hdr, "title")
 			y = y + (itemH - 2)
 		end

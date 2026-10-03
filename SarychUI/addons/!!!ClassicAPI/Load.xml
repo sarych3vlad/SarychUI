@@ -11,6 +11,7 @@
 	<Script file="Util\C_Timer.lua" />
 
 	<Script file="Util\EventHandler.lua" />
+	<Script file="Util\WidgetAPI.lua" />
 	<Script file="Util\EventHandlerCompat.lua" />
 
 	<Script file="Util\Unit.lua" />
@@ -27,6 +28,7 @@
 	<Script file="Util\C_FriendList.lua" />
 	<Script file="Util\C_Map.lua" />
 	<Script file="Util\C_Texture.lua" />
+	<Script file="Util\AtlasInfo.lua" />
 	<Script file="Util\C_VoiceChat.lua" />
 	<Script file="Util\C_NamePlate.lua" />
 	<Script file="Util\C_GossipInfo.lua" />
@@ -69,9 +71,6 @@
 
 	<Script file="Util\Compatibility.lua" />
 
-	<!-- Templates required by embedded retail-style UI frames. -->
-	<Include file="Templates\XML_Helper.lua" />
-	<Include file="Templates\UIPanelTemplates.xml" />
-	<Include file="Templates\C_UIDropDownMenu.xml" />
-	<Script file="Templates\InterfaceOptions.lua" />
+	<!-- Templates required by CompactRaidFrame / ClassicAPI 1.28. -->
+	<Include file="Templates\Load.xml" />
 </Ui>

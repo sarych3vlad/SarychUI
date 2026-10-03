@@ -2,7 +2,7 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
 ..\FrameXML\UI.xsd">
   <Script file="CompactUnitFrame.lua" />
-  <Button name="CompactAuraTemplate" virtual="true" enableMouse="false">
+  <Button name="CompactAuraTemplate" virtual="true">
     <Size>
       <AbsDimension x="17" y="17" />
     </Size>
@@ -33,14 +33,11 @@
         </Anchors>
       </Cooldown>
     </Frames>
-    <Scripts>
-      <!-- <OnClick function="PassClickToParent"/> -->
-    </Scripts>
   </Button>
   <Button name="CompactDebuffTemplate" inherits="CompactAuraTemplate" virtual="true">
     <Layers>
       <Layer level="OVERLAY">
-        <Texture name="$parentBorder" parentKey="border" file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\Buttons\UI-Debuff-Overlays">
+        <Texture name="$parentBorder" parentKey="border" file="Interface\Buttons\UI-Debuff-Overlays">
           <Anchors>
             <Anchor point="TOPLEFT">
               <Offset x="-1" y="1" />
@@ -60,28 +57,17 @@
           parent.debuffFrames = {};
         end
         tinsert(parent.debuffFrames, self);
-        self:RegisterForClicks("LeftButtonDown", "RightButtonUp");
+        PropagateTooltipMouseClicks(self);
       </OnLoad>
-      <OnUpdate>
-        if ( GameTooltip:IsOwned(self) ) then
-          if ( self.isBossBuff ) then
-            GameTooltip:SetUnitBuff(self:GetParent():GetParent().displayedUnit, self:GetID(), self.filter);
-          else
-            GameTooltip:SetUnitDebuff(self:GetParent():GetParent().displayedUnit, self:GetID(), self.filter);
-          end
-        end
-      </OnUpdate>
       <OnEnter>
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0);
-          if ( self.isBossBuff ) then
-            GameTooltip:SetUnitBuff(self:GetParent():GetParent().displayedUnit, self:GetID(), self.filter);
-          else
-            GameTooltip:SetUnitDebuff(self:GetParent():GetParent().displayedUnit, self:GetID(), self.filter);
-          end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+        if ( self.isBossBuff ) then
+          GameTooltip:SetUnitBuff(self:GetParent():GetParent().displayedUnit, self:GetID(), self.filter);
+        else
+          GameTooltip:SetUnitDebuff(self:GetParent():GetParent().displayedUnit, self:GetID(), self.filter);
+        end
       </OnEnter>
-      <OnLeave>
-        GameTooltip:Hide();
-      </OnLeave>
+      <OnLeave function="CompactAuraTemplate_OnLeave" />
     </Scripts>
   </Button>
   <Button name="CompactBuffTemplate" inherits="CompactAuraTemplate" virtual="true">
@@ -92,20 +78,13 @@
           parent.buffFrames = {};
         end
         tinsert(parent.buffFrames, self);
-        self:RegisterForClicks("LeftButtonDown", "RightButtonUp");
+        PropagateTooltipMouseClicks(self);
       </OnLoad>
-      <OnUpdate>
-        if ( GameTooltip:IsOwned(self) ) then
-          GameTooltip:SetUnitBuff(self:GetParent():GetParent().displayedUnit, self:GetID());
-        end
-      </OnUpdate>
       <OnEnter>
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0);
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
         GameTooltip:SetUnitBuff(self:GetParent():GetParent().displayedUnit, self:GetID());
       </OnEnter>
-      <OnLeave>
-        GameTooltip:Hide();
-      </OnLeave>
+      <OnLeave function="CompactAuraTemplate_OnLeave" />
     </Scripts>
   </Button>
   <Button name="CompactDispelDebuffTemplate" virtual="true">
@@ -123,29 +102,16 @@
           parent.dispelDebuffFrames = {};
         end
         tinsert(parent.dispelDebuffFrames, self);
-        self:RegisterForClicks("LeftButtonDown", "RightButtonUp");
+        PropagateTooltipMouseClicks(self);
       </OnLoad>
-      <!-- <OnClick function="PassClickToParent"/> -->
-      <OnUpdate>
-        if ( GameTooltip:IsOwned(self) ) then
-          GameTooltip:SetUnitDebuff(self:GetParent():GetParent().displayedUnit, self:GetID(), "RAID");
-        end
-      </OnUpdate>
       <OnEnter>
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0);
-        GameTooltip:SetUnitDebuff(self:GetParent():GetParent().displayedUnit, self:GetID());
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+        GameTooltip:SetUnitDebuff(self:GetParent():GetParent().displayedUnit, self:GetID(), "RAID");
       </OnEnter>
-      <OnLeave>
-        GameTooltip:Hide();
-      </OnLeave>
+      <OnLeave function="CompactAuraTemplate_OnLeave" />
     </Scripts>
   </Button>
-  <Button name="CompactUnitFrameTemplate" frameStrata="LOW" inherits="SecureUnitButtonTemplate, SecureHandlerStateTemplate" virtual="true">
-    <Attributes>
-      <Attribute name="_onstate-showParty" value="if newstate == 'show' then self:Show(); else self:Hide(); end" />
-      <Attribute name="_onshow" value="self:Show();" />
-      <Attribute name="_onhide" value="self:Hide();" />
-    </Attributes>
+  <Button name="CompactUnitFrameTemplate" frameStrata="LOW" inherits="SecureUnitButtonTemplate" virtual="true">
     <Layers>
       <Layer level="BACKGROUND">
         <Texture name="$parentBackground" parentKey="background" setAllPoints="true" />
@@ -174,14 +140,14 @@
             <Texture name="$parentTotalAbsorb" parentKey="totalAbsorb" />
             <FontString name="$parentStatusText" inherits="GameFontDisable" parentKey="statusText" />
           </Layer>
-          <Layer level="ATWORK">
+          <Layer level="ARTWORK">
             <FontString name="$parentName" inherits="GameFontHighlightSmall" parentKey="name" wordwrap="false" />
             <Texture name="$parentRoleIcon" hidden="true" parentKey="roleIcon" />
             <Texture name="$parentAggroHighlight" parentKey="aggroHighlight" />
             <Texture name="$parentMyHealAbsorb" parentKey="myHealAbsorb" />
             <Texture name="$parentTotalAbsorbOverlay" parentKey="totalAbsorbOverlay" />
-            <Texture name="$parentMyHealAbsorbLeftShadow" parentKey="myHealAbsorbLeftShadow" file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\RAIDFRAME\Absorb-Edge" />
-            <Texture name="$parentMyHealAbsorbRightShadow" parentKey="myHealAbsorbRightShadow" file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\RAIDFRAME\Absorb-Edge">
+            <Texture name="$parentMyHealAbsorbLeftShadow" parentKey="myHealAbsorbLeftShadow" file="Interface\AddOns\SarychUI\addons\!!!ClassicAPI\Texture\RAIDFRAME\Absorb-Edge" />
+            <Texture name="$parentMyHealAbsorbRightShadow" parentKey="myHealAbsorbRightShadow" file="Interface\AddOns\SarychUI\addons\!!!ClassicAPI\Texture\RAIDFRAME\Absorb-Edge">
               <TexCoords left="1" right="0" top="0" bottom="1" />
             </Texture>
           </Layer>
@@ -191,7 +157,7 @@
           </Layer>
         </Layers>
       </Frame>
-      <Frame name="$parentIgnoreAlphaTexture" parentKey="ignoreParentAlpha" frameLevel="5">
+      <Frame name="$parentIgnoreAlphaTexture" parentKey="ignoreParentAlpha" frameLevel="8">
         <Layers>
           <Layer level="OVERLAY">
             <Texture name="$parentSelectionHighlight" parentKey="selectionHighlight" />
@@ -199,7 +165,7 @@
           </Layer>
         </Layers>
       </Frame>
-      <StatusBar name="$parentPowerBar" parentKey="powerBar" useParentLevel="true">
+      <StatusBar name="$parentPowerBar" parentKey="powerBar">
         <Layers>
           <Layer level="BACKGROUND">
             <Texture name="$parentBackground" parentKey="background" setAllPoints="true" />
@@ -223,28 +189,15 @@
           </Layer>
         </Layers>
         <Scripts>
-          <OnLoad>
-            self:RegisterForClicks("LeftButtonDown", "RightButtonUp");
-          </OnLoad>
-          <!-- <OnClick>
-            self:GetParent():GetScript("OnClick")(self:GetParent(), button);
-          </OnClick> -->
+          <OnLoad function="PropagateTooltipMouseClicks" />
           <OnEnter>
             if ( self.tooltip ) then
               GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
               GameTooltip:SetText(self.tooltip, nil, nil, nil, nil, true);
               GameTooltip:Show();
-            else
-              --self:GetParent():GetScript("OnEnter")(self:GetParent(), motion);
             end
           </OnEnter>
-          <OnLeave>
-            if ( self.tooltip ) then
-              GameTooltip:Hide();
-            else
-              --self:GetParent():GetScript("OnLeave")(self:GetParent(), motion);
-            end
-          </OnLeave>
+          <OnLeave function="CompactAuraTemplate_OnLeave" />
         </Scripts>
       </Button>
       <Frame name="$parentDropDown" inherits="UIDropDownMenuTemplate" parentKey="dropDown" hidden="true">
@@ -278,7 +231,7 @@
             <Anchor point="CENTER" x="0" y="0" />
           </Anchors>
         </FontString>
-        <Texture parentKey="BorderShield" file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\TargetingFrame\NameplateFill" hidden="true">
+        <Texture parentKey="BorderShield" file="Interface\TargetingFrame\NameplateFill" hidden="true">
           <TexCoords left="0.929688" right="0.984375" top="0.234375" bottom="0.359375" />
           <Size x="10" y="12" />
           <Anchors>
@@ -287,13 +240,13 @@
         </Texture>
       </Layer>
       <Layer level="OVERLAY">
-        <Texture parentKey="Spark" file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\CastingBar\UI-CastingBar-Spark" alphaMode="ADD">
+        <Texture parentKey="Spark" file="Interface\CastingBar\UI-CastingBar-Spark" alphaMode="ADD">
           <Size x="16" y="16" />
           <Anchors>
             <Anchor point="CENTER" x="0" y="0" />
           </Anchors>
         </Texture>
-        <Texture parentKey="Flash" file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\TargetingFrame\UI-TargetingFrame-BarFill" alphaMode="ADD" />
+        <Texture parentKey="Flash" file="Interface\TargetingFrame\UI-TargetingFrame-BarFill" alphaMode="ADD" />
       </Layer>
     </Layers>
     <Scripts>
@@ -304,7 +257,7 @@
       <OnUpdate function="CastingBarFrame_OnUpdate" />
       <OnShow function="CastingBarFrame_OnShow" />
     </Scripts>
-    <BarTexture file="Interface\AddOns\SarychUI\addons\CompactRaidFrame\Media\TargetingFrame\UI-StatusBar" />
+    <BarTexture file="Interface\TargetingFrame\UI-StatusBar" />
     <BarColor r="1.0" g="0.7" b="0.0" />
   </StatusBar>
 </Ui>

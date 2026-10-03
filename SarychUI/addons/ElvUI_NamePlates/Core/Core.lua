@@ -390,10 +390,6 @@ function E:ForceOpenOptionsUI()
 		open.frame.__SarychUI_ENPOptionsRoot = true
 	end
 	if open and open.Show then
-		local fadeIn = SarychUI and SarychUI._NamePlatesConfigFadeIn
-		if fadeIn and open.frame and open.frame.SetAlpha then
-			open.frame:SetAlpha(0)
-		end
 		open:Show()
 	end
 

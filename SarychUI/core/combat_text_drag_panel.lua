@@ -675,7 +675,7 @@ function Panel:SetDraft(x, y, fromUI, point, relativePoint, skipAnchor)
 	if relativePoint then session.draft.relativePoint = relativePoint end
 	-- Live-write DB so /sui sliders track drag immediately.
 	LiveSyncDraftToOptions(meta, session.draft)
-	-- skipAnchor: free-move already SetPoint'd in DragMode — re-anchoring jumps.
+	-- skipAnchor: free-move already SetPoint'd in DragMode - re-anchoring jumps.
 	if not skipAnchor then
 		SetAnchorPosition(session.frameId, meta, session.draft.x, session.draft.y, session.draft.point, session.draft.relativePoint)
 		-- Quest tracker also re-pins WatchFrame after the anchor moves.

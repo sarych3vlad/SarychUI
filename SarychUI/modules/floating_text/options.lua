@@ -445,7 +445,7 @@ function module:GetOptions()
 						extraBox = {
 							type = "group",
 							name = "Дополнительный фрейм для ошибок",
-							desc = "Отдельный блок для важных ошибок, которые вы хотите видеть даже при включённом фильтре — например «Нет места» или «Вы должны подождать», чтобы они не терялись среди остальных сообщений.",
+							desc = "Отдельный блок для важных ошибок, которые вы хотите видеть даже при включённом фильтре - например «Нет места» или «Вы должны подождать», чтобы они не терялись среди остальных сообщений.",
 							order = 4,
 							inline = true,
 							disabled = function()
@@ -582,7 +582,7 @@ function module:GetOptions()
 													SarychUI.SysMsgPreview:RefreshAll()
 												end
 											end
-											-- No RefreshConfig on range commit — rebuild orphans cooltip textures.
+											-- No RefreshConfig on range commit - rebuild orphans cooltip textures.
 										end,
 									},
 								},
@@ -1182,14 +1182,14 @@ function module:GetOptions()
 											ToggleDrag("combatTextLess", val)
 											RefreshConfig()
 										end,
-										hidden = function()
-											local db = DB() or {}
-											return not (db.healHideLess ~= 1 and db.healHideLess ~= true and (db.healShiftLess == 1 or db.healShiftLess == true))
-										end,
-									},
+									hidden = function()
+										local db = DB() or {}
+										return not (db.healHideLess ~= 1 and db.healHideLess ~= true and (db.healShiftLess == 1 or db.healShiftLess == true))
+									end,
 								},
 							},
 						},
+					},
 					},
 				},
 			},

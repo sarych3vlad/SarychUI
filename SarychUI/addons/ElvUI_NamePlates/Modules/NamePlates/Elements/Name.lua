@@ -148,6 +148,12 @@ function NP:Update_Name(frame, triggered)
 
 	local name = frame.Name
 	local nameText = frame.UnitName or UNKNOWN
+	-- Resolve arena numbers before the FontString is painted. A post-update hook
+	-- briefly exposed the real name and also raced the hidden Blizzard name layer.
+	local SUI = _G.SarychUI
+	if SUI and SUI.GetArenaNameplateDisplayName then
+		nameText = SUI:GetArenaNameplateDisplayName(frame, nameText) or nameText
+	end
 	name:SetText(self:FormatNameText(frame, nameText))
 
 	if not triggered then
@@ -172,9 +178,12 @@ function NP:Update_Name(frame, triggered)
 		useClassColor = self.db.units[frame.UnitType].name and self.db.units[frame.UnitType].name.useClassColor
 	end
 
-	if useClassColor and (frame.UnitType == "FRIENDLY_PLAYER" or frame.UnitType == "ENEMY_PLAYER") then
+	-- Reaction colors only in name-only mode. A style-filter refresh (triggered)
+	-- used to force yellow/green/red names even with the health bar shown.
+	local healthOn = self.db.units[frame.UnitType].health.enable or (self.db.alwaysShowTargetHealth and frame.isTarget)
+	if useClassColor and classColor and (frame.UnitType == "FRIENDLY_PLAYER" or frame.UnitType == "ENEMY_PLAYER") then
 		r, g, b = classColor.r, classColor.g, classColor.b
-	elseif triggered or (not self.db.units[frame.UnitType].health.enable and not frame.isTarget) then
+	elseif not healthOn then
 		local reactionType = frame.UnitReaction
 		if reactionType then
 			local db = self.db.colors
@@ -199,9 +208,7 @@ function NP:Update_Name(frame, triggered)
 
 	if triggered or (r ~= frame.Name.r or g ~= frame.Name.g or b ~= frame.Name.b) then
 		name:SetTextColor(r, g, b)
-		if not triggered then
-			frame.Name.r, frame.Name.g, frame.Name.b = r, g, b
-		end
+		frame.Name.r, frame.Name.g, frame.Name.b = r, g, b
 	end
 
 	if self.db.nameColoredGlow then

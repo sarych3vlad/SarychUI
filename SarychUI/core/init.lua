@@ -5,7 +5,7 @@ local pairs = pairs
 local gsub = string.gsub
 
 local ADDON_NAME = "SarychUI"
-local VERSION = "1.0.0"
+local VERSION = "1.1.0"
 
 -- Check for required libraries (LibStub is embedded in SarychUI/libs/)
 local LibStub = _G.LibStub
@@ -28,7 +28,7 @@ SarychUI.DOTA_ALT_HELP_ICON = {
 	color = { 1.0, 0.12, 0.12 },
 }
 
--- Chat colors (matches BlizzMove: |cffffd200SarychUI:|r …)
+-- Chat colors (matches BlizzMove: |cffffd200SarychUI:|r ...)
 SarychUI.CHAT_GOLD = "|cffffd200"
 SarychUI.CHAT_PREFIX = SarychUI.CHAT_GOLD .. "SarychUI:|r"
 
@@ -251,7 +251,15 @@ function SarychUI:OnInitialize()
 	if not self.db.profile then
 		self.db.profile = self:GetDefaults().profile
 	end
-	
+
+	-- TOC-time ApplyUILocale runs before SavedVariables/AceDB. Re-apply so EN/es
+	-- selected in options actually switches the UI after /reload.
+	if self.ApplyUILocale then
+		self:ApplyUILocale(self:GetUILocale())
+	end
+	if self.SetUILocale then
+		self:SetUILocale(self:GetUILocale())
+	end
 	
 	-- Register chat commands
 	self:RegisterChatCommand("sarychui", "ChatCommand")
@@ -389,12 +397,19 @@ function SarychUI:ChatCommand(input)
 			SarychUI:PrintOptionsPerfSummary()
 		end
 	elseif input == "perfoptions" or input:match("^perfoptions") then
-		if input:match("%f[%w]off%f[%w]") or input:match("%f[%w]summary%f[%w]") then
+		local diagnosticsCommand = input:match("^perfoptions%s+(%S+)")
+		if diagnosticsCommand and self.Runtime and self.Runtime.HandlePerfCommand
+			and self.Runtime:HandlePerfCommand(diagnosticsCommand) then
+			-- Runtime diagnostics are asynchronous where appropriate; results print to chat.
+		elseif input:match("%f[%w]off%f[%w]") or input:match("%f[%w]summary%f[%w]") then
 			if SarychUI.FinalizeOptionsOpenPerfIfNeeded then
 				SarychUI:FinalizeOptionsOpenPerfIfNeeded("perfoptions summary")
 			end
 			if SarychUI.PrintOptionsPerfSummary then
 				SarychUI:PrintOptionsPerfSummary()
+			end
+			if SarychUI.Runtime and SarychUI.Runtime.PrintDiagnostics then
+				SarychUI.Runtime:PrintDiagnostics()
 			end
 			if input:match("%f[%w]off%f[%w]") and SarychUI.ToggleOptionsPerfDebug then
 				SarychUI:ToggleOptionsPerfDebug(false)
@@ -465,8 +480,11 @@ function SarychUI:ChatCommand(input)
 			local status = enabled and "|cff00ff00включён|r" or "|cffff0000отключён|r"
 			print("  "..name..": "..status)
 		end
-		if self.Compatibility then
-			print("  wow_optimize: "..self.Compatibility:GetStatusText())
+		if self.Runtime then
+			local runtime = self.Runtime:GetDiagnostics()
+			print(string.format("  Runtime: %s, backend=%s, GC=%s/%s, %.1f MB Lua",
+				runtime.version or "?", runtime.backendLabel or runtime.backend or "?",
+				runtime.gcController or "?", runtime.gcMode or "?", runtime.memoryMB or 0))
 		end
 	else
 		-- Show help
@@ -477,6 +495,7 @@ function SarychUI:ChatCommand(input)
 		print("  |cff00ff00/sarychui reset|r - Сбросить профиль")
 		print("  |cff00ff00/sui perf|r - Startup-отчёт (не замеряет open настроек!)")
 		print("  |cff00ff00/sui perfoptions|r - Замер открытия настроек (вкл. perf + открыть окно)")
+		print("  |cff00ff00/sui perfoptions fps|events|memory|onupdate|runtime|dll|r - Диагностика Runtime/DLL")
 		print("  |cff00ff00/sui perf open|r - То же: замер + открыть /sui")
 		print("  |cff00ff00/sui perfsummary|r - Startup + options summary")
 		print("  |cff00ff00/sui refreshoptions|r - Пересобрать addon options вручную")
@@ -659,7 +678,7 @@ initFrame:SetScript("OnEvent", function(self, event, arg1)
 		end
 		
 		-- 4. Текст боя: не гасим свободное перемещение при входе в бой через этот путь
-		-- вместе с закрытием окна — сессия живёт до Применить/Сброс/выключения кнопки.
+		-- вместе с закрытием окна - сессия живёт до Применить/Сброс/выключения кнопки.
 		-- (Боевой cleanup ниже всё ещё может закрыть окно настроек.)
 		
 		-- Не трогаем активный combat-text drag / сетку при закрытии настроек из боя.

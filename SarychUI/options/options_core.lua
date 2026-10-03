@@ -1,4 +1,4 @@
--- SarychUI Options Core — custom Details-like settings (perf-first).
+-- SarychUI Options Core - custom Details-like settings (perf-first).
 -- AceConfig tables = DATA only. No AceGUI visuals. No ENP in this window.
 local SUI = SarychUI
 local ADDON_NAME = "SarychUI"
@@ -27,7 +27,7 @@ OC._sections = OC._sections or {}
 OC._sectionOrder = OC._sectionOrder or {}
 OC._tabState = OC._tabState or {} -- [sectionId] = tabKey
 OC._subTabState = OC._subTabState or {} -- [sectionId .. "/" .. tabKey] = subTabKey
-OC._addonListSelected = nil -- selected addon key inside Аддоны → Список
+OC._addonListSelected = nil -- selected addon key inside Аддоны -> Список
 OC._addonListTabState = OC._addonListTabState or {} -- [addonKey] = nested tab key
 OC._addonListScroll = 0 -- left list vertical scroll offset
 OC._twoPaneSelected = OC._twoPaneSelected or {} -- [pathKey] = selected child key
@@ -146,7 +146,7 @@ function OC:GetTabGroups(opt)
 end
 
 -----------------------------------------------------------------------
--- Section registry (SarychUI only — never ENP)
+-- Section registry (SarychUI only - never ENP)
 -----------------------------------------------------------------------
 function OC:ClearSections()
 	for k in pairs(self._sections) do
@@ -180,7 +180,7 @@ function OC:BuildSectionsFromAce()
 			local childGroups = top.opt.childGroups
 			local children = SortedGroupArgs(top.opt.args)
 
-			-- Аддоны: один пункт nav (как Система) — сразу two-pane список, без «Управление».
+			-- Аддоны: один пункт nav (как Система) - сразу two-pane список, без «Управление».
 			if top.key == "addons" then
 				local ported = top.opt.args and top.opt.args.ported
 				self:RegisterSection(topId, {
@@ -305,7 +305,7 @@ function OC:_RenderContent()
 	local opt = sec.opt
 	local path = sec.path or {}
 
-	-- Special: Аддоны — two-pane (left names / right settings).
+	-- Special: Аддоны - two-pane (left names / right settings).
 	if sec.isAddonList or id == "sui:addons" or id == "sui:addons/ported" then
 		OW:HideTabs()
 		self._currentTabKey = nil
@@ -355,7 +355,7 @@ function OC:_RenderContent()
 		for i = 1, #path do tabPath[i] = path[i] end
 		tinsert(tabPath, found.key)
 
-		-- Two-pane list tabs (e.g. Миникарта → Кнопки аддонов).
+		-- Two-pane list tabs (e.g. Миникарта -> Кнопки аддонов).
 		if found.opt and found.opt.suiTwoPane then
 			OW:SetSubTabs(nil)
 			self._currentSubTabKey = nil
@@ -388,7 +388,7 @@ function OC:_RenderContent()
 			for i = 1, #tabPath do subPath[i] = tabPath[i] end
 			tinsert(subPath, subFound.key)
 
-			-- Subtab two-pane with shared header (Ауры → Настройки заклинаний):
+			-- Subtab two-pane with shared header (Ауры -> Настройки заклинаний):
 			-- add-spell row first, then type subtabs in content, then two-pane list.
 			if subFound.opt and subFound.opt.suiTwoPane then
 				OW:SetSubTabs(nil) -- subtabs live inside content, under the add block
@@ -421,7 +421,7 @@ function OC:_RenderContent()
 					y = y - 4
 				end
 
-				-- Type subtabs (cc / cast / …) under the add block.
+				-- Type subtabs (cc / cast / ...) under the add block.
 				local subBarH = 0
 				if OW.RenderInlineSubTabs then
 					subBarH = OW:RenderInlineSubTabs(child, y, subtabs, subKey, function(subTabKey)
@@ -579,8 +579,8 @@ end
 --
 -- Every set() funnels into OnSettingChanged, so no module has to refresh the
 -- window by hand. One coalesced pass per frame decides between:
---   * rebuild — the set of visible controls changed (hidden() flipped somewhere)
---   * sync    — same controls, only values / disabled / dynamic labels moved
+--   * rebuild - the set of visible controls changed (hidden() flipped somewhere)
+--   * sync    - same controls, only values / disabled / dynamic labels moved
 -----------------------------------------------------------------------
 function OC:WatchHidden(opt, info, hidden)
 	local watch = self._hiddenWatch
@@ -721,7 +721,7 @@ function OC:SelectSection(id)
 	self._renderedId = id
 end
 
--- Switch content tab inside the current section (e.g. Сумки → Стандартные сумки).
+-- Switch content tab inside the current section (e.g. Сумки -> Стандартные сумки).
 function OC:SelectTab(tabKey)
 	if not tabKey or not self._currentId then
 		return
@@ -735,7 +735,7 @@ function OC:SelectTab(tabKey)
 	self:RenderCurrentContent()
 end
 
--- Never full-rebuild on every set (was the main lag source) — SmartRefresh picks
+-- Never full-rebuild on every set (was the main lag source) - SmartRefresh picks
 -- the cheapest pass that still keeps dependent controls truthful.
 function OC:OnSettingChanged()
 	OC._perf.refresh = OC._perf.refresh + 1

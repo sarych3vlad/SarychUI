@@ -8,7 +8,7 @@
         CompactPartyFrame_OnLoad(self);
       </OnLoad>
       <OnEvent>
-        CompactPartyFrame_OnEvent(self, event, ...);
+        --Overriding the RaidGroup OnEvent.
       </OnEvent>
     </Scripts>
   </Frame>

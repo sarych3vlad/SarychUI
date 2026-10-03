@@ -8,7 +8,7 @@ local addonPath = "Interface\\AddOns\\SarychUI\\addons\\!!!ClassicAPI\\"
 local wrapper = {
 	name = ADDON_NAME,
 	author = "Tsoukie",
-	version = "1.27",
+	version = "1.28",
 	enabled = false,
 	loaded = false,
 }

@@ -3,8 +3,8 @@
 ## Notes: Complete UI for WotLK 3.3.5
 ## Notes-ruRU: Комплексный интерфейс для WotLK 3.3.5
 ## Author: Сарыч
-## Version: 1.0.0
-## SavedVariables: SarychUIDB, CompactRaidFrameDB, InternalCooldownsDB, BagnonForeverDB, BigDebuffsDB, OmniBarDB, LootClickerDB, LootHistoryDB, MapsterDB, WDMdb, SarychUIElvNamePlatesDB, SarychUIElvNamePlatesPrivateDB, SarychUIElvBagsDB, SarychUIElvBagsPrivateDB, GladiusExDB, EquipenceDB, TrufiGCDGlSave, Postal3DB, AUCTIONATOR_SAVEDVARS, AUCTIONATOR_PRICING_HISTORY, AUCTIONATOR_SHOPPING_LISTS, AUCTIONATOR_PRICE_DATABASE, AUCTIONATOR_MEAN_PRICE_DATABASE, AUCTIONATOR_LAST_SCAN_TIME, AUCTIONATOR_TOONS, AUCTIONATOR_STACKING_PREFS, AUCTIONATOR_SCAN_MINLEVEL, _CursorOptions, InspectEquipConfig, FindGroupDB, RaidRoll_DB, RaidRoll_DBPC, TalentedDB
+## Version: 1.1.0
+## SavedVariables: SarychUIDB, CompactRaidFrameDB, EnhancedRaidFramesDB, OmniCDDB, InternalCooldownsDB, BagnonForeverDB, BigDebuffsDB, OmniBarDB, LootClickerDB, LootHistoryDB, MapsterDB, SarychUIElvNamePlatesDB, SarychUIElvNamePlatesPrivateDB, SarychUIElvBagsDB, SarychUIElvBagsPrivateDB, GladiusExDB, EquipenceDB, TrufiGCDGlSave, Postal3DB, AUCTIONATOR_SAVEDVARS, AUCTIONATOR_PRICING_HISTORY, AUCTIONATOR_SHOPPING_LISTS, AUCTIONATOR_PRICE_DATABASE, AUCTIONATOR_MEAN_PRICE_DATABASE, AUCTIONATOR_LAST_SCAN_TIME, AUCTIONATOR_TOONS, AUCTIONATOR_STACKING_PREFS, AUCTIONATOR_SCAN_MINLEVEL, _CursorOptions, InspectEquipConfig, RaidRoll_DB, RaidRoll_DBPC, TalentedDB
 ## SavedVariablesPerCharacter: TrufiGCDChSave, AUCTIONATOR_SHOW_ST_PRICE, AUCTIONATOR_ENABLE_ALT, AUCTIONATOR_OPEN_FIRST, AUCTIONATOR_OPEN_BUY, AUCTIONATOR_OPEN_ALL_BAGS, AUCTIONATOR_DEF_DURATION, AUCTIONATOR_SHOW_TIPS, AUCTIONATOR_V_TIPS, AUCTIONATOR_A_TIPS, AUCTIONATOR_D_TIPS, AUCTIONATOR_SHIFT_TIPS, AUCTIONATOR_DE_DETAILS_TIPS, AUCTIONATOR_DEFTAB, AUCTIONATOR_CHARACTER_RECENTS, _CursorOptionsCharacter, BASpammerDB, BaudBag_Cfg, BaudBag_Cache, RR_Accept_All_Rolls, RR_Track_Unannounced_Rolls, RR_Roll_Tracking_Enabled, RR_AllowExtraRolls, RR_Show_Ranks, RR_RankPriority, RR_ExtraWidth, RR_ShowGroupNumber, RR_RollFrameHeight
 
 # Libraries
@@ -14,13 +14,18 @@ libs\load-libs.xml
 addons\!!!ClassicAPI\embeds.xml
 addons\!!!ClassicAPI\Load.xml
 
+# HealEx LibHealComm-4.0 117 must load first (original HealEx is the only LHC).
+addons\CompactRaidFrame_HealEx\Libs\Load.xml
+
 # Core
 core\init.lua
+core\lockdown_debug.lua
 core\format_money.lua
 core\profile.lua
 core\perf.lua
 core\perf_debug.lua
 core\compatibility.lua
+
 core\runtime.lua
 core\carbonite_detect.lua
 core\channel_frame_fix.lua
@@ -38,25 +43,11 @@ core\addons_registry.lua
 core\localization\Locale.lua
 core\localization\en.lua
 core\localization\ru.lua
-core\localization\ptBR.lua
 core\localization\esES.lua
-core\localization\esMX.lua
-core\localization\deDE.lua
-core\localization\frFR.lua
-core\localization\itIT.lua
-core\localization\koKR.lua
-core\localization\zhCN.lua
-core\localization\zhTW.lua
 core\localization\maps\enUS.lua
-core\localization\maps\ptBR.lua
 core\localization\maps\esES.lua
-core\localization\maps\esMX.lua
-core\localization\maps\deDE.lua
-core\localization\maps\frFR.lua
-core\localization\maps\itIT.lua
-core\localization\maps\koKR.lua
-core\localization\maps\zhCN.lua
-core\localization\maps\zhTW.lua
+core\localization\maps\enUS_extra.lua
+core\localization\maps\esES_extra.lua
 core\localization\Apply.lua
 
 # Modules
@@ -64,16 +55,35 @@ modules\mainmenubar\module.lua
 modules\minimap\module.lua
 modules\minimap\preview.lua
 modules\map\module.lua
+modules\map\api.lua
+modules\map\data\poi_names.lua
+modules\map\data\pois.lua
+modules\map\data\overlays.lua
+modules\map\zoom.lua
+modules\map\questie.lua
+modules\map\worldmap.lua
+modules\map\fog.lua
+modules\map\poi.lua
+modules\map\zoneinfo.lua
+modules\map\coords.lua
+modules\map\groupicons.lua
+modules\map\scalehandle.lua
+modules\map\button.lua
 modules\frame\module.lua
 modules\frame\portraits.lua
+modules\frame\classicon.lua
+modules\frame\focus_combo.lua
 modules\frame\preview.lua
 modules\frame\pvp_preview.lua
 modules\auras\module.lua
+modules\auras\poison_icons.lua
 modules\auras\preview.lua
 modules\chat\module.lua
 modules\chat\functionality.lua
+modules\chat\lagbar.lua
 modules\chat\meme_pack_v2_data.lua
 modules\chat\emotions.lua
+modules\chat\class_mentions.lua
 modules\chat\appearance.lua
 modules\chat\tooltip_preview.lua
 modules\chat\spam_filter.lua
@@ -89,7 +99,13 @@ modules\tools\flight_data_horde.lua
 modules\tools\font_outline_values.lua
 modules\tools\loot_roll_counts.lua
 modules\tools\loot_roll_preview.lua
+addons\LortiUI\core.lua
+addons\LortiUI\frames.lua
+addons\LortiUI\func\functions.lua
+addons\LortiUI\auras.lua
+addons\LortiUI\compactraid.lua
 modules\tools\module.lua
+modules\tools\key_echo.lua
 modules\tools\quest_tracker.lua
 modules\floating_text\module.lua
 modules\floating_text\preview.lua
@@ -276,12 +292,6 @@ addons\GladiusEx\modules\petbar.lua
 addons\GladiusEx\modules\interrupts.lua
 addons\GladiusEx\wrapper.lua
 
-# Cromulent
-addons\Cromulent\embeds.xml
-addons\Cromulent\Locales\locales.xml
-addons\Cromulent\Cromulent.lua
-addons\Cromulent\wrapper.lua
-
 # Equipence (embedded)
 addons\Equipence\bootstrap.lua
 addons\Equipence\embeds.xml
@@ -306,26 +316,6 @@ addons\Postal\Modules\Rake.lua
 addons\Postal\Modules\BlackBook.lua
 addons\Postal\Modules\DoNotWant.lua
 addons\Postal\wrapper.lua
-
-# !Astrolabe (map library, load before WDM)
-addons\!Astrolabe\Load.xml
-addons\!Astrolabe\wrapper.lua
-
-# WDM (WoW Dungeon Maps)
-addons\WDM\embeds.xml
-
-# Mapster
-addons\Mapster\embeds.xml
-addons\Mapster\Locale\locale.xml
-addons\Mapster\Mapster.lua
-addons\Mapster\Config.lua
-addons\Mapster\Coords.lua
-addons\Mapster\GroupIcons.lua
-addons\Mapster\BattleMap.lua
-addons\Mapster\FogClear.lua
-addons\Mapster\InstanceMaps.lua
-addons\Mapster\Scaling.lua
-addons\Mapster\wrapper.lua
 
 # SnowfallKeyPress
 addons\SnowfallKeyPress\embeds.xml
@@ -375,20 +365,52 @@ addons\autolos\main.lua
 addons\autolos\elvui_layout.lua
 addons\autolos\wrapper.lua
 
-# CompactRaidFrame
-addons\CompactRaidFrame\embeds.xml
-addons\CompactRaidFrame\locales.xml
-addons\CompactRaidFrame\Dependence\load.xml
-addons\CompactRaidFrame\Templates\load.xml
+# CompactRaidFrame (Blizzard, Tsoukie 1.14)
+addons\CompactRaidFrame\sui_bootstrap.lua
+addons\CompactRaidFrame\Libs\Load.xml
+addons\CompactRaidFrame\Locales\Load.xml
+addons\CompactRaidFrame\Compat.lua
+addons\CompactRaidFrame\CUFProfiles\CompactUnitFrameProfiles.xml
 addons\CompactRaidFrame\FlowContainer.lua
 addons\CompactRaidFrame\CompactUnitFrame.xml
 addons\CompactRaidFrame\CompactRaidGroup.xml
 addons\CompactRaidFrame\CompactPartyFrame.xml
-addons\CompactRaidFrame\CUFProfiles\CompactUnitFrameProfiles.xml
 addons\CompactRaidFrame\CompactRaidFrames\CompactRaidFrameReservationManager.lua
 addons\CompactRaidFrame\CompactRaidFrames\CompactRaidFrameContainer.xml
 addons\CompactRaidFrame\CompactRaidFrames\CompactRaidFrameManager.xml
 addons\CompactRaidFrame\wrapper.lua
+
+# CompactRaidFrame_HealEx (Tsoukie 1.7) — libs already loaded above
+addons\CompactRaidFrame_HealEx\Extension.lua
+addons\CompactRaidFrame_HealEx\wrapper.lua
+
+# EnhancedRaidFrames (Britt W. Yazel, Tsoukie 1.8)
+addons\EnhancedRaidFrames\Libs\embeds.xml
+addons\EnhancedRaidFrames\Localizations\Localizations.xml
+addons\EnhancedRaidFrames\EnhancedRaidFrames.lua
+addons\EnhancedRaidFrames\Globals.lua
+addons\EnhancedRaidFrames\DatabaseDefaults.lua
+addons\EnhancedRaidFrames\Overrides.lua
+addons\EnhancedRaidFrames\Utils\Utilities.lua
+addons\EnhancedRaidFrames\Utils\DatabaseMigration.lua
+addons\EnhancedRaidFrames\Modules\AuraListeners.lua
+addons\EnhancedRaidFrames\Modules\AuraIndicators.lua
+addons\EnhancedRaidFrames\Modules\TargetMarkers.lua
+addons\EnhancedRaidFrames\XML\IndicatorTemplate.xml
+addons\EnhancedRaidFrames\GUI\GeneralConfigPanel.lua
+addons\EnhancedRaidFrames\GUI\IndicatorConfigPanel.lua
+addons\EnhancedRaidFrames\GUI\TargetMarkerConfigPanel.lua
+addons\EnhancedRaidFrames\GUI\ProfileImportExport.lua
+addons\EnhancedRaidFrames\wrapper.lua
+
+# OmniCD (Treebonker, Tsoukie 1.7)
+addons\OmniCD\Embeds.xml
+addons\OmniCD\Locales\Locales.xml
+addons\OmniCD\Core\Core.xml
+addons\OmniCD\Modules\Spells\Spells.xml
+addons\OmniCD\Modules\Modules.xml
+addons\OmniCD\Config\Config.xml
+addons\OmniCD\wrapper.lua
 
 # !!!ClassicAPI wrapper (registration only, addon already loaded)
 addons\!!!ClassicAPI\wrapper.lua
@@ -426,13 +448,6 @@ addons\InspectEquip\InfoWindow.xml
 addons\InspectEquip\Core.lua
 addons\InspectEquip\Tooltips.lua
 addons\InspectEquip\wrapper.lua
-
-# FindGroup (embedded)
-addons\FindGroup\bootstrap.lua
-addons\FindGroup\libs.xml
-addons\FindGroup\FindGroup.xml
-addons\FindGroup\embed.lua
-addons\FindGroup\wrapper.lua
 
 # RaidRoll (embedded: RaidRoll + RaidRoll_EPGP + RaidRoll_LootTracker as one settings entry)
 addons\RaidRoll\RaidRoll.xml

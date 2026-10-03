@@ -20,6 +20,12 @@ end
 
 local module = getModule()
 
+-- Keep runtime state outside protected action-button tables. Blizzard reads
+-- those tables from secure code while paging bars in combat.
+local updateTimerByButton = setmetatable({}, { __mode = "k" })
+local iconByButton = setmetatable({}, { __mode = "k" })
+local colorStateByButton = setmetatable({}, { __mode = "k" })
+
 -- Initialize color system
 function module:InitializeColorSystem()
     -- Hooks are permanent; re-running Initialize must not stack another copy.
@@ -38,21 +44,18 @@ function module:InitializeColorSystem()
     
     -- Hook into ActionButton_OnUpdate for real-time updates
     hooksecurefunc("ActionButton_OnUpdate", function(self, elapsed)
-        if not self.newTimer then
-            self.newTimer = TOOLTIP_UPDATE_TIME
-        end
+        local timer = (updateTimerByButton[self] or TOOLTIP_UPDATE_TIME) - elapsed
 
-        self.newTimer = self.newTimer - elapsed
-
-        if self.newTimer <= 0 then
+        if timer <= 0 then
             -- Update only if button is visible and has action
             if self:IsVisible() and self.action then
                 if SarychUI.modules and SarychUI.modules.mainmenubar and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules and SarychUI.db.profile.modules.mainmenubar and SarychUI.db.profile.modules.mainmenubar.enabled then
                     if module.UpdateButtonColorIndication then module:UpdateButtonColorIndication(self) end
                 end
             end
-            self.newTimer = TOOLTIP_UPDATE_TIME
+            timer = TOOLTIP_UPDATE_TIME
         end
+        updateTimerByButton[self] = timer
     end)
     
     -- Apply initial color indication to all buttons
@@ -75,11 +78,11 @@ function module:UpdateButtonColorIndication(button, force)
     end
     
     
-    local icon = button.__sarIcon
+    local icon = iconByButton[button]
     if icon == nil then
         local name = button.GetName and button:GetName()
         icon = name and _G[name .. "Icon"] or false
-        button.__sarIcon = icon
+        iconByButton[button] = icon
     end
     if not icon then
         return
@@ -120,16 +123,22 @@ function module:UpdateButtonColorIndication(button, force)
         desat, r, g, b, alpha = false, 0.4, 0.4, 0.4, 1.0
     end
 
-    if force or button.__sarDesat ~= desat then
-        button.__sarDesat = desat
+    local state = colorStateByButton[button]
+    if not state then
+        state = {}
+        colorStateByButton[button] = state
+    end
+
+    if force or state.desat ~= desat then
+        state.desat = desat
         icon:SetDesaturated(desat)
     end
-    if force or button.__sarR ~= r or button.__sarG ~= g or button.__sarB ~= b then
-        button.__sarR, button.__sarG, button.__sarB = r, g, b
+    if force or state.r ~= r or state.g ~= g or state.b ~= b then
+        state.r, state.g, state.b = r, g, b
         icon:SetVertexColor(r, g, b)
     end
-    if force or button.__sarAlpha ~= alpha then
-        button.__sarAlpha = alpha
+    if force or state.alpha ~= alpha then
+        state.alpha = alpha
         icon:SetAlpha(alpha)
     end
 end
@@ -185,8 +194,7 @@ function module:ResetAllButtonsToNormal()
                     icon:SetDesaturated(false)
                     icon:SetVertexColor(1.0, 1.0, 1.0)
                     icon:SetAlpha(1.0)
-                    button.__sarDesat, button.__sarAlpha = nil, nil
-                    button.__sarR, button.__sarG, button.__sarB = nil, nil, nil
+                    colorStateByButton[button] = nil
                 end
             end
         end
@@ -244,8 +252,7 @@ function module:ApplyDisabledColorsToAllButtons()
                         icon:SetAlpha(1.0)
                     end
 
-                    button.__sarDesat, button.__sarAlpha = nil, nil
-                    button.__sarR, button.__sarG, button.__sarB = nil, nil, nil
+                    colorStateByButton[button] = nil
                 end
             end
         end

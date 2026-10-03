@@ -7,11 +7,9 @@
 	
 	<!-- Ace3 Communication Libraries (required by other libraries) -->
 	<Include file="AceComm-3.0\AceComm-3.0.xml"/>
+	<!-- WotLK-compatible variadic AceTimer; keep SarychUI independent from Details. -->
 	<Include file="AceTimer-3.0\AceTimer-3.0.xml"/>
 	<Include file="AceSerializer-3.0\AceSerializer-3.0.xml"/>
-	
-	<!-- UnitFrameLayers Libraries -->
-	<Include file="LibHealComm-4.0\LibHealComm-4.0.xml"/>
 	
 	<!-- CompactRaidFrame Libraries -->
 	<Include file="LibTalentQuery-1.0\LibTalentQuery-1.0.xml"/>

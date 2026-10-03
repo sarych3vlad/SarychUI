@@ -81,7 +81,7 @@ end
 
 local function ShowDisableReloadPopup()
 	if SarychUI and SarychUI.ShowReloadPopup then
-		SarychUI:ShowReloadPopup("|cff1784d1GladiusEx|r будет убран из «Интерфейс → Модификации» после перезагрузки (/reload).")
+		SarychUI:ShowReloadPopup("|cff1784d1GladiusEx|r будет убран из «Интерфейс -> Модификации» после перезагрузки (/reload).")
 	elseif StaticPopup_Show then
 		StaticPopup_Show("SARYCHUI_RELOAD_UI")
 	end
@@ -97,7 +97,7 @@ end
 function wrapper:SetRuntimeEnabled(enable)
 	if IsStandaloneGladiusExEnabled() then
 		if SarychUI and SarychUI.Print then
-			SarychUI:Print("|cffff0000Отключите отдельный аддон GladiusEx|r — иначе встроенный модуль не запустится.")
+			SarychUI:Print("|cffff0000Отключите отдельный аддон GladiusEx|r - иначе встроенный модуль не запустится.")
 		end
 		return false
 	end
@@ -158,7 +158,7 @@ end
 function wrapper:OpenConfig()
 	if not GetRuntimeEnabledFromDB() then
 		if SarychUI and SarychUI.Print then
-			SarychUI:Print("|cffff9900GladiusEx:|r сначала включите аддон в |cff1784d1Настройки → Аддоны|r.")
+			SarychUI:Print("|cffff9900GladiusEx:|r сначала включите аддон в |cff1784d1Настройки -> Аддоны|r.")
 		end
 		return false
 	end
@@ -185,7 +185,7 @@ function wrapper:GetOptions()
 			enabled = {
 				type = "toggle",
 				name = "Включить",
-				desc = "Включить/выключить GladiusEx. При выключении нужен /reload, чтобы убрать пункт из «Интерфейс → Модификации».",
+				desc = "Включить/выключить GladiusEx. При выключении нужен /reload, чтобы убрать пункт из «Интерфейс -> Модификации».",
 				order = 1,
 				get = function()
 					return wrapper:IsRuntimeEnabled()
@@ -212,7 +212,7 @@ function wrapper:GetOptions()
 			},
 			description = {
 				type = "description",
-				name = "GladiusEx — расширенные фреймы арены.\nВключение — сразу; выключение из списка Модификаций — после /reload.\n\nКоманды: |cff1784d1/gex ui|r, |cff1784d1/gex test 2-5|r\n\nАвтор: "
+				name = "GladiusEx - расширенные фреймы арены.\nВключение - сразу; выключение из списка Модификаций - после /reload.\n\nКоманды: |cff1784d1/gex ui|r, |cff1784d1/gex test 2-5|r\n\nАвтор: "
 					.. (wrapper.author or "")
 					.. "\nВерсия: "
 					.. (wrapper.version or ""),
@@ -223,7 +223,7 @@ function wrapper:GetOptions()
 				type = "description",
 				name = function()
 					if IsStandaloneGladiusExEnabled() then
-						return "|cffff0000Внимание:|r отключите отдельный аддон |cff1784d1GladiusEx|r — иначе встроенный модуль не запустится."
+						return "|cffff0000Внимание:|r отключите отдельный аддон |cff1784d1GladiusEx|r - иначе встроенный модуль не запустится."
 					end
 					return ""
 				end,

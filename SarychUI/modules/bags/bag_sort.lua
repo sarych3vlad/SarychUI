@@ -1,4 +1,4 @@
--- SarychUI Bags: сортировка стандартных сумок (JPack-style, слоты 0–4)
+-- SarychUI Bags: сортировка стандартных сумок (JPack-style, слоты 0-4)
 -- Загружается после modules/bags/module.lua
 
 local moduleName = "bags"
@@ -28,7 +28,7 @@ local ITEM_BIND_ON_USE = _G.ITEM_BIND_ON_USE
 local ITEM_SOULBOUND = _G.ITEM_SOULBOUND
 local ITEM_ACCOUNTBOUND = _G.ITEM_ACCOUNTBOUND
 
--- ElvUI Modules/Bags/Sort.lua — порядок категорий через аукционные классы/подклассы
+-- ElvUI Modules/Bags/Sort.lua - порядок категорий через аукционные классы/подклассы
 local itemTypes, itemSubTypes = {}, {}
 local itemTypesBuilt = false
 
@@ -87,7 +87,7 @@ function dbg.elv(...)
     print("[SarychUI_Bags Sort]", ...)
 end
 
--- Глобальные алиасы без local — не тратят лимит 200 local.
+-- Глобальные алиасы без local - не тратят лимит 200 local.
 bagSortDebug = dbg.bag
 sortElvDebug = dbg.elv
 emitBagSortDebug = dbg.emit
@@ -267,7 +267,7 @@ local function GetElvUISortCategoryLabel(it)
     return format("%d/%s/%s(%d)", classId, typeName, it.subType or "?", subId)
 end
 
--- ElvUI PrimarySort: уровень ↓, цена продажи ↓, имя ↑
+-- ElvUI PrimarySort: уровень v, цена продажи v, имя ^
 local function PrimarySort(a, b)
     local aLvl, bLvl = a.level or 0, b.level or 0
     local aPrice, bPrice = a.vendorPrice or 0, b.vendorPrice or 0
@@ -285,7 +285,7 @@ local function PrimarySort(a, b)
     return false
 end
 
--- ElvUI DefaultSort: редкость ↓, класс, подкласс, слот экипировки, PrimarySort
+-- ElvUI DefaultSort: редкость v, класс, подкласс, слот экипировки, PrimarySort
 local function ElvUIDefaultSort(a, b)
     BuildSortOrder()
 
@@ -459,7 +459,7 @@ local elapsed = 0
 local packingTickCount = 0
 local FinishSortRun
 
--- Видимый фрейм: у скрытых parent OnUpdate не вызывается — сортировка не шла
+-- Видимый фрейм: у скрытых parent OnUpdate не вызывается - сортировка не шла
 local sortDriver = CreateFrame("Frame", "SarychUIBagSortDriver", UIParent)
 sortDriver:SetSize(1, 1)
 sortDriver:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", -20, 20)
@@ -710,7 +710,7 @@ debugTrackItem = function(it, stage, extra)
 end
 
 -- API id контейнеров (см. GetContainerNumSlots / PickupContainerItem).
--- В UI слева направо: CharacterBag3 → Bag2 → Bag1 → Bag0 → MainMenuBarBackpackButton.
+-- В UI слева направо: CharacterBag3 -> Bag2 -> Bag1 -> Bag0 -> MainMenuBarBackpackButton.
 K.BAG_BACKPACK = 0           -- MainMenuBarBackpackButton
 K.BAG_CHARACTER_0 = 1        -- CharacterBag0Slot
 K.BAG_CHARACTER_1 = 2        -- CharacterBag1Slot
@@ -734,7 +734,7 @@ local function isArrowAmmoItem(it)
     if not it then return false end
     local el = strlower(it.equipLoc or "")
     if el == "invtype_ammo" or el:find("ammo") or el:find("боеприпас") then return true end
-    -- Экипируемое оружие (в т.ч. луки/ружья) — не боеприпасы.
+    -- Экипируемое оружие (в т.ч. луки/ружья) - не боеприпасы.
     if el == "invtype_weapon" or el == "invtype_2hweapon"
         or el == "invtype_ranged" or el == "invtype_rangedright"
         or el == "invtype_thrown" or el:find("weapon") then
@@ -743,7 +743,7 @@ local function isArrowAmmoItem(it)
     local t = strlower(it.type or "")
     local s = strlower(it.subType or "")
     if t:find("projectil") or t:find("боеприпас") then return true end
-    -- «стрел» без якоря совпадает с «огнестрельное»; «дроб» — с «дробящее».
+    -- «стрел» без якоря совпадает с «огнестрельное»; «дроб» - с «дробящее».
     if s:find("arrow") or s:find("стрелы") or s:find("стрела")
         or s:find("bullet") or s:find("пул")
         or s:find("shot") or s:find("дробь") or s:find("дробов") then
@@ -778,7 +778,7 @@ local function isOtherClassReagentItem(it)
     return false
 end
 
--- Прочие классовые предметы в рюкзаке (не 43231/43233 — они в isPinnedMainBagItem).
+-- Прочие классовые предметы в рюкзаке (не 43231/43233 - они в isPinnedMainBagItem).
 local function isClassPinnedItem(it)
     if not it or isHearthstoneItem(it) then return false end
     if isPinnedMainBagItem(resolveItemID(it)) then return false end
@@ -904,7 +904,7 @@ local function assignItemCategory(it, category)
     logItemSortDebug(it, category)
 end
 
--- Камень → закреплённые itemID (43231, 43233) → прочие классовые → BoE → общая сортировка.
+-- Камень -> закреплённые itemID (43231, 43233) -> прочие классовые -> BoE -> общая сортировка.
 local function splitItemsForLayout(sorted)
     local hearthstone = nil
     local pinnedFound = {}
@@ -978,7 +978,7 @@ local function splitItemsForLayout(sorted)
     return hearthstone, pinnedMain, classPinned, boeItems, general
 end
 
--- Слот 1 рюкзака — камень → закреплённые itemID → классовые → BoE (сразу после pinned).
+-- Слот 1 рюкзака - камень -> закреплённые itemID -> классовые -> BoE (сразу после pinned).
 local function placeBackpackPinned(out, backpackLo, backpackHi, hearthstone, pinnedMain, classPinned, boeItems)
     if not backpackLo or not backpackHi then
         return nil, {}
@@ -1011,7 +1011,7 @@ local function placeBackpackPinned(out, backpackLo, backpackHi, hearthstone, pin
     placeList(classPinned, "CLASS_PINNED", classUnplaced)
     placeList(boeItems, "BOE", boeOverflow)
 
-    -- Переполнение классовых — с конца рюкзака, всё ещё в основной сумке.
+    -- Переполнение классовых - с конца рюкзака, всё ещё в основной сумке.
     if #classUnplaced > 0 then
         local hi = backpackHi
         for i = #classUnplaced, 1, -1 do
@@ -1034,7 +1034,7 @@ local function placeBackpackPinned(out, backpackLo, backpackHi, hearthstone, pin
     return backpackHi + 1, boeOverflow
 end
 
--- Pack-индексы regular-зоны: Bag3 → Bag2 → Bag1 → Bag0 → хвост рюкзака (без front-зоны pinned/BoE).
+-- Pack-индексы regular-зоны: Bag3 -> Bag2 -> Bag1 -> Bag0 -> хвост рюкзака (без front-зоны pinned/BoE).
 local function isPositionListed(positions, packIndex)
     for i = 1, #positions do
         if positions[i] == packIndex then
@@ -1403,7 +1403,7 @@ local function isLocked(index)
     return locked
 end
 
--- Сначала по itemid (разные вещи с одним имени), иначе по имени — самый правый индекс
+-- Сначала по itemid (разные вещи с одним имени), иначе по имени - самый правый индекс
 local function GetLastSlotMatchingTarget(items, target)
     if not target then return -1 end
     local id = resolveItemID(target)
@@ -1462,7 +1462,7 @@ local function moveOnce()
     local lockCount = 0
     for i = 1, bagSize do
         if not packTo[i] then
-            -- В «пустом» по плану слоте лежит лишнее — переносим туда, где этот itemid ещё не на месте
+            -- В «пустом» по плану слоте лежит лишнее - переносим туда, где этот itemid ещё не на месте
             if packCurrent[i] and not isLocked(i) then
                 working = true
                 local id = resolveItemID(packCurrent[i])

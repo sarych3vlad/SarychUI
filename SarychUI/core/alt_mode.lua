@@ -1,6 +1,6 @@
 -- SarychUI Alt Mode Utility
 -- Tracks Alt for UI overlays. After /reload IsAltKeyDown() can spuriously
--- stay true — we force-clear on world enter, then re-sync.
+-- stay true - we force-clear on world enter, then re-sync.
 
 local pairs = pairs
 

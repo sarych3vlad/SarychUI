@@ -29,10 +29,6 @@ local function GetBagsModule()
 end
 
 function wrapper:IsRuntimeEnabled()
-	local bags = GetBagsModule()
-	if bags and bags.IsElvUIMode and bags:IsEnabled() then
-		return bags:IsElvUIMode()
-	end
 	local E = GetEngine()
 	if E and E.IsBagsRuntimeEnabled then
 		return E:IsBagsRuntimeEnabled()
@@ -50,6 +46,17 @@ function wrapper:SetRuntimeEnabled(enable)
 
 	if E.CheckElvUIConflict and E:CheckElvUIConflict() then
 		bagDebug("SetRuntimeEnabled: ElvUI conflict")
+		return false
+	end
+
+	-- A stale addons.SarychUI_Bags flag must never revive the embedded bags
+	-- engine after the parent SarychUI bags module has been disabled.
+	local bags = GetBagsModule()
+	if enable and bags and bags.IsEnabled and not bags:IsEnabled() then
+		if E.ShutdownBagsRuntime then
+			E:ShutdownBagsRuntime()
+		end
+		self.runtimeEnabled = false
 		return false
 	end
 
@@ -108,7 +115,7 @@ function wrapper:GetOptions()
 			enabled = {
 				type = "toggle",
 				name = "Включить",
-				desc = "Включить SarychUI Bags как режим сумок. Включение — сразу; при выключении нужен /reload для корректного возврата сумок.",
+				desc = "Включить SarychUI Bags как режим сумок. Включение - сразу; при выключении нужен /reload для корректного возврата сумок.",
 				order = 1,
 				get = function()
 					local db = SarychUI and SarychUI.db and SarychUI.db.profile
@@ -152,9 +159,9 @@ function wrapper:GetOptions()
 				type = "description",
 				name = function()
 					if IsAddOnLoaded and IsAddOnLoaded("ElvUI") then
-						return "|cffff0000Внимание:|r установлен полный |cff1784d1ElvUI|r — встроенная ElvUI-сумка недоступна."
+						return "|cffff0000Внимание:|r установлен полный |cff1784d1ElvUI|r - встроенная ElvUI-сумка недоступна."
 					end
-					return "SarychUI Bags — объединённая сумка.\nВключение — сразу; выключение режима сумок — после /reload.\n\nАвтор: " .. (wrapper.author or "") .. "\nВерсия: " .. (wrapper.version or "")
+					return "SarychUI Bags - объединённая сумка.\nВключение - сразу; выключение режима сумок - после /reload.\n\nАвтор: " .. (wrapper.author or "") .. "\nВерсия: " .. (wrapper.version or "")
 				end,
 				order = 2,
 				width = "full",

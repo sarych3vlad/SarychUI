@@ -155,7 +155,7 @@ function wrapper:GetOptions()
 			enabled = {
 				type = "toggle",
 				name = "Включить",
-				desc = "Включить/выключить BASpammer. Включение — сразу, если ядро уже загружено; иначе /reload. Выключение — после /reload.",
+				desc = "Включить/выключить BASpammer. Включение - сразу, если ядро уже загружено; иначе /reload. Выключение - после /reload.",
 				order = 1,
 				get = function()
 					return wrapper:IsRuntimeEnabled()
@@ -166,7 +166,7 @@ function wrapper:GetOptions()
 			},
 			description = {
 				type = "description",
-				name = "Спамит в выбранный канал заданный текст с заданным интервалом. Настройки: ПКМ по панели BASpammer на экране.\nВключение — сразу (если уже загружен); выключение — после /reload.\n\nАвтор: "
+				name = "Спамит в выбранный канал заданный текст с заданным интервалом. Настройки: ПКМ по панели BASpammer на экране.\nВключение - сразу (если уже загружен); выключение - после /reload.\n\nАвтор: "
 					.. (wrapper.author or "Bigalex")
 					.. "\nВерсия: "
 					.. (wrapper.version or "1.04"),

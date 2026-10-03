@@ -1,4 +1,4 @@
--- SarychUI MainMenuBar — action button text preview (hotkeys / macro names).
+-- SarychUI MainMenuBar - action button text preview (hotkeys / macro names).
 
 local CreateFrame = CreateFrame
 local ipairs = ipairs
@@ -6,6 +6,16 @@ local tinsert = table.insert
 local ceil = math.ceil
 
 SarychUI = SarychUI or {}
+
+local function Tr(s)
+	if type(s) ~= "string" or s == "" then
+		return s
+	end
+	if SarychUI.T then
+		return SarychUI:T(s)
+	end
+	return s
+end
 
 local SAMPLE_ICONS = {
 	"Interface\\Icons\\Spell_Holy_FlashHeal",
@@ -108,7 +118,7 @@ local function MakePreviewButton(parent, index)
 	macro:SetPoint("BOTTOM", icon, "BOTTOM", 0, 1)
 	macro:SetJustifyH("CENTER")
 	macro:SetWidth(40)
-	macro:SetText(SAMPLE_MACROS[index] or "")
+	macro:SetText(Tr(SAMPLE_MACROS[index] or ""))
 	macro:SetTextColor(1, 1, 1)
 	btn._macro = macro
 
@@ -295,7 +305,7 @@ function ColorPreview:Create(parent)
 		btn:SetPoint("CENTER", stage, "CENTER", startX + (i - 1) * (btnSize + gap), 6)
 		local caption = stage:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 		caption:SetPoint("TOP", btn, "BOTTOM", 0, -2)
-		caption:SetText(COLOR_LABELS[i] or "")
+		caption:SetText(Tr(COLOR_LABELS[i] or ""))
 		caption:SetTextColor(0.7, 0.7, 0.7)
 		buttons[i] = btn
 	end
@@ -412,7 +422,7 @@ function AppearancePreview:Create(parent)
 	art:SetPoint("BOTTOM", canvas, "BOTTOM", 0, 8)
 
 	--------------------------------------------------------------------
-	-- MainMenuBarTexture0..3 — Interface\MainMenuBar\UI-MainMenuBar-Dwarf
+	-- MainMenuBarTexture0..3 - Interface\MainMenuBar\UI-MainMenuBar-Dwarf
 	--------------------------------------------------------------------
 	local barTex = {}
 	local barSlices = {
@@ -432,7 +442,7 @@ function AppearancePreview:Create(parent)
 	end
 
 	--------------------------------------------------------------------
-	-- End caps (gryphons) — UI-MainMenuBar-EndCap-Dwarf
+	-- End caps (gryphons) - UI-MainMenuBar-EndCap-Dwarf
 	--------------------------------------------------------------------
 	local leftCap = MakeTex(
 		art, "OVERLAY",
@@ -449,14 +459,14 @@ function AppearancePreview:Create(parent)
 	)
 
 	--------------------------------------------------------------------
-	-- Page number — CENTER +30, -5
+	-- Page number - CENTER +30, -5
 	--------------------------------------------------------------------
 	local pageNum = art:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	pageNum:SetPoint("CENTER", art, "CENTER", 30, -5)
 	pageNum:SetText("1")
 
 	--------------------------------------------------------------------
-	-- ActionBarUp/Down — TOPLEFT +522, -22 / -42
+	-- ActionBarUp/Down - TOPLEFT +522, -22 / -42
 	--------------------------------------------------------------------
 	local pageUp = MakeTex(
 		art, "OVERLAY",
@@ -472,7 +482,7 @@ function AppearancePreview:Create(parent)
 	)
 
 	--------------------------------------------------------------------
-	-- KeyRingButton — right of bag slots chain (no bag buttons drawn).
+	-- KeyRingButton - right of bag slots chain (no bag buttons drawn).
 	-- Backpack BOTTOMRIGHT -6,2 size 37; bags 30 wide with -5/-4 gaps;
 	-- KeyRing RIGHT of CharacterBag3Slot LEFT -6, size 18x39.
 	--------------------------------------------------------------------
@@ -481,7 +491,7 @@ function AppearancePreview:Create(parent)
 	-- bag1Left = 946 - 4 - 30 = 912
 	-- bag2Left = 912 - 4 - 30 = 878
 	-- bag3Left = 878 - 4 - 30 = 844
-	-- keyringRight = 844 - 6 = 838 → left = 820
+	-- keyringRight = 844 - 6 = 838 -> left = 820
 	local keyring = MakeTex(
 		art, "OVERLAY",
 		"Interface\\Buttons\\UI-Button-KeyRing",
@@ -491,7 +501,7 @@ function AppearancePreview:Create(parent)
 	)
 
 	--------------------------------------------------------------------
-	-- MainMenuBarMaxLevelBar — TOP of MainMenuBar -11, height 7
+	-- MainMenuBarMaxLevelBar - TOP of MainMenuBar -11, height 7
 	--------------------------------------------------------------------
 	local maxBar = CreateFrame("Frame", nil, art)
 	maxBar:SetSize(BAR_W, 7)
@@ -567,7 +577,7 @@ function AppearancePreview:Create(parent)
 
 	local emptyNotice = stage:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	emptyNotice:SetPoint("CENTER", stage, "CENTER", 0, 0)
-	emptyNotice:SetText("Все элементы скрыты.")
+	emptyNotice:SetText(Tr("Все элементы скрыты."))
 	emptyNotice:SetTextColor(0.7, 0.7, 0.7)
 	emptyNotice:Hide()
 
@@ -700,7 +710,7 @@ function TransparencyPreview:Create(parent)
 
 	local actionCaption = stage:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	actionCaption:SetPoint("BOTTOM", actionWrap, "TOP", 0, 4)
-	actionCaption:SetText("Кнопка")
+	actionCaption:SetText(Tr("Кнопка"))
 	actionCaption:SetTextColor(0.7, 0.7, 0.7)
 
 	local icon = actionWrap:CreateTexture(nil, "ARTWORK")
@@ -709,7 +719,7 @@ function TransparencyPreview:Create(parent)
 	icon:SetPoint("CENTER", actionWrap, "CENTER", 0, 0)
 	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 
-	-- Border / NormalTexture — this is what buttonBorderAlpha changes.
+	-- Border / NormalTexture - this is what buttonBorderAlpha changes.
 	local border = actionWrap:CreateTexture(nil, "OVERLAY")
 	border:SetTexture("Interface\\Buttons\\UI-Quickslot2")
 	border:SetSize(64, 64)
@@ -717,7 +727,7 @@ function TransparencyPreview:Create(parent)
 	actionWrap._border = border
 
 	--------------------------------------------------------------------
-	-- Micro menu row — original 28x58 buttons, -3 overlap between them
+	-- Micro menu row - original 28x58 buttons, -3 overlap between them
 	--------------------------------------------------------------------
 	local microWrap = CreateFrame("Frame", nil, stage)
 	-- 10 * 28 + 9 * (-3) = 280 - 27 = 253
@@ -726,7 +736,7 @@ function TransparencyPreview:Create(parent)
 
 	local microCaption = stage:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	microCaption:SetPoint("BOTTOM", microWrap, "TOP", 0, 4)
-	microCaption:SetText("Микроменю")
+	microCaption:SetText(Tr("Микроменю"))
 	microCaption:SetTextColor(0.7, 0.7, 0.7)
 
 	local microTextures = {}
@@ -909,7 +919,7 @@ function BarsPreview:Create(parent)
 	end
 
 	--------------------------------------------------------------------
-	-- MainMenuExpBar — TOP of MainMenuBar, 1024x13
+	-- MainMenuExpBar - TOP of MainMenuBar, 1024x13
 	--------------------------------------------------------------------
 	local xpBar = CreateFrame("Frame", nil, canvas)
 	xpBar:SetSize(1024, 13)
@@ -935,10 +945,10 @@ function BarsPreview:Create(parent)
 
 	local xpLabel = xpBar:CreateFontString(nil, "OVERLAY", "TextStatusBarText")
 	xpLabel:SetPoint("CENTER", xpBar, "CENTER", 0, 1)
-	xpLabel:SetText("Опыт")
+	xpLabel:SetText(Tr("Опыт"))
 
 	--------------------------------------------------------------------
-	-- ReputationWatchBar — BOTTOM of MainMenuBar TOP -3, 1024x11
+	-- ReputationWatchBar - BOTTOM of MainMenuBar TOP -3, 1024x11
 	--------------------------------------------------------------------
 	local repBar = CreateFrame("Frame", nil, canvas)
 	repBar:SetSize(1024, 11)
@@ -971,11 +981,11 @@ function BarsPreview:Create(parent)
 
 	local repLabel = repBar:CreateFontString(nil, "OVERLAY", "TextStatusBarText")
 	repLabel:SetPoint("CENTER", repBar, "CENTER", 0, 3)
-	repLabel:SetText("Репутация")
+	repLabel:SetText(Tr("Репутация"))
 
 	local emptyNotice = stage:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	emptyNotice:SetPoint("CENTER", stage, "CENTER", 0, 0)
-	emptyNotice:SetText("Все элементы скрыты.")
+	emptyNotice:SetText(Tr("Все элементы скрыты."))
 	emptyNotice:SetTextColor(0.7, 0.7, 0.7)
 	emptyNotice:Hide()
 

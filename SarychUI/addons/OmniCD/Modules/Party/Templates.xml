@@ -1,0 +1,202 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+..\FrameXML\UI.xsd">
+	<Frame name="OmniCDTemplate" virtual="true" parent="UIParent" frameStrata="MEDIUM" framelevel="8" movable="true" clampedToScreen="true" dontSavePosition="true" hidden="true">
+		<Size>
+			<AbsDimension x="1" y="1"/>
+		</Size>
+		<Anchors>
+			<Anchor point="CENTER"/>
+		</Anchors>
+		<Frames>
+			<Frame parentKey="anchor" enableMouse="false" clampedToScreen="true">
+				<Size>
+					<AbsDimension x="15" y="15"/>
+				</Size>
+				<Anchors>
+					<Anchor point="CENTER"/>
+				</Anchors>
+				<Layers>
+					<Layer level="BACKGROUND">
+						<Texture setAllPoints="true" parentKey="background">
+							<Color r="0.756" g="0" b="0.012" a="0.7"/>
+						</Texture>
+					</Layer>
+					<Layer level="ARTWORK">
+						<FontString parentKey="text" inherits="GameFontNormal">
+							<Color r="1" g="1" b="1" a="1"/>
+							<Anchors>
+								<Anchor point="CENTER"/>
+							</Anchors>
+						</FontString>
+					</Layer>
+				</Layers>
+			</Frame>
+			<Frame parentKey="container" clampedToScreen="true">
+				<Size>
+					<AbsDimension x="1" y="1"/>
+				</Size>
+				<Anchors>
+					<Anchor point="TOPLEFT"/>
+					<Anchor point="BOTTOMRIGHT"/>
+				</Anchors>
+			</Frame>
+		</Frames>
+	</Frame>
+
+	<Button name="OmniCDButtonTemplate" hidden="true" virtual="true">
+		<Size>
+			<AbsDimension x="36" y="36"/>
+		</Size>
+		<Anchors>
+			<Anchor point="CENTER"/>
+		</Anchors>
+		<Layers>
+			<Layer level="BACKGROUND">
+				<Texture parentKey="icon"/>
+			</Layer>
+			<Layer level="OVERLAY">
+				<FontString parentKey="name" inherits="GameFontHighlightSmallOutline">
+					<Size x="36" y="10"/>
+					<Anchors>
+						<Anchor point="BOTTOM" x="0" y="2"/>
+					</Anchors>
+				</FontString>
+				<Texture parentKey="Glow" file="Interface\AddOns\SarychUI\addons\!!!ClassicAPI\Texture\Transmogrify\Textures" hidden="true">
+					<Size x="68" y="67"/>
+					<Anchors>
+						<Anchor point="CENTER" x="0" y="-1"/>
+					</Anchors>
+					<TexCoords left="0.52343750" right="0.97656250" top="0.38476563" bottom="0.49609375"/>
+				</Texture>
+			</Layer>
+
+			<Layer level="ARTWORK" textureSubLevel="1">
+				<Texture parentKey="borderTop">
+					<Color r="0" g="0" b="0"/>
+				</Texture>
+				<Texture parentKey="borderBottom">
+					<Color r="0" g="0" b="0"/>
+				</Texture>
+				<Texture parentKey="borderLeft">
+					<Color r="0" g="0" b="0"/>
+				</Texture>
+				<Texture parentKey="borderRight">
+					<Color r="0" g="0" b="0"/>
+				</Texture>
+			</Layer>
+		</Layers>
+		<Frames>
+			<Frame parentKey="AnimFrame" setAllPoints="true" hidden="true" frameLevel="12">
+				<Layers>
+					<Layer level="OVERLAY">
+						<Texture parentKey="Glow" file="Interface\AddOns\SarychUI\addons\!!!ClassicAPI\Texture\Transmogrify\Textures">
+							<Size x="58" y="57"/>
+							<Anchors>
+								<Anchor point="CENTER"/>
+							</Anchors>
+							<TexCoords left="0.52343750" right="0.97656250" top="0.38476563" bottom="0.49609375"/>
+							<Animations>
+								<AnimationGroup parentKey="Anim">
+									<Alpha startDelay="0.15" change="-1" duration="0.2"/>
+								</AnimationGroup>
+							</Animations>
+						</Texture>
+						<Texture parentKey="Transition" file="Interface\AddOns\SarychUI\addons\!!!ClassicAPI\Texture\Transmogrify\Textures">
+							<Size x="42" y="41"/>
+							<Anchors>
+								<Anchor point="CENTER"/>
+							</Anchors>
+							<TexCoords left="0.52343750" right="0.97656250" top="0.25781250" bottom="0.36914063"/>
+							<Animations>
+								<AnimationGroup parentKey="Anim">
+									<Scale startDelay="0.15" duration="0.2" scaleX="1.381" scaleY="1.381"/>
+								</AnimationGroup>
+							</Animations>
+						</Texture>
+						<Texture parentKey="OuterGlow" file="Interface\AddOns\SarychUI\addons\!!!ClassicAPI\Texture\SpellActivationOverlay\IconAlert" alpha="0">
+							<Size x="58" y="57"/>
+							<Anchors>
+								<Anchor point="CENTER"/>
+							</Anchors>
+							<TexCoords left="0.00781250" right="0.50781250" top="0.53515625" bottom="0.78515625"/>
+							<Animations>
+								<AnimationGroup parentKey="Anim">
+									<Alpha duration="0.15" change="1" order="1"/>
+									<Alpha duration="0.15" change="-1" order="2"/>
+								</AnimationGroup>
+							</Animations>
+						</Texture>
+					</Layer>
+				</Layers>
+				<Animations>
+					<AnimationGroup parentKey="animIn">
+						<Animation duration="0.35"/>
+						<Scripts>
+							<OnPlay>
+								local frame = self:GetParent()
+								frame:Show()
+								frame.OuterGlow.Anim:Play()
+								frame.Glow.Anim:Play()
+								frame.Transition.Anim:Play()
+								self.Playing = true
+							</OnPlay>
+							<OnStop>
+								self.Playing = nil
+								local frame = self:GetParent()
+								frame.OuterGlow.Anim:Stop()
+								frame.Glow.Anim:Stop()
+								frame.Transition.Anim:Stop()
+							</OnStop>
+							<OnFinished>
+								self.Playing = nil
+								self:GetParent():Hide()
+							</OnFinished>
+						</Scripts>
+					</AnimationGroup>
+				</Animations>
+				<Scripts>
+					<OnLoad>
+						self.animOut = self.animIn
+					</OnLoad>
+					<OnHide>
+						if self.animIn.Playing then
+							self.animIn:Stop()
+							self:Hide()
+						end
+					</OnHide>
+				</Scripts>
+			</Frame>
+			<Frame parentKey="PendingFrame" setAllPoints="true" hidden="true">
+				<Layers>
+					<Layer level="ARTWORK">
+						<Texture parentKey="Glow" file="Interface\AddOns\SarychUI\addons\!!!ClassicAPI\Texture\Transmogrify\Textures">
+							<Size x="58" y="57"/>
+							<Anchors>
+								<Anchor point="CENTER"/>
+							</Anchors>
+							<TexCoords left="0.52343750" right="0.97656250" top="0.38476563" bottom="0.49609375"/>
+						</Texture>
+					</Layer>
+					<Layer level="OVERLAY">
+						<Texture parentKey="Ants" file="Interface\AddOns\SarychUI\addons\!!!ClassicAPI\Texture\Transmogrify\PurpleIconAlertAnts">
+							<Size x="44" y="44"/>
+							<Anchors>
+								<Anchor point="CENTER"/>
+							</Anchors>
+						</Texture>
+					</Layer>
+				</Layers>
+				<Scripts>
+					<OnUpdate>
+						AnimateTexCoords(self.Ants, 256, 256, 48, 48, 22, elapsed, 0.01);
+					</OnUpdate>
+				</Scripts>
+			</Frame>
+			<Cooldown inherits="CooldownFrameTemplate" parentKey="cooldown" reverse="false" drawBling="false" drawEdge="false" hidden="true">
+				<SwipeTexture>
+					<Color r="1" g="1" b="1" a="0.8"/>
+				</SwipeTexture>
+			</Cooldown>
+		</Frames>
+	</Button>
+</Ui>

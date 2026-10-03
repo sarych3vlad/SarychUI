@@ -95,9 +95,13 @@ function module:Disable()
 
     -- Disable emotion icons and picker
     self:DisableEmotionSettings()
+    self:DisableClassMentions()
 
     -- Disable Fast Scroll completely
     self:DisableFastScroll()
+
+    -- Disable LagBar completely
+    self:DisableLagBar()
 
     -- Disable Spam Filter completely
     self:DisableSpamFilter()
@@ -194,12 +198,6 @@ function module:Disable()
             ItemRefTooltipTextLeft2:ClearAllPoints()
             ItemRefTooltipTextLeft2:SetPoint("TOPLEFT", ItemRefTooltipTextLeft1, "BOTTOMLEFT", 0, -2)
         end
-        
-        -- ОТКЛЮЧАЕМ ВСЕ ХУКИ ПРЯМО ЗДЕСЬ
-        ItemRefTooltip:SetScript('OnTooltipSetItem', nil)
-        ItemRefTooltip:SetScript('OnTooltipSetSpell', nil)
-        ItemRefTooltip:SetScript('OnTooltipSetAchievement', nil)
-        ItemRefTooltip:SetScript('OnTooltipCleared', nil)
     end
     
     -- Восстанавливаем оригинальное поведение кнопки меню чата при отключении модуля
@@ -253,7 +251,9 @@ function module:ApplyAllSettings()
         self:DisableChatCopying()
         self:DisableUrlCopying()
         self:DisableEmotionSettings()
+        self:DisableClassMentions()
         self:DisableFastScroll()
+        self:DisableLagBar()
         self:DisableSpamFilter()
         self:DisableChatWheel()
         self:DisableTooltipPositioning()
@@ -297,9 +297,13 @@ function module:ApplyAllSettings()
 
     -- Apply emotion icons + picker settings
     self:ApplyEmotionSettings()
+    self:ApplyClassMentions()
     
     -- Apply Fast Scroll settings
     self:ApplyFastScrollSettings()
+
+    -- Apply LagBar settings
+    self:ApplyLagBarSettings()
     
     -- Apply Spam Filter settings
     self:ApplySpamFilterSettings()
@@ -583,6 +587,19 @@ end
 function module:DisableUrlCopying()
     if _G.DisableUrlCopying then
         _G.DisableUrlCopying()
+    end
+end
+
+-- Apply LagBar settings
+function module:ApplyLagBarSettings()
+    if _G.ApplyLagBarSettings then
+        _G.ApplyLagBarSettings()
+    end
+end
+
+function module:DisableLagBar()
+    if _G.DisableLagBar then
+        _G.DisableLagBar()
     end
 end
 
@@ -955,5 +972,17 @@ function module:DisableEmotionSettings()
     end
     if _G.DisableEmotionPicker then
         _G.DisableEmotionPicker()
+    end
+end
+
+function module:ApplyClassMentions()
+    if _G.ApplyClassMentions then
+        _G.ApplyClassMentions()
+    end
+end
+
+function module:DisableClassMentions()
+    if _G.ApplyClassMentions then
+        _G.ApplyClassMentions()
     end
 end

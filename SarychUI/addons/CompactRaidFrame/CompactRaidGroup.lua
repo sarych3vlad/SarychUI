@@ -1,21 +1,23 @@
 function CompactRaidGroup_OnLoad(self)
     self.title:Disable();
 
-    self:RegisterEvent("RAID_ROSTER_UPDATE");
-    self:RegisterEvent("PARTY_MEMBERS_CHANGED");
+    self:RegisterEvent("GROUP_ROSTER_UPDATE");
+    self:RegisterEvent("PLAYER_REGEN_ENABLED");
     self.applyFunc = CompactRaidGroup_ApplyFunctionToAllFrames;
 end
 
 function CompactRaidGroup_OnEvent(self, event, ...)
-    if InCombatLockdown() then
-        return self:RegisterEvent("PLAYER_REGEN_ENABLED");
-    end
-
-    if ( event == "RAID_ROSTER_UPDATE" or event == "PARTY_MEMBERS_CHANGED" ) then
+    if ( event == "PLAYER_REGEN_ENABLED" ) then
+        if ( self.PLAYER_REGEN_ENABLED_AWAIT ) then
+            self.PLAYER_REGEN_ENABLED_AWAIT = nil;
+            CompactRaidGroup_UpdateUnits(self);
+        end
+    elseif ( event == "GROUP_ROSTER_UPDATE" ) then
+        if ( InCombatLockdown() ) then
+            self.PLAYER_REGEN_ENABLED_AWAIT = true;
+            return;
+        end
         CompactRaidGroup_UpdateUnits(self);
-    elseif ( event == "PLAYER_REGEN_ENABLED" ) then
-        CompactRaidGroup_UpdateUnits(self);
-        self:UnregisterEvent("PLAYER_REGEN_ENABLED");
     end
 end
 
@@ -48,21 +50,14 @@ function CompactRaidGroup_InitializeForGroup(frame, groupIndex)
     for i=1, MEMBERS_PER_RAID_GROUP do
         local unitFrame = _G[frame:GetName().."Member"..i];
         CompactUnitFrame_SetUpFrame(unitFrame, DefaultCompactUnitFrameSetup);
-        CompactUnitFrame_SetUpdateAllEvent(unitFrame, "RAID_ROSTER_UPDATE");
+        CompactUnitFrame_SetUpdateAllEvent(unitFrame, "GROUP_ROSTER_UPDATE");
+        RegisterUnitWatch(unitFrame);
     end
     CompactRaidGroup_UpdateUnits(frame);
     frame.title:SetFormattedText(GROUP_NUMBER, groupIndex);
 end
 
 function CompactRaidGroup_UpdateUnits(frame)
-    -- Если это party фрейм, используем специальную функцию
-    if ( frame.isPartyFrame ) then
-        if ( CompactPartyFrame_UpdateUnits ) then
-            CompactPartyFrame_UpdateUnits(frame);
-        end
-        return;
-    end
-    
     local groupIndex = frame:GetID();
     local frameIndex = 1;
     if ( IsInRaid() ) then

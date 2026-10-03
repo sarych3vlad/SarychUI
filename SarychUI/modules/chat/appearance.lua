@@ -193,7 +193,7 @@ local function sarChat_IconsEnabled()
     return (sarChat_GetSetting and sarChat_GetSetting("itemRefIconsEnabled", 1) == 1) or (not sarChat_GetSetting)
 end
 
--- Инициализация иконок в тултипе (EXACT COPY)
+-- Инициализация иконок в тултипе
 local tooltipIconsInitialized = false
 
 local function InitializeTooltipIcons()
@@ -202,130 +202,171 @@ local function InitializeTooltipIcons()
     -- of which leaked a fresh copy on every settings Apply.
     if tooltipIconsInitialized then return end
     tooltipIconsInitialized = true
-    
-    -- Создаем иконку (EXACT COPY)
-    local icon = CreateFrame('Button', '$parentIcon', ItemRefTooltip)
-    icon:SetSize(37, 37)
-    icon:SetPoint("TOPRIGHT", ItemRefTooltip, "TOPLEFT", 0.5, -1.5)
-    icon:Hide()
-    icon.border = icon:CreateTexture(nil, 'OVERLAY')
-    icon.border:SetTexture([[Interface\AchievementFrame\UI-Achievement-IconFrame]])
-    icon.border:SetTexCoord(0, .5625, 0, .5625)
-    icon.border:SetPoint("CENTER")
-    icon.border:SetSize(icon:GetWidth() + 7.5, icon:GetHeight() + 7.5)
-    icon.border:Hide()
-    ItemRefTooltip.icon = icon
 
-    -- Хук для предметов (EXACT COPY)
-    ItemRefTooltip:HookScript('OnTooltipSetItem', function(self)
-        if not sarChat_IconsEnabled() or not self.icon then
-            if self.icon then self.icon:Hide() end
-            if self.icon and self.icon.border then self.icon.border:Hide() end
-            return
-        end
-        local link = select(2, self:GetItem())
-        if not link then
-            return
-        end
-        local icon = GetItemIcon(link)
-        self.icon:SetNormalTexture(icon)
-        self.icon:Show()
-    end)
+    local iconBtn = ItemRefTooltip.icon
+    if not iconBtn then
+        iconBtn = CreateFrame('Button', '$parentIcon', ItemRefTooltip)
+        iconBtn:SetSize(37, 37)
+        iconBtn:SetPoint("TOPRIGHT", ItemRefTooltip, "TOPLEFT", 0.5, -1.5)
+        iconBtn:Hide()
+        iconBtn.border = iconBtn:CreateTexture(nil, 'OVERLAY')
+        iconBtn.border:SetTexture([[Interface\AchievementFrame\UI-Achievement-IconFrame]])
+        iconBtn.border:SetTexCoord(0, .5625, 0, .5625)
+        iconBtn.border:SetPoint("CENTER")
+        iconBtn.border:SetSize(iconBtn:GetWidth() + 7.5, iconBtn:GetHeight() + 7.5)
+        iconBtn.border:Hide()
+        ItemRefTooltip.icon = iconBtn
+    end
 
-    -- Хук для заклинаний (EXACT COPY)
-    ItemRefTooltip:HookScript('OnTooltipSetSpell', function(self)
-        if not sarChat_IconsEnabled() or not self.icon then
-            if self.icon then self.icon:Hide() end
-            if self.icon and self.icon.border then self.icon.border:Hide() end
-            return
+    local function HideRefIcon(tip)
+        if not tip or not tip.icon then return end
+        tip.icon:Hide()
+        if tip.icon.border then
+            tip.icon.border:Hide()
         end
-        local id = select(3, self:GetSpell())
-        if not id then
-            return
-        end
-        local icon = GetSpellTexture(id)
-        self.icon:SetNormalTexture(icon)
-        self.icon:Show()
-    end)
-
-    -- Хук для достижений (EXACT COPY)
-    ItemRefTooltip:HookScript("OnTooltipSetAchievement", function(self, ...)
-        if not sarChat_IconsEnabled() or not self.icon then
-            if self.icon then self.icon:Hide() end
-            if self.icon and self.icon.border then self.icon.border:Hide() end
-            return
-        end
-        local link = ...  -- первый аргумент передается через varargs
-        if not link then
-            return
-        end
-        local id = link:match("achievement:(%d+)")
-        if not id then
-            return
-        end
-        local icon = select(10, GetAchievementInfo(id))
-        if icon then
-            self.icon:SetNormalTexture(icon)
-            self.icon:Show()
-            self.icon.border:Show()
-        end
-    end)
-
-    -- Хук для очистки (EXACT COPY)
-    ItemRefTooltip:HookScript('OnTooltipCleared', function(self)
-        if self.icon then
-            self.icon:Hide()
-            if self.icon.border then
-                self.icon.border:Hide()
-            end
-        end
-    end)
-
-    -- Хук для SetItemRef (EXACT COPY)
-    hooksecurefunc("SetItemRef", function(link, text, button)
-        if not sarChat_IconsEnabled() then
-            return
-        end
-        local icon
-        local type, id = match(link, "^([a-z]+):(%d+)")
-        if (type == "spell" or type == "enchant") then
-            icon = select(3, GetSpellInfo(id))
-        elseif (type == "achievement") then
-            icon = select(10, GetAchievementInfo(id))
-            if icon then
-                if ItemRefTooltip and ItemRefTooltip.icon then
-                    ItemRefTooltip.icon:SetNormalTexture(icon)
-                    ItemRefTooltip.icon:Show()
-                    if ItemRefTooltip.icon.border then
-                        ItemRefTooltip.icon.border:Show()
-                    end
-                end
-            end
-        end
-
-        if (not icon) then
+        if ItemRefTooltipTexture10 then
             ItemRefTooltipTexture10:Hide()
+        end
+    end
 
-            ItemRefTooltipTextLeft1:ClearAllPoints()
-            ItemRefTooltipTextLeft1:SetPoint("TOPLEFT", ItemRefTooltip, "TOPLEFT", 8, -10)
+    local function ParseRefLink(link)
+        if type(link) ~= "string" or link == "" then return nil, nil end
+        local inner = match(link, "|H([^|]+)|h") or link
+        local kind, id = match(inner, "^([%w]+):(%d+)")
+        return kind, tonumber(id)
+    end
 
-            ItemRefTooltipTextLeft2:ClearAllPoints()
-            ItemRefTooltipTextLeft2:SetPoint("TOPLEFT", ItemRefTooltipTextLeft1, "BOTTOMLEFT", 0, -2)
+    local function TextureForRef(kind, id, fallbackLink)
+        if not kind and fallbackLink then
+            kind, id = ParseRefLink(fallbackLink)
+        end
+        if not kind or not id then return nil, false end
+        if kind == "item" then
+            return GetItemIcon(id), false
+        end
+        if kind == "spell" or kind == "enchant" then
+            return select(3, GetSpellInfo(id)), false
+        end
+        if kind == "achievement" and GetAchievementInfo then
+            return select(10, GetAchievementInfo(id)), true
+        end
+        return nil, false
+    end
+
+    local function ShowRefIcon(tip, texture, showBorder)
+        if not tip or not tip.icon then return end
+        if not texture then
+            HideRefIcon(tip)
             return
         end
+        -- Texture10 is not present on WotLK ItemRefTooltip; never use it as the visible icon.
+        if ItemRefTooltipTexture10 then
+            ItemRefTooltipTexture10:Hide()
+        end
+        tip.icon:SetNormalTexture(texture)
+        tip.icon:Show()
+        if tip.icon.border then
+            if showBorder then
+                tip.icon.border:Show()
+            else
+                tip.icon.border:Hide()
+            end
+        end
+    end
 
-        ItemRefTooltipTexture10:ClearAllPoints()
-        ItemRefTooltipTexture10:SetPoint("TOPLEFT", ItemRefTooltip, "TOPLEFT", -36.5, -1.5)
-        ItemRefTooltipTexture10:SetTexture(icon)
-        ItemRefTooltipTexture10:SetHeight(37)
-        ItemRefTooltipTexture10:SetWidth(37)
-        ItemRefTooltipTexture10:Show()
+    local function ApplyRefIcon(tip, link)
+        if not sarChat_IconsEnabled() or not tip or not tip.icon then
+            HideRefIcon(tip)
+            return
+        end
+        if type(link) == "string" then
+            tip._suiRefLink = link
+        else
+            link = tip._suiRefLink
+        end
 
-        local textRight = ItemRefTooltipTextLeft1:GetRight()
-        local closeLeft = ItemRefCloseButton:GetLeft()
+        local texture, showBorder
+        -- Prefer live tooltip contents when they exist (GetItem can still be nil for uncached items).
+        local itemLink = tip.GetItem and select(2, tip:GetItem())
+        if itemLink then
+            texture = GetItemIcon(itemLink)
+            showBorder = false
+        else
+            local spellName, spellRank, spellID
+            if tip.GetSpell then
+                spellName, spellRank, spellID = tip:GetSpell()
+            end
+            if spellID then
+                texture = select(3, GetSpellInfo(spellID))
+                showBorder = false
+            elseif spellName then
+                texture = select(3, GetSpellInfo(spellName, spellRank))
+                showBorder = false
+            end
+        end
+        if not texture then
+            local kind, id = ParseRefLink(link)
+            texture, showBorder = TextureForRef(kind, id, link)
+        end
+        ShowRefIcon(tip, texture, showBorder)
+    end
 
-        if (closeLeft <= textRight) then
-            ItemRefTooltip:SetWidth(ItemRefTooltip:GetWidth() + (textRight - closeLeft))
+    ItemRefTooltip:HookScript('OnTooltipSetItem', function(self)
+        ApplyRefIcon(self, self._suiRefLink)
+    end)
+
+    ItemRefTooltip:HookScript('OnTooltipSetSpell', function(self)
+        ApplyRefIcon(self, self._suiRefLink)
+    end)
+
+    if ItemRefTooltip.HasScript and ItemRefTooltip:HasScript("OnTooltipSetAchievement") then
+        ItemRefTooltip:HookScript("OnTooltipSetAchievement", function(self, ...)
+            local passed = ...
+            ApplyRefIcon(self, (type(passed) == "string" and passed) or self._suiRefLink)
+        end)
+    end
+
+    ItemRefTooltip:HookScript('OnTooltipCleared', function(self)
+        HideRefIcon(self)
+    end)
+
+    -- Store the link BEFORE SetHyperlink fills the tooltip, otherwise OnTooltipSetItem
+    -- still sees the previous click when GetItem()/GetSpell() are nil (common on WotLK).
+    if not ItemRefTooltip._suiHyperlinkHooked then
+        ItemRefTooltip._suiHyperlinkHooked = true
+        local origSetHyperlink = ItemRefTooltip.SetHyperlink
+        ItemRefTooltip.SetHyperlink = function(self, link, ...)
+            if type(link) == "string" then
+                self._suiRefLink = link
+            end
+            local a, b, c = origSetHyperlink(self, link, ...)
+            ApplyRefIcon(self, link)
+            return a, b, c
+        end
+    end
+
+    hooksecurefunc("SetItemRef", function(link)
+        if not ItemRefTooltip then return end
+        if type(link) == "string" then
+            ItemRefTooltip._suiRefLink = link
+        end
+        if not sarChat_IconsEnabled() then
+            HideRefIcon(ItemRefTooltip)
+            return
+        end
+        if not ItemRefTooltip:IsShown() then
+            HideRefIcon(ItemRefTooltip)
+            return
+        end
+        ApplyRefIcon(ItemRefTooltip, link)
+
+        if ItemRefTooltip.icon and ItemRefTooltip.icon:IsShown()
+            and ItemRefTooltipTextLeft1 and ItemRefCloseButton then
+            local textRight = ItemRefTooltipTextLeft1:GetRight()
+            local closeLeft = ItemRefCloseButton:GetLeft()
+            if textRight and closeLeft and closeLeft <= textRight then
+                ItemRefTooltip:SetWidth(ItemRefTooltip:GetWidth() + (textRight - closeLeft))
+            end
         end
     end)
 end
@@ -401,19 +442,8 @@ local function ForceDisableTooltipIcons()
             ItemRefTooltipTextLeft2:ClearAllPoints()
             ItemRefTooltipTextLeft2:SetPoint("TOPLEFT", ItemRefTooltipTextLeft1, "BOTTOMLEFT", 0, -2)
         end
-        
-        -- ОТКЛЮЧАЕМ ВСЕ ХУКИ - это ключевое изменение!
-        -- Устанавливаем пустые обработчики для отключения функционала
-        ItemRefTooltip:SetScript('OnTooltipSetItem', nil)
-        ItemRefTooltip:SetScript('OnTooltipSetSpell', nil)
-        ItemRefTooltip:SetScript('OnTooltipSetAchievement', nil)
-        ItemRefTooltip:SetScript('OnTooltipCleared', nil)
-    end
-    
-    -- Отключаем SetItemRef хук
-    if _G.SetItemRef then
-        -- Восстанавливаем оригинальную функцию SetItemRef
-        -- Это сложно сделать безопасно, поэтому просто скрываем результат
+        -- Do not SetScript(nil): that wipes Blizzard handlers and HookScripts permanently.
+        -- sarChat_IconsEnabled() already no-ops the hooks while the option/module is off.
     end
 end
 
@@ -623,7 +653,7 @@ local function BB_ScrollToBottom(frame)
     end
 end
 
--- Оригинал: «якорь» — не двигаем контейнер, только глушим визуал и мышь
+-- Оригинал: «якорь» - не двигаем контейнер, только глушим визуал и мышь
 local function BB_MaskOriginal(orig)
     if not orig or orig._bbMasked then return end
     orig._bbMasked = true
@@ -638,7 +668,7 @@ local function BB_MaskOriginal(orig)
     local flash = _G[orig:GetName() and (orig:GetName().."Flash") or ""]
     if flash and flash.Hide then flash:Hide() end
 
-    -- если оригинал попытаются показать — снова глушим визуал
+    -- если оригинал попытаются показать - снова глушим визуал
     if orig.HookScript and not orig._bbShowHook then
         orig._bbShowHook = true
         orig:HookScript("OnShow", function(self)
@@ -683,7 +713,7 @@ local function BB_GetOrCreateHost(frame)
     return host
 end
 
--- Создаём клон: якорим к ХОСТУ (кастомное место), glow — отдельным верхним слоем
+-- Создаём клон: якорим к ХОСТУ (кастомное место), glow - отдельным верхним слоем
 local function BB_CreateClone(frame)
     local host = BB_GetOrCreateHost(frame)
     local clone = CreateFrame("Button", nil, host)
@@ -1302,7 +1332,7 @@ local function SB_ApplyAll()
     end
 end
 
--- При логине/обновлении окон — применяем
+-- При логине/обновлении окон - применяем
 local SB_evt = CreateFrame("Frame")
 SB_evt:RegisterEvent("PLAYER_LOGIN")
 SB_evt:RegisterEvent("UPDATE_CHAT_WINDOWS")
@@ -1630,7 +1660,7 @@ InitializeChatAnimations()
 local MODULE = "chat"
 
 -- Дефолты Blizzard из FloatingChatFrame.lua
--- Эти значения — «как в клиенте по умолчанию», не зависят от аддона.
+-- Эти значения - «как в клиенте по умолчанию», не зависят от аддона.
 local BLIZZ_DEFAULT_ALPHAS = {
   CHAT_FRAME_TAB_SELECTED_MOUSEOVER_ALPHA = 1.0,  -- выбранная, hover
   CHAT_FRAME_TAB_SELECTED_NOMOUSE_ALPHA   = 0.4,  -- выбранная, no mouse
@@ -1873,7 +1903,7 @@ local function TintButtonFrameRegions(bf, r, g, b, a)
             if tex.Show           then tex:Show() end
         end
     end
-    -- ВАЖНО: не трогаем bf:SetAlpha() вообще — пусть остаётся как в клиенте/скине
+    -- ВАЖНО: не трогаем bf:SetAlpha() вообще - пусть остаётся как в клиенте/скине
 end
 
 -- скрыть: только альфа=0 на всех текстурах (сохраняем цвет как есть)
@@ -1951,7 +1981,7 @@ end)
 
 
 -- (опционально) если у тебя где-то меняется цвет/прозрачность окна на лету,
--- просто вызови BFT_ApplyButtonFrameTextures() после изменения — подложка сама перекрасится.
+-- просто вызови BFT_ApplyButtonFrameTextures() после изменения - подложка сама перекрасится.
 
 -- Функция для полного отключения системы (при отключении модуля)
 function BFT_ForceDisableButtonFrameTextures()

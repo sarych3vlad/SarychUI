@@ -265,7 +265,7 @@ function module:GetOptions()
 							indicatorType = {
 								type = "select",
 								name = "",
-								desc = L and (L["Health Indicator Type Desc"] or "ElvUI — встроенные nameplates ElvUI. Классические WoW — стандартные индикаторы Blizzard.") or "ElvUI — встроенные nameplates ElvUI. Классические WoW — стандартные индикаторы Blizzard.",
+								desc = L and (L["Health Indicator Type Desc"] or "ElvUI - встроенные nameplates ElvUI. Классические WoW - стандартные индикаторы Blizzard.") or "ElvUI - встроенные nameplates ElvUI. Классические WoW - стандартные индикаторы Blizzard.",
 								order = 1,
 								values = {
 									classic = L and (L["Classic WoW Nameplates"] or "Классические WoW") or "Классические WoW",
@@ -385,7 +385,7 @@ function module:GetOptions()
 							anchorToName = {
 								type = "toggle",
 								name = "Привязать к нику",
-								desc = "Дистанция слева от ника (все плейты ElvUI). Выкл. — позиция у полоски HP со смещениями ниже. На тотемы-иконки не влияет, если включена поддержка тотемов.",
+								desc = "Дистанция слева от ника (все плейты ElvUI). Выкл. - позиция у полоски HP со смещениями ниже. На тотемы-иконки не влияет, если включена поддержка тотемов.",
 								order = 1,
 								width = "full",
 								suiFullRow = true,

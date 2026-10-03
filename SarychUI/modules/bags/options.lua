@@ -20,8 +20,8 @@ local function AutomationDB()
 	return profile and profile.modules and profile.modules.automation
 end
 
-local function ShowReloadPopup(onCancel)
-	local text = "Для применения режима сумок требуется перезагрузка интерфейса."
+local function ShowReloadPopup(onCancel, text)
+	text = text or "Для применения режима сумок требуется перезагрузка интерфейса."
 	if SarychUI and SarychUI.ShowReloadPopup then
 		SarychUI:ShowReloadPopup(text, onCancel)
 		return
@@ -55,6 +55,9 @@ local function toggleSetter(info, val)
 end
 
 local pendingBagSortPinnedInput = ""
+local pendingCustomCategoryName = ""
+local pendingCustomCategoryID
+local pendingCustomItemInput = ""
 
 local function RefreshBagsOptionsPanel()
 	-- Rebuild bags options (pinned list is built once per GetOptions call),
@@ -109,6 +112,225 @@ local function FormatPinnedItemLabel(id)
 	return label, itemTexture or "Interface\\Icons\\INV_Misc_QuestionMark"
 end
 
+local function ParseCustomCategoryItemID(value)
+	value = tostring(value or "")
+	local itemID = tonumber(value) or tonumber(value:match("item:(%d+)"))
+	if itemID and itemID > 0 then return math.floor(itemID) end
+	local _, link = GetItemInfo(value)
+	return link and tonumber(link:match("item:(%d+)")) or nil
+end
+
+local function SortedCustomCategoryItemIDs(category)
+	local result, seen = {}, {}
+	for rawID, enabled in pairs((category and category.items) or {}) do
+		local itemID = enabled and tonumber(rawID)
+		if itemID and itemID > 0 and not seen[itemID] then
+			seen[itemID] = true
+			result[#result + 1] = itemID
+		end
+	end
+	table.sort(result)
+	return result
+end
+
+function module:BuildCustomCategoryOptionsArgs()
+	local categories = self:GetCustomBagCategories()
+	local categoryValues = {}
+	local selectedExists
+	for _, category in ipairs(categories) do
+		local id = tonumber(category.id)
+		if id then
+			categoryValues[id] = category.name
+			if id == tonumber(pendingCustomCategoryID) then selectedExists = true end
+		end
+	end
+	if not selectedExists then
+		pendingCustomCategoryID = categories[1] and tonumber(categories[1].id) or nil
+	end
+	if not next(categoryValues) then
+		categoryValues[0] = "Сначала создайте категорию"
+	end
+
+	local args = {
+		intro = {
+			type = "description",
+			name = "Предмет из этого списка всегда попадает в выбранную пользовательскую секцию. Блок «Новое» сохраняет более высокий приоритет.",
+			order = 1,
+		},
+		newCategory = {
+			type = "input",
+			name = "Новая категория",
+			desc = "Введите уникальное название пользовательской секции.",
+			order = 2,
+			width = "full",
+			suiSaveButton = "Создать",
+			get = function() return pendingCustomCategoryName end,
+			set = function(_, value)
+				pendingCustomCategoryName = value or ""
+				local ok, result = module:AddCustomBagCategory(pendingCustomCategoryName)
+				if ok then
+					pendingCustomCategoryName = ""
+					pendingCustomCategoryID = result
+					module:ApplyCustomBagCategories()
+					RefreshBagsOptionsPanel()
+				elseif result == "duplicate" then
+					SarychUI:Print("Категория с таким названием уже существует.")
+				elseif result == "reserved" then
+					SarychUI:Print("Это название занято стандартной категорией.")
+				else
+					SarychUI:Print("Введите название категории.")
+				end
+			end,
+		},
+		category = {
+			type = "select",
+			name = "Категория для предмета",
+			order = 3,
+			width = "full",
+			values = categoryValues,
+			disabled = function() return #module:GetCustomBagCategories() == 0 end,
+			get = function() return pendingCustomCategoryID or 0 end,
+			set = function(_, value) pendingCustomCategoryID = tonumber(value) end,
+		},
+		newItem = {
+			type = "input",
+			name = "Предмет",
+			desc = "Введите itemID, ссылку или название предмета. Предмет можно перенести из другой пользовательской категории.",
+			order = 4,
+			width = "full",
+			suiSaveButton = "Добавить",
+			disabled = function() return not pendingCustomCategoryID end,
+			get = function() return pendingCustomItemInput end,
+			set = function(_, value)
+				pendingCustomItemInput = value or ""
+				local itemID = ParseCustomCategoryItemID(pendingCustomItemInput)
+				if not itemID then
+					SarychUI:Print("Введите корректный itemID, ссылку или название предмета.")
+					return
+				end
+				local ok, reason = module:AddItemToCustomBagCategory(pendingCustomCategoryID, itemID)
+				if ok then
+					pendingCustomItemInput = ""
+					module:ApplyCustomBagCategories()
+					RefreshBagsOptionsPanel()
+				elseif reason == "duplicate" then
+					SarychUI:Print("Этот предмет уже находится в выбранной категории.")
+				else
+					SarychUI:Print("Не удалось добавить предмет в категорию.")
+				end
+			end,
+		},
+	}
+
+	for index, category in ipairs(categories) do
+		local categoryID = tonumber(category.id)
+		local itemIDs = SortedCustomCategoryItemIDs(category)
+		local categoryArgs = {
+			rename = {
+				type = "input",
+				name = "Название",
+				order = 1,
+				width = "full",
+				suiSaveButton = "Переименовать",
+				suiKeepInput = true,
+				get = function()
+					local current = module:FindCustomBagCategory(categoryID)
+					return current and current.name or ""
+				end,
+				set = function(_, value)
+					local ok, reason = module:RenameCustomBagCategory(categoryID, value)
+					if ok then
+						module:ApplyCustomBagCategories()
+						RefreshBagsOptionsPanel()
+					elseif reason == "duplicate" then
+						SarychUI:Print("Категория с таким названием уже существует.")
+					elseif reason == "reserved" then
+						SarychUI:Print("Это название занято стандартной категорией.")
+					else
+						SarychUI:Print("Введите название категории.")
+					end
+				end,
+			},
+			count = {
+				type = "description",
+				name = string.format("Предметов: %d", #itemIDs),
+				order = 2,
+			},
+			up = {
+				type = "execute",
+				name = "Выше",
+				order = 3,
+				disabled = index == 1,
+				func = function()
+					module:MoveCustomBagCategory(categoryID, "up")
+					module:ApplyCustomBagCategories()
+					RefreshBagsOptionsPanel()
+				end,
+			},
+			down = {
+				type = "execute",
+				name = "Ниже",
+				order = 4,
+				disabled = index == #categories,
+				func = function()
+					module:MoveCustomBagCategory(categoryID, "down")
+					module:ApplyCustomBagCategories()
+					RefreshBagsOptionsPanel()
+				end,
+			},
+			removeCategory = {
+				type = "execute",
+				name = "Удалить категорию",
+				order = 5,
+				confirm = true,
+				confirmText = "Удалить категорию и все её привязки предметов?",
+				func = function()
+					module:RemoveCustomBagCategory(categoryID)
+					if tonumber(pendingCustomCategoryID) == categoryID then pendingCustomCategoryID = nil end
+					module:ApplyCustomBagCategories()
+					RefreshBagsOptionsPanel()
+				end,
+			},
+		}
+
+		for itemIndex, itemID in ipairs(itemIDs) do
+			local id = itemID
+			local label, icon = FormatPinnedItemLabel(id)
+			categoryArgs["item_" .. id] = {
+				type = "group",
+				inline = true,
+				name = "",
+				order = 10 + itemIndex,
+				suiCompactListRow = true,
+				icon = icon,
+				args = {
+					label = { type = "description", name = label, order = 1 },
+					remove = {
+						type = "execute",
+						name = "Убрать",
+						order = 2,
+						func = function()
+							module:RemoveItemFromCustomBagCategory(categoryID, id)
+							module:ApplyCustomBagCategories()
+							RefreshBagsOptionsPanel()
+						end,
+					},
+				},
+			}
+		end
+
+		args["category_" .. tostring(categoryID or index)] = {
+			type = "group",
+			name = category.name,
+			inline = true,
+			order = 100 + index,
+			args = categoryArgs,
+		}
+	end
+
+	return args
+end
+
 function module:BuildBagSortPinnedOptionsArgs()
 	local args = {
 		pinnedHeader = {
@@ -120,7 +342,7 @@ function module:BuildBagSortPinnedOptionsArgs()
 		pinnedInput = {
 			type = "input",
 			name = "",
-			desc = "Числовой ID предмета из ссылки (item:12345:…)",
+			desc = "Числовой ID предмета из ссылки (item:12345:...)",
 			order = 2,
 			width = "full",
 			suiSaveButton = "Добавить",
@@ -299,6 +521,9 @@ local function EnsureElvUISettings(db)
 		if db.elvui.adiBagsCategories == nil then
 			db.elvui.adiBagsCategories = bagsDefaults.adiBagsCategories ~= false
 		end
+		if type(db.elvui.customCategories) ~= "table" then
+			db.elvui.customCategories = {}
+		end
 		if db.elvui.consumableSplit == nil then
 			db.elvui.consumableSplit = bagsDefaults.consumableSplit == true
 		end
@@ -415,12 +640,33 @@ function module:GetOptions()
 					enabled = {
 						type = "toggle",
 						name = "Включить модуль",
+						desc = "Включение применяется сразу. Для безопасного выключения модуля требуется перезагрузка интерфейса.",
 						order = 1,
 						width = "full",
 						get = function() return DB().enabled == true end,
 						set = function(_, val)
-							DB().enabled = val and true or false
-							if val then SarychUI:EnableModule(moduleName) else SarychUI:DisableModule(moduleName) end
+							local db = DB()
+							if not db then return end
+
+							local previous = db.enabled == true
+							val = val and true or false
+							if previous == val then return end
+
+							if val then
+								SarychUI:EnableModule(moduleName)
+								return
+							end
+
+							-- The unified bags runtime replaces Blizzard container hooks and
+							-- frames. Keep the current runtime intact until ReloadUI instead of
+							-- leaving either implementation half-disabled in this session.
+							db.enabled = false
+							ShowReloadPopup(function()
+								db.enabled = previous
+								if SarychUI and SarychUI.NotifySarychUIOptionsChange then
+									SarychUI:NotifySarychUIOptionsChange()
+								end
+							end, "Модуль сумок будет выключен, после перезагрузки вернутся стандартные сумки WoW.")
 						end,
 					},
 					typeRow = {
@@ -492,7 +738,7 @@ function module:GetOptions()
 						type = "description",
 						name = function()
 							if IsAddOnLoaded and IsAddOnLoaded("ElvUI") then
-								return "|cffff0000Внимание:|r установлен полный |cff1784d1ElvUI|r — встроенная ElvUI-сумка будет отключена."
+								return "|cffff0000Внимание:|r установлен полный |cff1784d1ElvUI|r - встроенная ElvUI-сумка будет отключена."
 							end
 							return "|cFFFFD700Внимание:|r После применения потребуется перезагрузка интерфейса."
 						end,
@@ -588,7 +834,7 @@ function module:GetOptions()
 							splitMode = {
 								type = "select",
 								name = "Режим разделения",
-								desc = "Классическая — три опциональных группы снизу.\nAdiBags — предметы раскладываются по секциям и сортируются как в AdiBags (квест, экипировка, расходники и т.д.).",
+								desc = "Классическая - три опциональных группы снизу; новые предметы подсвечиваются зелёной анимацией.\nAdiBags - предметы раскладываются по стандартным и пользовательским секциям, а новые сначала попадают в отдельный блок «Новое».",
 								order = 0,
 								width = "full",
 								values = {
@@ -832,6 +1078,18 @@ function module:GetOptions()
 									},
 								},
 							},
+							customCategoriesBox = {
+								type = "group",
+								name = "Пользовательские категории",
+								desc = "Ручная привязка предметов к собственным секциям, как Manual filtering в AdiBags.",
+								order = 20,
+								inline = true,
+								hidden = function()
+									local elv = EnsureElvUISettings(DB())
+									return elv.splitMode ~= "adibags"
+								end,
+								args = module:BuildCustomCategoryOptionsArgs(),
+							},
 						},
 					},
 					scaleBox = {
@@ -866,7 +1124,7 @@ function module:GetOptions()
 							windowBackgroundAlpha = {
 								type = "range",
 								name = "Прозрачность фона окна",
-								desc = "Фон окна сумки и банка без категорий предметов. По умолчанию 65%. 0 — полностью прозрачный, 1 — непрозрачный.",
+								desc = "Фон окна сумки и банка без категорий предметов. По умолчанию 65%. 0 - полностью прозрачный, 1 - непрозрачный.",
 								order = 2,
 								min = 0,
 								max = 1,

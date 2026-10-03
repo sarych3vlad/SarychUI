@@ -18,19 +18,6 @@ local HookSecureFunc = hooksecurefunc
 
 local EventHandler = Private.EventHandler
 local UIObject, UIObjectLine
-local tonumber = tonumber
-
-local function NumPoints(Self)
-	local getter = Self and Self.GetNumPoints
-	if not getter then
-		return 0
-	end
-	local n = tonumber(getter(Self))
-	if not n or n < 0 then
-		return 0
-	end
-	return n
-end
 
 --[[
 
@@ -172,21 +159,21 @@ UIObject = {
 			AdjustX = AdjustX or 0
 			AdjustY = AdjustY or 0
 
-			for i=1, NumPoints(Self) do
+			for i=1, Self:GetNumPoints() do
 				local Point, RelativeTo, RelativePoint, OffsetX, OffsetY = Self:GetPoint(i)
 				Self:SetPoint(Point, RelativeTo, RelativePoint, OffsetX+AdjustX, OffsetY+AdjustY)
 			end
 		end,
 
 		ClearPointsOffset = function(Self)
-			for i=1, NumPoints(Self) do
+			for i=1, Self:GetNumPoints() do
 				local Point, RelativeTo, RelativePoint = Self:GetPoint(i)
 				Self:SetPoint(Point, RelativeTo, RelativePoint, 0, 0)
 			end
 		end,
 
 		GetPointByName = function(Self, Point)
-			for i=1, NumPoints(Self) do
+			for i=1, Self:GetNumPoints() do
 				local PointName, RelativeTo, RelativePoint, OffsetX, OffsetY = Self:GetPoint(i)
 				if ( Point == PointName ) then
 					return Point, RelativeTo, RelativePoint, OffsetX, OffsetY
@@ -195,7 +182,7 @@ UIObject = {
 		end,
 
 		SetPointsOffset = function(Self, X, Y)
-			for i=1, NumPoints(Self) do
+			for i=1, Self:GetNumPoints() do
 				local Point, RelativeTo, RelativePoint = Self:GetPoint(i)
 				Self:SetPoint(Point, RelativeTo, RelativePoint, X, Y)
 			end
@@ -542,7 +529,7 @@ UIObject = {
 					end
 
 					Mask:SetSize(Self:GetSize())
-					for i = 1, NumPoints(Self) do
+					for i = 1, Self:GetNumPoints() do
 						Mask:SetPoint(Self:GetPoint(i))
 					end
 
@@ -556,7 +543,7 @@ UIObject = {
 				Self:SetParent(Mask:GetParent())
 
 				Self:ClearAllPoints()
-				for i = 1, NumPoints(Mask) do
+				for i = 1, Mask:GetNumPoints() do
 					Self:SetPoint(Mask:GetPoint(i))
 				end
 

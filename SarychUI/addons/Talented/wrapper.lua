@@ -47,7 +47,7 @@ end
 
 local function ShowDisableReloadPopup()
 	if SarychUI and SarychUI.ShowReloadPopup then
-		SarychUI:ShowReloadPopup("|cff1784d1Talented|r будет убран из «Интерфейс → Модификации» после перезагрузки (/reload).")
+		SarychUI:ShowReloadPopup("|cff1784d1Talented|r будет убран из «Интерфейс -> Модификации» после перезагрузки (/reload).")
 	elseif StaticPopup_Show then
 		StaticPopup_Show("SARYCHUI_RELOAD_UI")
 	end
@@ -96,7 +96,7 @@ end
 function wrapper:OpenConfig()
 	if not GetRuntimeEnabledFromDB() then
 		if SarychUI and SarychUI.Print then
-			SarychUI:Print("|cffff9900Talented:|r сначала включите аддон в |cff1784d1Настройки → Аддоны|r.")
+			SarychUI:Print("|cffff9900Talented:|r сначала включите аддон в |cff1784d1Настройки -> Аддоны|r.")
 		end
 		return false
 	end
@@ -157,10 +157,7 @@ end
 local function GetDragonflightHeaderFromDB()
 	local addons = SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.addons
 	local cfg = addons and addons[ADDON_NAME]
-	if cfg and cfg.dragonflightHeader == false then
-		return false
-	end
-	return true
+	return cfg and cfg.dragonflightHeader == true
 end
 
 local function SetDragonflightHeaderInDB(enabled)
@@ -193,7 +190,7 @@ function wrapper:GetOptions()
 			enabled = {
 				type = "toggle",
 				name = "Включить",
-				desc = "Включить/выключить Talented. При выключении нужен /reload, чтобы убрать пункт из «Интерфейс → Модификации».",
+				desc = "Включить/выключить Talented. При выключении нужен /reload, чтобы убрать пункт из «Интерфейс -> Модификации».",
 				order = 1,
 				get = function()
 					return wrapper:IsRuntimeEnabled()
@@ -205,7 +202,7 @@ function wrapper:GetOptions()
 			skinStyle = {
 				type = "select",
 				name = "Стиль окна",
-				desc = "Внешний вид Talented. ElvUI — плоский скин; SarychUI — текстуры как у окна настроек SarychUI. Требуется /reload.",
+				desc = "Внешний вид Talented. ElvUI - плоский скин; SarychUI - текстуры как у окна настроек SarychUI. Требуется /reload.",
 				order = 2,
 				values = {
 					ElvUI = "ElvUI",
@@ -282,7 +279,7 @@ function wrapper:GetOptions()
 			},
 			description = {
 				type = "description",
-				name = "Редактор шаблонов талантов (The Talent Template Editor).\nВключение — сразу; выключение из списка Модификаций — после /reload.\n\nАвтор: "
+				name = "Редактор шаблонов талантов (The Talent Template Editor).\nВключение - сразу; выключение из списка Модификаций - после /reload.\n\nАвтор: "
 					.. (wrapper.author or "Jerry")
 					.. "\nВерсия: "
 					.. (wrapper.version or "v2.4.8"),

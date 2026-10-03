@@ -78,13 +78,6 @@ function SarychUI:IsAddOnEnabled(addonName)
 	end
 
 	local addonDb = self.db.profile.addons[addonName]
-	if addonName == "Mapster" or addonName == "WDM" or addonName == "!Astrolabe" then
-		if not addonDb then
-			return true
-		end
-		return addonDb.enabled ~= false
-	end
-
 	return addonDb and addonDb.enabled or false
 end
 
@@ -92,9 +85,7 @@ local function CoordinatorSetModeForAddOn(self, addonName, enable)
 	if self._coordinatorApplying or not enable then
 		return
 	end
-	if addonName == "Mapster" and self.SetMapType then
-		self:SetMapType("mapster")
-	elseif addonName == "Carbonite" and self.SetMapType then
+	if addonName == "Carbonite" and self.SetMapType then
 		self:SetMapType("carbonite")
 	elseif addonName == "GladiusEx" and self.SetArenaMode then
 		self:SetArenaMode("gladiusex")
@@ -132,8 +123,6 @@ local function CoordinatorClearModeForAddOn(self, addonName)
 		if bags and bags.mode == "elvui" then
 			self:SetBagsMode("default")
 		end
-	elseif addonName == "Mapster" and self.SetMapType and self.GetMapMode and self:GetMapMode() == "mapster" then
-		self:SetMapType("classic")
 	elseif addonName == "Carbonite" and self.SetMapType and self.GetMapMode and self:GetMapMode() == "carbonite" then
 		self:SetMapType("classic")
 	elseif addonName == "pretty_lootalert" and self.SetLootMode then
@@ -224,23 +213,44 @@ function SarychUI:GetAddOnList()
 	return self.addonList
 end
 
--- Initialize all registered addons
-function SarychUI:InitializeAddOns()
-	for name, addon in pairs(self.addons) do
-		if addon.Initialize then
-			addon:Initialize()
+-- CompactRaidFrame must init before HealEx/ERF so unit frames exist for their hooks.
+local RAID_FRAME_INIT_ORDER = {
+	"CompactRaidFrame",
+	"CompactRaidFrame_HealEx",
+	"EnhancedRaidFrames",
+	"OmniCD",
+}
+
+local function ForEachAddOnInOrder(addons, callback)
+	local done = {}
+	for _, name in ipairs(RAID_FRAME_INIT_ORDER) do
+		local addon = addons[name]
+		if addon then
+			done[name] = true
+			callback(name, addon)
+		end
+	end
+	for name, addon in pairs(addons) do
+		if not done[name] then
+			callback(name, addon)
 		end
 	end
 end
 
+-- Initialize all registered addons
+function SarychUI:InitializeAddOns()
+	ForEachAddOnInOrder(self.addons, function(_, addon)
+		if addon.Initialize then
+			addon:Initialize()
+		end
+	end)
+end
+
 -- Enable all registered addons that are enabled in settings
 function SarychUI:EnableAddOns()
-	for name, addon in pairs(self.addons) do
+	ForEachAddOnInOrder(self.addons, function(name, addon)
 		local addonDb = self.db.profile.addons[name]
 		local enabled = addonDb and addonDb.enabled
-		if name == "Mapster" or name == "WDM" or name == "!Astrolabe" then
-			enabled = not addonDb or addonDb.enabled ~= false
-		end
 		if addon.Enable and enabled then
 			if SarychUI_ProfileStartupStage then
 				SarychUI_ProfileStartupStage("OnEnable.addon:" .. name, addon.Enable, addon)
@@ -248,7 +258,7 @@ function SarychUI:EnableAddOns()
 				addon:Enable()
 			end
 		end
-	end
+	end)
 end
 
 -- Reconcile embedded addon runtime state with the active profile.
@@ -257,12 +267,8 @@ function SarychUI:ApplyAddOnProfileState()
 		return
 	end
 
-	for name, addon in pairs(self.addons) do
+	ForEachAddOnInOrder(self.addons, function(name, addon)
 		local shouldEnable = self:IsAddOnEnabled(name)
-		if name == "Mapster" or name == "WDM" or name == "!Astrolabe" then
-			local addonDb = self:GetAddonProfile(name)
-			shouldEnable = not addonDb or addonDb.enabled ~= false
-		end
 
 		local isRunning = addon.IsRuntimeEnabled and addon:IsRuntimeEnabled()
 		if isRunning == nil then
@@ -274,7 +280,7 @@ function SarychUI:ApplyAddOnProfileState()
 		elseif not shouldEnable and isRunning and addon.Disable then
 			addon:Disable()
 		end
-	end
+	end)
 end
 
 -- Disable all addons

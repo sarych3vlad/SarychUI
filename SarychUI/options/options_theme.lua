@@ -1,4 +1,4 @@
--- SarychUI Options Theme — Details Cooltip-style textured chrome.
+-- SarychUI Options Theme - Details Cooltip-style textured chrome.
 local SUI = SarychUI
 SUI.OptionsTheme = SUI.OptionsTheme or {}
 local T = SUI.OptionsTheme

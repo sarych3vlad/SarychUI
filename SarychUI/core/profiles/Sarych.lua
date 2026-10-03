@@ -9,19 +9,38 @@ SarychUI.BuiltinProfiles = SarychUI.BuiltinProfiles or {}
 SarychUI.BuiltinProfileMeta = SarychUI.BuiltinProfileMeta or {}
 
 SarychUI.BuiltinProfileMeta["Sarych"] = {
-	revision = 8,
+	revision = 12,
 	displayName = "Sarych (2K)",
 }
 
 SarychUI.BuiltinProfiles["Sarych"] = {
 			["modules"] = {
 				["map"] = {
-					["mapType"] = "mapster",
+					["mapType"] = "sarychui",
+					["panButton"] = "middle",
+					["panSpeed"] = 0.9,
+					["zoneInfo"] = true,
+					["fadeOnMove"] = true,
+					["movingAlpha"] = 0.4,
+					["revealFog"] = true,
+					["showDungeon"] = true,
+					["showFlight"] = true,
+					["showTravel"] = true,
+					["showSpirit"] = false,
+					["showArrow"] = true,
+					["showCoords"] = true,
+					["fogStyle"] = "leatrix",
+					["fogTintR"] = 0.6,
+					["fogTintG"] = 0.6,
+					["fogTintB"] = 1,
+					["fogTintA"] = 1,
+					["hideMapButton"] = true,
 				},
 				["frame"] = {
 					["targetFrameX"] = -240.0000032825875,
 					["focusFrameX"] = 350.0000179174567,
 					["changeScale"] = 0,
+					["nameBackgroundEnabled"] = 0,
 					["focusFrameY"] = -149.9999976748339,
 					["playerFrameX"] = -514.0000149084182,
 					["combatIndicatorScale"] = 0.8500000000000001,
@@ -1374,6 +1393,9 @@ SarychUI.BuiltinProfiles["Sarych"] = {
 				["chat"] = {
 					["lfgAbbrev"] = "[Поиск]",
 					["emotionPickerEnabled"] = 1,
+					["classColorMentionsEnabled"] = 1,
+					["classColorMentionsChat"] = 1,
+					["classColorMentionsSpeech"] = 1,
 					["chatWheel"] = {
 						["selectedPhraseFontSize"] = 50,
 						["phrase5Y"] = -15,
@@ -1414,7 +1436,7 @@ SarychUI.BuiltinProfiles["Sarych"] = {
 								["managed"] = true,
 								["scale"] = 1,
 							},
-							["LibDBIcon10_LibDBIcon10_AtlasLoot"] = {
+							["LibDBIcon10_AtlasLoot"] = {
 								["radius"] = 82,
 								["shown"] = true,
 								["angle"] = 190,
@@ -1422,13 +1444,6 @@ SarychUI.BuiltinProfiles["Sarych"] = {
 								["scale"] = 1,
 							},
 							["NXMiniMapBut"] = {
-								["radius"] = 82,
-								["shown"] = true,
-								["angle"] = 225,
-								["managed"] = true,
-								["scale"] = 1,
-							},
-							["FindGroupFrameMinimapButton"] = {
 								["radius"] = 82,
 								["shown"] = true,
 								["angle"] = 225,
@@ -1529,7 +1544,8 @@ SarychUI.BuiltinProfiles["Sarych"] = {
 						["PVPParentFrame"] = {
 						},
 					},
-					["tooltipCursorAltOnly"] = 0,
+					["tooltipCursorAltOnly"] = 1,
+					["enableTooltipCursor"] = 1,
 					["fpsExtraOffsetY"] = -20,
 					["fpsExtraOffsetX"] = -12,
 					["fpsScale"] = 0.9,
@@ -1562,10 +1578,10 @@ SarychUI.BuiltinProfiles["Sarych"] = {
 				["lootIndependentMigrated"] = true,
 			},
 			["addons"] = {
-				["Postal"] = {
-					["enabled"] = true,
+				["LootClicker"] = {
+					["enabled"] = false,
 				},
-				["Mapster"] = {
+				["Postal"] = {
 					["enabled"] = true,
 				},
 				["SarychUI_Bags"] = {

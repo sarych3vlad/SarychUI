@@ -1214,10 +1214,7 @@ local DF_TITLE_BAR_H = 24
 local function IsDragonflightHeaderEnabled()
 	local addons = SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.addons
 	local cfg = addons and addons.Talented
-	if cfg and cfg.dragonflightHeader == false then
-		return false
-	end
-	return true
+	return cfg and cfg.dragonflightHeader == true
 end
 
 local function GetTitleBarH()

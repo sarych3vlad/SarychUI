@@ -186,11 +186,11 @@ local ARROW_DEFAULTS = {
 	anchorOffset = 0,
 	alpha = 0.9,
 }
--- Fixed arrow reference circle (calibrated from debug box 93×93 at X=-1, Y=0); not tied to debugBox settings.
+-- Fixed arrow reference circle (calibrated from debug box 93x93 at X=-1, Y=0); not tied to debugBox settings.
 local ARROW_CIRCLE_X = -1
 local ARROW_CIRCLE_Y = 0
 local ARROW_CIRCLE_SIZE = 93
--- Sector index 1..8: math angle degrees (0° = right, texture default points right).
+-- Sector index 1..8: math angle degrees (0 = right, texture default points right).
 local ARROW_SECTOR_ANGLE_DEFAULTS = { 90, 45, 0, -43, -89, -136, 179, 135 }
 
 local SLICE_COUNT = 8
@@ -198,19 +198,19 @@ local SLICE_SPAN_DEG = 360 / SLICE_COUNT
 local SLICE_HALF_ANGLE = SLICE_SPAN_DEG * 0.5
 local SLICE_OUTER_RADIUS = SLICES_SIZE * 0.5
 
--- dota_hud_chat_wheel.css — Panorama #RGBA (nibble * 17 / 255)
+-- dota_hud_chat_wheel.css - Panorama #RGBA (nibble * 17 / 255)
 -- .SliceBackground          from #000f, stop #000c, to #0000
 -- .SliceBackground.Even     from #333f, stop #333c, to #3330
 -- .SliceBackground.SecondMod  from #000f, stop #333c, to #4440
 -- .SliceBackground.ThirdMod   from #333f, stop #333c, to #3330
--- Cycle per sector: default, Even, SecondMod, ThirdMod (×2)
+-- Cycle per sector: default, Even, SecondMod, ThirdMod (x2)
 local SLICE_STYLES = {
 	{ 0.20, 0.20, 0.20, 1.00 }, -- SliceBackground (inverted: was dark)
 	{ 0.00, 0.00, 0.00, 1.00 }, -- .Even / #333 (inverted: was light)
 	{ 0.20, 0.20, 0.20, 1.00 }, -- .SecondMod (inverted: was dark)
 	{ 0.00, 0.00, 0.00, 1.00 }, -- .ThirdMod / #333 (inverted: was light)
 }
--- .Slices #SlicesSelection — white radial, opacity 0.5
+-- .Slices #SlicesSelection - white radial, opacity 0.5
 local SLICE_HOVER_COLOR = { 1.00, 1.00, 1.00, 1.00 }
 
 local DEBUG_LINE_TEXTURE = "Interface\\Buttons\\WHITE8X8"
@@ -482,7 +482,7 @@ local function GetPhraseAnimSpeed()
 	if db and db.phraseAnimSpeed ~= nil then
 		speed = tonumber(db.phraseAnimSpeed) or speed
 	end
-	-- Legacy per-frame factors (0.05–1.0) are incompatible with points/sec model.
+	-- Legacy per-frame factors (0.05-1.0) are incompatible with points/sec model.
 	if speed <= 1.0 then
 		speed = PHRASE_DEFAULTS.animSpeed
 	end
@@ -618,12 +618,15 @@ end
 local function GetPhraseText(idx)
 	local db = GetWheelDB()
 	local default = PHRASE_TEXT_DEFAULTS[idx] or ("Фраза " .. idx)
+	if SarychUI and SarychUI.T then
+		default = SarychUI:T(default)
+	end
 	if not db then
 		return default
 	end
 	local key = "phrase" .. idx .. "Text"
 	local value = db[key]
-	if value == nil then
+	if value == nil or value == PHRASE_TEXT_DEFAULTS[idx] then
 		return default
 	end
 	return value
@@ -1158,7 +1161,7 @@ local function GetSliceIndexFromCursor()
 		return nil
 	end
 
-	-- 0° = top, increases clockwise (matches SetRotation(-(i-1)*45))
+	-- 0 = top, increases clockwise (matches SetRotation(-(i-1)*45))
 	local angleFromEast = math.deg(atan2(dy, dx))
 	local fromTopCW = NormalizeDegrees(90 - angleFromEast)
 	local idx = (floor((fromTopCW + SLICE_HALF_ANGLE) / SLICE_SPAN_DEG) % SLICE_COUNT) + 1
@@ -1209,7 +1212,7 @@ local function UpdateCirclePointerRotation()
 	if not dx or (dx == 0 and dy == 0) then
 		return
 	end
-	-- Texture default points up; match slice rotation convention (0° = top, CW positive).
+	-- Texture default points up; match slice rotation convention (0 = top, CW positive).
 	local angleFromEast = math.deg(atan2(dy, dx))
 	local fromTopCW = NormalizeDegrees(90 - angleFromEast)
 	tex:SetRotation(rad(-fromTopCW))
@@ -1267,7 +1270,7 @@ end
 local function BuildSliceBackgrounds(parent)
 	State.slices = {}
 	for i = 1, SLICE_COUNT do
-		-- Dota: each SliceBackground is 100%×100% (600×600), same z-order in container
+		-- Dota: each SliceBackground is 100%x100% (600x600), same z-order in container
 		local tex = parent:CreateTexture(nil, "BACKGROUND", nil, i - 1)
 		tex:SetTexture(SLICE_SECTOR_TEXTURE)
 		tex:SetSize(SLICES_SIZE, SLICES_SIZE)

@@ -3,10 +3,16 @@ local Pairs = pairs
 
 if ( not Mixin ) then
 	function Mixin(Object, ...)
+		if ( type(Object) ~= "table" ) then
+			return Object
+		end
 		for i = 1, Select("#", ...) do
-			local Mixin = Select(i, ...)
-			if ( Mixin ) then
-				for k, v in Pairs(Mixin) do
+			local Resolved = Select(i, ...)
+			if ( type(Resolved) == "string" ) then
+				Resolved = _G[Resolved]
+			end
+			if ( type(Resolved) == "table" ) then
+				for k, v in Pairs(Resolved) do
 					Object[k] = v
 				end
 			end

@@ -1,5 +1,5 @@
--- SarychUI Floating Text — error filter options preview (UIErrorsFrame look).
--- Animates appear → hold (timeVisible) → fade (fadeDuration) → gap (throttle).
+-- SarychUI Floating Text - error filter options preview (UIErrorsFrame look).
+-- Animates appear -> hold (timeVisible) -> fade (fadeDuration) -> gap (throttle).
 
 local CreateFrame = CreateFrame
 local GetTime = GetTime
@@ -13,6 +13,12 @@ local tinsert = table.insert
 local tonumber = tonumber
 
 SarychUI = SarychUI or {}
+
+local function Tr(s)
+	if type(s) ~= "string" or s == "" then return s end
+	if SarychUI.T then return SarychUI:T(s) end
+	return s
+end
 
 local SAMPLE_ERRORS = {
 	"Способность пока недоступна.",
@@ -137,7 +143,7 @@ function Preview:Create(parent)
 
 	local function ShowMessage(index)
 		host._index = index
-		fs:SetText(SAMPLE_ERRORS[index] or SAMPLE_ERRORS[1])
+		fs:SetText(Tr(SAMPLE_ERRORS[index] or SAMPLE_ERRORS[1]))
 		fs:SetAlpha(1)
 		host._phase = PHASE_HOLD
 		host._phaseStart = GetTime()
@@ -323,7 +329,7 @@ function SysPreview:Create(parent)
 	for i, text in ipairs(SYS_SAMPLE_LINES) do
 		local fs = stage:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 		fs:SetJustifyH("CENTER")
-		fs:SetText(text)
+		fs:SetText(Tr(text))
 		fs:SetTextColor(1.0, 1.0, 0.0)
 		fs:SetShadowColor(0, 0, 0, 1)
 		fs:SetShadowOffset(1, -1)
@@ -368,7 +374,7 @@ function BossPreview:Create(parent)
 
 	local fs = stage:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	fs:SetJustifyH("CENTER")
-	fs:SetText("Ануб'арак кричит: Ваша смерть неизбежна!")
+	fs:SetText(Tr("Ануб'арак кричит: Ваша смерть неизбежна!"))
 	fs:SetTextColor(1.0, 0.82, 0.0)
 	fs:SetShadowColor(0, 0, 0, 1)
 	fs:SetShadowOffset(1, -1)
@@ -404,7 +410,7 @@ function BossPreview:Create(parent)
 end
 
 --------------------------------------------------------------------
--- Frame hit-indicator preview — Blizzard PlayerFrame / PetFrame layout
+-- Frame hit-indicator preview - Blizzard PlayerFrame / PetFrame layout
 -- Sizes, textures and anchors match FrameXML PlayerFrame.xml / PetFrame.xml
 --------------------------------------------------------------------
 SarychUI.FrameHitPreview = MakeBucket("FrameHitPreview")
@@ -478,7 +484,7 @@ local function MakePlayerPreview(parent)
 	local nameFs = f:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
 	nameFs:SetSize(100, 12)
 	nameFs:SetPoint("CENTER", 50, 19)
-	nameFs:SetText("Игрок")
+	nameFs:SetText(Tr("Игрок"))
 
 	local health = CreateFrame("StatusBar", nil, f)
 	health:SetSize(119, 12)
@@ -531,7 +537,7 @@ local function MakePetPreview(parent)
 
 	local nameFs = f:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
 	nameFs:SetPoint("BOTTOMLEFT", 52, 33)
-	nameFs:SetText("Питомец")
+	nameFs:SetText(Tr("Питомец"))
 
 	local health = CreateFrame("StatusBar", nil, f)
 	health:SetSize(69, 8)
@@ -575,7 +581,7 @@ function HitPreview:Create(parent)
 	self:ClearStickyHosts()
 
 	local host = CreateFrame("Frame", nil, parent)
-	-- Player 100 + pet offset 60 + pet 53 ≈ 160; pad for panel
+	-- Player 100 + pet offset 60 + pet 53 ~= 160; pad for panel
 	host:SetHeight(168)
 	host.spacer = host
 	ApplyPanelBg(host)
@@ -588,7 +594,7 @@ function HitPreview:Create(parent)
 	player:SetPoint("TOPLEFT", stage, "TOPLEFT", 4, -2)
 
 	local pet = MakePetPreview(stage)
-	-- Same relative anchor as PetFrame → PlayerFrame: TOPLEFT 80,-60
+	-- Same relative anchor as PetFrame -> PlayerFrame: TOPLEFT 80,-60
 	pet:SetPoint("TOPLEFT", player, "TOPLEFT", 80, -60)
 
 	host._player = player

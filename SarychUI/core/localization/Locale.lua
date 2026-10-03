@@ -27,29 +27,17 @@ if not SarychUI._lProxyInstalled then
 end
 
 local VALID = {
-	ruRU = true, enUS = true, ptBR = true, esES = true, esMX = true,
-	deDE = true, frFR = true, itIT = true, koKR = true, zhCN = true, zhTW = true,
+	ruRU = true, enUS = true, esES = true,
 }
 
 local DISPLAY_ORDER = {
-	"ruRU", "enUS", "ptBR", "esES", "esMX",
-	"deDE", "frFR", "itIT", "koKR", "zhCN", "zhTW",
+	"ruRU", "enUS", "esES",
 }
 
 local DISPLAY_NAMES = {
-	-- Only Russian keeps a native label; other names are English so accents/CJK
-	-- don't break on Western/RU client fonts (e.g. "Português" → "Portuguкs").
 	ruRU = "Русский",
 	enUS = "English",
-	ptBR = "Portuguese (Brazil)",
-	esES = "Spanish",
-	esMX = "Spanish (Latin America)",
-	deDE = "German",
-	frFR = "French",
-	itIT = "Italian",
-	koKR = "Korean",
-	zhCN = "Chinese (Simplified)",
-	zhTW = "Chinese (Traditional)",
+	esES = "Español",
 }
 
 -- Flag textures for language select (Texture widgets, not |T markup).
@@ -78,17 +66,45 @@ function SarychUI.IsValidUILocale(code)
 	return type(code) == "string" and VALID[code] == true
 end
 
+local function NormalizeLocaleCode(code)
+	if code == "enGB" then
+		return "enUS"
+	end
+	if code == "esMX" then
+		return "esES"
+	end
+	return code
+end
+
+local function LocaleFromSavedTable(db)
+	if type(db) ~= "table" then
+		return nil
+	end
+	local candidates = {
+		db.uiLocale,
+		db.global and db.global.uiLocale,
+		db.global and db.global.general and db.global.general.uiLocale,
+	}
+	for i = 1, #candidates do
+		local saved = NormalizeLocaleCode(candidates[i])
+		if type(saved) == "string" and SarychUI.IsValidUILocale(saved) then
+			return saved
+		end
+	end
+	return nil
+end
+
 -- Read SavedVariables before AceDB init (available when TOC files run).
 function SarychUI.ResolveSavedUILocale()
-	if type(SarychUIDB) == "table" then
-		local g = SarychUIDB.global and SarychUIDB.global.general
-		if g and type(g.uiLocale) == "string" and SarychUI.IsValidUILocale(g.uiLocale) then
-			return g.uiLocale
-		end
+	local saved = LocaleFromSavedTable(SarychUIDB)
+	if saved then
+		return saved
 	end
 	local client = GetLocale and GetLocale() or "enUS"
 	if client == "enGB" then
 		client = "enUS"
+	elseif client == "esMX" then
+		client = "esES"
 	end
 	if SarychUI.IsValidUILocale(client) then
 		return client
@@ -97,34 +113,33 @@ function SarychUI.ResolveSavedUILocale()
 end
 
 function SarychUI:GetUILocale()
-	if self.db and self.db.global and self.db.global.general then
-		local saved = self.db.global.general.uiLocale
-		if type(saved) == "string" and SarychUI.IsValidUILocale(saved) then
-			return saved
-		end
+	local saved = LocaleFromSavedTable(self.db) or LocaleFromSavedTable(SarychUIDB)
+	if saved then
+		return saved
 	end
 	return SarychUI.ResolveSavedUILocale()
 end
 
 function SarychUI:SetUILocale(code)
+	code = NormalizeLocaleCode(code)
 	if not SarychUI.IsValidUILocale(code) then
 		return false
 	end
-	if not self.db then
-		SarychUIDB = SarychUIDB or {}
-		SarychUIDB.global = SarychUIDB.global or {}
-		SarychUIDB.global.general = SarychUIDB.global.general or {}
-		SarychUIDB.global.general.uiLocale = code
-		return true
+	local function writeGlobal(db)
+		if type(db) ~= "table" then
+			return
+		end
+		db.global = db.global or {}
+		db.global.uiLocale = code
+		db.global.general = db.global.general or {}
+		db.global.general.uiLocale = code
 	end
-	self.db.global = self.db.global or {}
-	self.db.global.general = self.db.global.general or {}
-	self.db.global.general.uiLocale = code
-	if type(SarychUIDB) == "table" then
-		SarychUIDB.global = SarychUIDB.global or {}
-		SarychUIDB.global.general = SarychUIDB.global.general or {}
-		SarychUIDB.global.general.uiLocale = code
+	if self.db then
+		writeGlobal(self.db)
 	end
+	SarychUIDB = SarychUIDB or {}
+	SarychUIDB.uiLocale = code
+	writeGlobal(SarychUIDB)
 	return true
 end
 
@@ -153,21 +168,10 @@ function SarychUI:ApplyUILocale(locale)
 			L[k] = v
 		end
 	end
-	-- esMX falls back to esES for missing L keys
-	if locale == "esMX" and self.Locales and self.Locales.esES then
-		for k, v in pairs(self.Locales.esES) do
-			if L[k] == nil or L[k] == (base[k]) then
-				L[k] = v
-			end
-		end
-		for k, v in pairs(pack) do
-			L[k] = v
-		end
-	end
 	self._localePack = L
 	-- Keep SarychUI.L as the stable proxy (installed at Locale.lua load).
 
-	-- Russian source → UI language map (hardcoded option strings)
+	-- Russian source -> UI language map (hardcoded option strings)
 	local map = {}
 	if locale ~= "ruRU" then
 		local enMap = self.UIMaps and self.UIMaps.enUS
@@ -182,57 +186,258 @@ function SarychUI:ApplyUILocale(locale)
 				map[ru] = tr
 			end
 		end
-		if locale == "esMX" and self.UIMaps and type(self.UIMaps.esES) == "table" then
-			for ru, tr in pairs(self.UIMaps.esES) do
-				if map[ru] == nil then
-					map[ru] = tr
-				end
+	end
+	self._uiStringMap = map
+	self._activeUILocale = locale
+	self._tExactCache = nil
+	return locale
+end
+
+local function LookupMapped(map, text)
+	if not map or text == nil or text == "" then
+		return nil
+	end
+	local hit = map[text]
+	if hit then
+		return hit
+	end
+	-- Texture markup prefix: |Tpath:size|t Label
+	local tex, rest = string.match(text, "^(|T.-|[tT]%s*)(.*)$")
+	if rest and rest ~= "" then
+		local tr = LookupMapped(map, rest)
+		if tr then
+			return tex .. tr
+		end
+	end
+	-- Color prefix: |cAARRGGBB...
+	local color, rest2 = string.match(text, "^(|c%x%x%x%x%x%x%x%x)(.*)$")
+	if rest2 and rest2 ~= "" then
+		local tr = LookupMapped(map, rest2)
+		if tr then
+			return color .. tr
+		end
+	end
+	-- Chat wheel labels: "Фраза 1 - текст"
+	local num, tail = string.match(text, "^Фраза (%d+)( %- .+)$")
+	if num then
+		local phrase = map["Фраза " .. num] or ((map["Фраза "] or "Phrase ") .. num)
+		local tailTr = map[tail]
+		if phrase and tailTr then
+			return phrase .. tailTr
+		end
+	end
+	-- CVar / status lines: "Label: 0 -> 1" (single short line only).
+	-- Addon notes contain "Автор:" / "Команды:" and must not be split here.
+	if #text <= 96 and not string.find(text, "\n", 1, true) then
+		local colon = string.find(text, ": ", 1, true)
+		if colon and colon > 1 and colon <= 48 then
+			local left = string.sub(text, 1, colon - 1)
+			local tr = map[left]
+			if tr then
+				return tr .. string.sub(text, colon)
 			end
-			if type(locMap) == "table" then
-				for ru, tr in pairs(locMap) do
-					map[ru] = tr
+		end
+	end
+	-- Prefix-aware: "Пометка:" / "Внимание:" labels (optionally followed by L[] text).
+	local bestTr, bestLen
+	for ru, tr in pairs(map) do
+		local n = #ru
+		if n >= 12 and n <= 64 and n < #text and string.sub(text, 1, n) == ru then
+			if (string.find(ru, "Внимание", 1, true) or string.find(ru, "Пометка", 1, true))
+				and (string.sub(ru, -2) == "|r" or string.sub(ru, -3) == "|r ") then
+				if not bestLen or n > bestLen then
+					bestTr, bestLen = tr, n
 				end
 			end
 		end
 	end
-	self._uiStringMap = map
-	self._activeUILocale = locale
-	return locale
+	if bestTr then
+		return bestTr .. string.sub(text, bestLen + 1)
+	end
+	-- Addon notes: static body + "Автор: Name\nВерсия: 1.0".
+	-- Map keys usually include the trailing "Автор: " prefix.
+	local authorLabel = "Автор: "
+	local authorAt = string.find(text, authorLabel, 1, true)
+	if authorAt and authorAt > 1 then
+		local prefixWithAuthor = string.sub(text, 1, authorAt + #authorLabel - 1)
+		local head = string.sub(text, 1, authorAt - 1)
+		local headCore = string.gsub(head, "\n+$", "")
+		local headTr = map[prefixWithAuthor] or map[head] or map[headCore]
+			or map[headCore .. "\n\nАвтор: "] or map[headCore .. "\nАвтор: "]
+		local tail = string.sub(text, authorAt)
+		if map[prefixWithAuthor] or map[headCore .. "\n\nАвтор: "] or map[headCore .. "\nАвтор: "] then
+			tail = string.sub(text, authorAt + #authorLabel)
+		end
+		tail = string.gsub(tail, "Автор: ", map["Автор: "] or "Author: ", 1)
+		tail = string.gsub(tail, "Версия: ", map["Версия: "] or "Version: ", 1)
+		tail = string.gsub(tail, "Неизвестен", map["Неизвестен"] or "Unknown")
+		tail = string.gsub(tail, "Неизвестна", map["Неизвестна"] or "Unknown")
+		if type(headTr) == "string" then
+			return headTr .. tail
+		end
+		local noteTr, noteLen
+		for ru, tr in pairs(map) do
+			local n = #ru
+			if n >= 40 and n < #text and string.sub(text, 1, n) == ru then
+				if not noteLen or n > noteLen then
+					noteTr, noteLen = tr, n
+				end
+			end
+		end
+		if noteTr then
+			local rest = string.sub(text, noteLen + 1)
+			rest = string.gsub(rest, "Автор: ", map["Автор: "] or "Author: ", 1)
+			rest = string.gsub(rest, "Версия: ", map["Версия: "] or "Version: ", 1)
+			return noteTr .. rest
+		end
+	end
+	local enablePrefix = "Включить/выключить "
+	if #text > #enablePrefix and string.sub(text, 1, #enablePrefix) == enablePrefix then
+		local rest = string.sub(text, #enablePrefix + 1)
+		local prefixTr = map[enablePrefix]
+		if prefixTr then
+			return prefixTr .. (map[rest] or rest)
+		end
+	end
+	local openPrefixes = {
+		"Открыть окно настроек ",
+		"Открыть настройки ",
+	}
+	for i = 1, #openPrefixes do
+		local prefix = openPrefixes[i]
+		if #text > #prefix and string.sub(text, 1, #prefix) == prefix then
+			local prefixTr = map[prefix]
+			if prefixTr then
+				return prefixTr .. string.sub(text, #prefix + 1)
+			end
+		end
+	end
+	-- Long notes / concatenated addon descriptions: longest mapped prefix.
+	if #text >= 60 then
+		local noteTr, noteLen
+		for ru, tr in pairs(map) do
+			local n = #ru
+			if n >= 40 and n < #text and string.sub(text, 1, n) == ru then
+				if not noteLen or n > noteLen then
+					noteTr, noteLen = tr, n
+				end
+			end
+		end
+		if noteTr then
+			local rest = string.sub(text, noteLen + 1)
+			rest = string.gsub(rest, "Автор: ", map["Автор: "] or "Author: ", 1)
+			rest = string.gsub(rest, "Версия: ", map["Версия: "] or "Version: ", 1)
+			return noteTr .. rest
+		end
+	end
+	return nil
 end
 
 -- Translate a hardcoded UI string (usually Russian source) into the active UI language.
-function SarychUI:T(text)
+-- Extra args are string.format replacements applied after lookup (templates with %s / %d).
+function SarychUI:T(text, ...)
 	if type(text) ~= "string" or text == "" then
 		return text
 	end
 	local map = self._uiStringMap
-	if map and map[text] then
-		return map[text]
+	local translated = LookupMapped(map, text)
+	if not translated then
+		local pack = self._localePack
+		if type(pack) == "table" and pack[text] ~= nil then
+			translated = pack[text]
+		else
+			translated = text
+		end
 	end
-	-- Prefix-aware: "Пометка:" / "Внимание:" labels (optionally followed by L[] text).
-	if map then
-		local bestTr, bestLen
-		for ru, tr in pairs(map) do
-			local n = #ru
-			if n >= 12 and n <= 48 and n < #text and text:sub(1, n) == ru then
-				if (ru:find("Внимание", 1, true) or ru:find("Пометка", 1, true))
-					and (ru:sub(-2) == "|r" or ru:sub(-3) == "|r ") then
-					if not bestLen or n > bestLen then
-						bestTr, bestLen = tr, n
-					end
+	if translated == text and map and next(map) then
+		local frags = {
+			"При выключении нужен /reload, чтобы убрать пункт из «Интерфейс -> Модификации».",
+			"Включение - сразу; выключение из списка Модификаций - после /reload.",
+			"Включение - сразу; выключение - после /reload.",
+			"Отключите её в списке аддонов, чтобы использовать встроенную версию SarychUI.",
+			"будет убран из «Интерфейс -> Модификации» после перезагрузки (/reload).",
+			"будет убран из Интерфейс -> Модификации после перезагрузки (/reload).",
+			"настройки недоступны. Проверьте Lua errors.",
+			"обнаружена standalone-версия ",
+			"обнаружена standalone-версия",
+			"Включить/выключить ",
+			"Открыть окно настроек ",
+			"Открыть настройки ",
+			"Автор: ",
+			"Версия: ",
+		}
+		local out = text
+		local changed
+		for i = 1, #frags do
+			local ru = frags[i]
+			local tr = map[ru]
+			if tr then
+				local pos = string.find(out, ru, 1, true)
+				if pos then
+					out = string.sub(out, 1, pos - 1) .. tr .. string.sub(out, pos + #ru)
+					changed = true
 				end
 			end
 		end
-		if bestTr then
-			return bestTr .. text:sub(bestLen + 1)
+		if changed then
+			translated = out
 		end
 	end
-	-- Also allow looking up by English L-key values when pack already switched.
-	local pack = self._localePack
-	if type(pack) == "table" and pack[text] ~= nil then
-		return pack[text]
+	if select("#", ...) > 0 then
+		local ok, formatted = pcall(string.format, translated, ...)
+		if ok then
+			return formatted
+		end
 	end
-	return text
+	return translated
+end
+
+-- Cooltip / desc payloads: string or { {text, r, g, b}, ... }.
+function SarychUI:TLines(value)
+	if type(value) == "string" then
+		return self:T(value)
+	end
+	if type(value) ~= "table" then
+		return value
+	end
+	local out = {}
+	local n = #value
+	if n == 0 then
+		for k, v in pairs(value) do
+			if type(v) == "string" then
+				out[k] = self:T(v)
+			else
+				out[k] = v
+			end
+		end
+		return out
+	end
+	for i = 1, n do
+		local line = value[i]
+		if type(line) == "string" then
+			out[i] = self:T(line)
+		elseif type(line) == "table" then
+			local copy = {}
+			for k, v in pairs(line) do
+				copy[k] = v
+			end
+			if type(copy[1]) == "string" then
+				copy[1] = self:T(copy[1])
+			end
+			if type(copy.text) == "string" then
+				copy.text = self:T(copy.text)
+			end
+			out[i] = copy
+		else
+			out[i] = line
+		end
+	end
+	for k, v in pairs(value) do
+		if type(k) ~= "number" then
+			out[k] = v
+		end
+	end
+	return out
 end
 
 -- Rebuild Ace options trees that baked L["..."] strings at last GetOptions() call.
@@ -256,7 +461,7 @@ function SarychUI:RebuildLocalizedOptions()
 		if self.CustomizeProfileOptions then
 			self:CustomizeProfileOptions(profileOpts)
 		end
-		profileOpts.name = "Профили"
+		profileOpts.name = self:T("Профили")
 		profileOpts.order = 3
 		root.args.general.args.profiles = profileOpts
 	end
@@ -274,5 +479,12 @@ function SarychUI.RegisterUIMap(code, tbl)
 	if not SarychUI.IsValidUILocale(code) or type(tbl) ~= "table" then
 		return
 	end
-	SarychUI.UIMaps[code] = tbl
+	local dest = SarychUI.UIMaps[code]
+	if type(dest) ~= "table" then
+		SarychUI.UIMaps[code] = tbl
+		return
+	end
+	for k, v in pairs(tbl) do
+		dest[k] = v
+	end
 end

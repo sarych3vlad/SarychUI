@@ -89,7 +89,7 @@ function wrapper:SetRuntimeEnabled(enable)
 	else
 		ApplyCursorRuntime(false)
 		if SarychUI and SarychUI.ShowReloadPopup then
-			SarychUI:ShowReloadPopup("|cff1784d1_Cursor|r будет убран из «Интерфейс → Модификации» после перезагрузки (/reload).")
+			SarychUI:ShowReloadPopup("|cff1784d1_Cursor|r будет убран из «Интерфейс -> Модификации» после перезагрузки (/reload).")
 		elseif StaticPopup_Show then
 			StaticPopup_Show("SARYCHUI_RELOAD_UI")
 		end
@@ -164,7 +164,7 @@ end
 function SarychUI_OpenCursorConfig()
 	if not GetRuntimeEnabledFromDB() then
 		if SarychUI and SarychUI.Print then
-			SarychUI:Print("|cffff9900_Cursor:|r сначала включите аддон в |cff1784d1Настройки → Аддоны|r.")
+			SarychUI:Print("|cffff9900_Cursor:|r сначала включите аддон в |cff1784d1Настройки -> Аддоны|r.")
 		end
 		return false
 	end
@@ -200,7 +200,7 @@ function wrapper:GetOptions()
 			enabled = {
 				type = "toggle",
 				name = "Включить",
-				desc = "Включить/выключить _Cursor. При выключении нужен /reload, чтобы убрать пункт из «Интерфейс → Модификации».",
+				desc = "Включить/выключить _Cursor. При выключении нужен /reload, чтобы убрать пункт из «Интерфейс -> Модификации».",
 				order = 1,
 				get = function()
 					return wrapper:IsRuntimeEnabled()
@@ -223,7 +223,7 @@ function wrapper:GetOptions()
 			},
 			description = {
 				type = "description",
-				name = "Добавляет пользовательские эффекты к курсору.\nВключение — сразу; выключение из списка Модификаций — после /reload.\n\nАвтор: "
+				name = "Добавляет пользовательские эффекты к курсору.\nВключение - сразу; выключение из списка Модификаций - после /reload.\n\nАвтор: "
 					.. (wrapper.author or "Saiket")
 					.. "\nВерсия: "
 					.. (wrapper.version or "3.3.0.2"),

@@ -525,6 +525,7 @@ end
 -- Apply action bar backgrounds
 local function ApplyActionBarBackgrounds()
     local hideActionBarBackgrounds = GetSetting('hideActionBarBackgrounds', false)
+    local lortiOn = _G.SarychUI_LortiUI and _G.SarychUI_LortiUI.enabled
     
     local actionBars = {
         "MultiBarBottomLeft", "MultiBarBottomRight", "MultiBarRight", "MultiBarLeft", "MainMenuBar", "BonusActionBarFrame"
@@ -550,6 +551,102 @@ local function ApplyActionBarBackgrounds()
         end
     end
     
+    -- Фон доп. кнопок коллекций и магазина лежит на родителе, не на MainMenuBar.
+    local function SetArtShown(region, shown)
+        if not region or not region.Hide then
+            return
+        end
+        if shown then
+            if region.SetScript then
+                region:SetScript("OnShow", nil)
+            end
+            region:Show()
+        else
+            region:Hide()
+            if region.SetScript then
+                region:SetScript("OnShow", region.Hide)
+            end
+        end
+    end
+
+    local function HideArtRegions(frame, hide)
+        if not frame or not frame.GetNumRegions then
+            return
+        end
+        for i = 1, frame:GetNumRegions() do
+            local region = select(i, frame:GetRegions())
+            if region and region.GetObjectType and region:GetObjectType() == "Texture" then
+                SetArtShown(region, not hide)
+            end
+        end
+    end
+
+    local function SkipBarChild(child)
+        local objType = child.GetObjectType and child:GetObjectType()
+        if objType == "Button" or objType == "CheckButton" or objType == "StatusBar" then
+            return true
+        end
+        local childName = child.GetName and child:GetName() or ""
+        if childName:find("EndCap") or childName:find("Gryphon") or childName:find("Exp")
+            or childName:find("Reputation") or childName:find("Page") or childName:find("Bag")
+            or childName:find("KeyRing") then
+            return true
+        end
+        return false
+    end
+
+    local seenArtParents = {}
+    for _, microName in ipairs({ "CollectionsMicroButton", "StoreMicroButton" }) do
+        local button = _G[microName]
+        local parent = button and button.GetParent and button:GetParent()
+        if parent and not seenArtParents[parent] then
+            seenArtParents[parent] = true
+            HideArtRegions(parent, hideActionBarBackgrounds)
+            if parent.GetChildren then
+                for _, child in ipairs({ parent:GetChildren() }) do
+                    if child ~= button and not SkipBarChild(child) then
+                        local childType = child.GetObjectType and child:GetObjectType()
+                        if childType == "Texture" then
+                            SetArtShown(child, not hideActionBarBackgrounds)
+                        else
+                            HideArtRegions(child, hideActionBarBackgrounds)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Доп. сервер: декоративный MainMenuBarArtFrame не входит в список текстур.
+    -- На обычном клиенте кнопки действий — его дети, поэтому прячем только сам арт.
+    local artFrame = _G.MainMenuBarArtFrame
+    if artFrame then
+        local ownsButtons = false
+        local button = _G.ActionButton1
+        local parent = button and button.GetParent and button:GetParent()
+        while parent do
+            if parent == artFrame then
+                ownsButtons = true
+                break
+            end
+            parent = parent.GetParent and parent:GetParent()
+        end
+
+        if hideActionBarBackgrounds and not ownsButtons then
+            artFrame:Hide()
+            if artFrame.SetScript then
+                artFrame:SetScript("OnShow", artFrame.Hide)
+            end
+        else
+            if artFrame.SetScript then
+                artFrame:SetScript("OnShow", nil)
+            end
+            if not artFrame:IsShown() then
+                artFrame:Show()
+            end
+        end
+    end
+
     -- Обрабатываем отдельные текстуры главной панели
     local mainTextures = {
         MainMenuBarTexture0, MainMenuBarTexture1, MainMenuBarTexture2, MainMenuBarTexture3,
@@ -624,7 +721,7 @@ local function ApplySecondaryPanelsBackgrounds()
                 if normalTexture then
                     if hideSecondaryPanelsBackgrounds then
                         normalTexture:SetTexture(nil)
-                    else
+                    elseif not lortiOn then
                         normalTexture:SetTexture("Interface\\Buttons\\UI-Quickslot2")
                     end
                 end
@@ -682,7 +779,7 @@ local function ApplySecondaryPanelsBackgrounds()
                 if normalTexture then
                     if hideSecondaryPanelsBackgrounds then
                         normalTexture:SetTexture(nil)
-                    else
+                    elseif not lortiOn then
                         normalTexture:SetTexture("Interface\\Buttons\\UI-Quickslot2")
                     end
                 end
@@ -760,6 +857,28 @@ end
 local function ApplyButtonBorderAlpha()
     local buttonBorderAlphaEnabled = GetSetting('buttonBorderAlphaEnabled', false)
     local buttonBorderAlpha = GetSetting('buttonBorderAlpha', 0.4)
+    local toolsDb = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules and SarychUI.db.profile.modules.tools
+    local dark = toolsDb and (toolsDb.enableDarkMode == 1 or toolsDb.enableDarkMode == true) and toolsDb.darkModeColor
+
+    local function Paint(button)
+        if not button then return end
+        local nt = button.GetNormalTexture and button:GetNormalTexture()
+        local pt = button.GetPushedTexture and button:GetPushedTexture()
+        local ht = button.GetHighlightTexture and button:GetHighlightTexture()
+        local ct = button.GetCheckedTexture and button:GetCheckedTexture()
+        local lortiOn = _G.SarychUI_LortiUI and _G.SarychUI_LortiUI.enabled
+        if dark and not lortiOn then
+            if nt then nt:SetVertexColor(dark.r or 0.37, dark.g or 0.37, dark.b or 0.37, dark.a or 1) end
+            if pt then pt:SetVertexColor(dark.r or 0.37, dark.g or 0.37, dark.b or 0.37, dark.a or 1) end
+        end
+        local a = buttonBorderAlphaEnabled and (buttonBorderAlpha or 0.4) or 1
+        if nt then nt:SetAlpha(a) end
+        if not lortiOn then
+            if pt then pt:SetAlpha(a) end
+            if ht then ht:SetAlpha(a) end
+            if ct then ct:SetAlpha(a) end
+        end
+    end
     
     local buttonTypes = {
         "ActionButton", "MultiBarBottomLeftButton", "MultiBarBottomRightButton",
@@ -769,51 +888,17 @@ local function ApplyButtonBorderAlpha()
 
     for i = 1, 12 do
         for _, btnType in ipairs(buttonTypes) do
-            local button = _G[btnType .. i]
-            if button then
-                for _, tex in ipairs({button:GetNormalTexture(), button:GetPushedTexture(), button:GetHighlightTexture()}) do
-                    if tex then 
-                        if buttonBorderAlphaEnabled then
-                            tex:SetAlpha(buttonBorderAlpha)
-                        else
-                            tex:SetAlpha(1.0)
-                        end
-                    end
-                end
-            end
+            Paint(_G[btnType .. i])
         end
     end
+    Paint(_G["MainMenuBarBackpackButton"])
     
-    -- Apply to pet bar buttons
     for i = 1, 10 do
-        local button = _G["PetActionButton" .. i]
-        if button then
-            for _, tex in ipairs({button:GetNormalTexture(), button:GetPushedTexture(), button:GetHighlightTexture()}) do
-                if tex then 
-                    if buttonBorderAlphaEnabled then
-                        tex:SetAlpha(buttonBorderAlpha)
-                    else
-                        tex:SetAlpha(1.0)
-                    end
-                end
-            end
-        end
+        Paint(_G["PetActionButton" .. i])
     end
     
-    -- Apply to possess bar buttons
     for i = 1, POSSESS_SLOTS do
-        local button = _G["PossessButton" .. i]
-        if button then
-            for _, tex in ipairs({button:GetNormalTexture(), button:GetPushedTexture(), button:GetHighlightTexture()}) do
-                if tex then 
-                    if buttonBorderAlphaEnabled then
-                        tex:SetAlpha(buttonBorderAlpha)
-                    else
-                        tex:SetAlpha(1.0)
-                    end
-                end
-            end
-        end
+        Paint(_G["PossessButton" .. i])
     end
 end
 
@@ -894,10 +979,13 @@ local MICRO_MENU_BUTTONS = {
 	{ button = "LFDMicroButton", key = "lfd", classic = "LFG" },
 	{ button = "MainMenuMicroButton", key = "mainmenu", classic = "MainMenu" },
 	{ button = "HelpMicroButton", key = "help", classic = "Help" },
+	{ button = "ParagonMicroButton", key = "achievement", dfOnly = true },
+	{ button = "CollectionsMicroButton", key = "talent", dfOnly = true },
+	{ button = "StoreMicroButton", key = "mainmenu", dfOnly = true },
 }
 
 local CLASSIC_MICRO_HILIGHT = [[Interface\Buttons\UI-MicroButton-Hilight]]
--- pretty_actionbar: button 14x19 + menu scale 1.4 → draw textures at this size.
+-- pretty_actionbar: button 14x19 + menu scale 1.4 -> draw textures at this size.
 local MICRO_DF_TEX_W = 14 * 1.4
 local MICRO_DF_TEX_H = 19 * 1.4
 local microMenuStyleHooksInstalled
@@ -948,7 +1036,7 @@ local function PositionPerformanceBar()
 	end
 end
 
--- Blizzard: green ≤ PERFORMANCEBAR_LOW_LATENCY (300), yellow ≤ MEDIUM (600), else red.
+-- Blizzard: green <= PERFORMANCEBAR_LOW_LATENCY (300), yellow <= MEDIUM (600), else red.
 local function IsLatencyGreen()
 	local _, _, latency = GetNetStats()
 	if type(latency) ~= "number" then
@@ -1022,6 +1110,106 @@ local function ApplyMicroMenuStyle()
 	EnsureMicroMenuStyleHooks()
 	local useDf = GetSetting("microMenuStyle", "dragonflight") == "dragonflight"
 
+	local function SnapshotMicroTex(tex)
+		if not tex or not tex.GetTexture then
+			return nil
+		end
+		return { path = tex:GetTexture(), coords = { tex:GetTexCoord() } }
+	end
+
+	local function RestoreMicroTex(tex, snap, button)
+		if not tex or not snap then
+			return
+		end
+		tex:SetTexture(snap.path)
+		if snap.coords and snap.coords[1] then
+			tex:SetTexCoord(unpack(snap.coords))
+		else
+			tex:SetTexCoord(0, 1, 0, 1)
+		end
+		tex:ClearAllPoints()
+		tex:SetAllPoints(button)
+	end
+
+	local function EachExtraMicroIcon(button, callback)
+		local keep = {}
+		local normalTex = button:GetNormalTexture()
+		local pushedTex = button:GetPushedTexture()
+		local highlightTex = button:GetHighlightTexture()
+		local disabledTex = button:GetDisabledTexture()
+		if normalTex then keep[normalTex] = true end
+		if pushedTex then keep[pushedTex] = true end
+		if highlightTex then keep[highlightTex] = true end
+		if disabledTex then keep[disabledTex] = true end
+
+		if button.GetNumRegions then
+			for i = 1, button:GetNumRegions() do
+				local region = select(i, button:GetRegions())
+				if region and not keep[region] and region.GetObjectType and region:GetObjectType() == "Texture" then
+					callback(region)
+				end
+			end
+		end
+
+		local name = button.GetName and button:GetName()
+		if name then
+			for _, suffix in ipairs({ "Icon", "Texture", "IconTexture", "Portrait" }) do
+				local tex = _G[name .. suffix]
+				if tex and not keep[tex] then
+					callback(tex)
+				end
+			end
+		end
+	end
+
+	local function HideExtraMicroIcons(button)
+		if not button._sarychExtraIcons then
+			local saved = {}
+			EachExtraMicroIcon(button, function(tex)
+				saved[#saved + 1] = {
+					tex = tex,
+					alpha = tex.GetAlpha and tex:GetAlpha() or 1,
+					shown = tex.IsShown and tex:IsShown() and true or false,
+					coords = tex.GetTexCoord and { tex:GetTexCoord() } or nil,
+				}
+			end)
+			button._sarychExtraIcons = saved
+		end
+		for _, info in ipairs(button._sarychExtraIcons) do
+			local tex = info.tex
+			if tex then
+				tex:SetAlpha(0)
+				if tex.SetTexCoord then
+					tex:SetTexCoord(0, 0, 0, 0)
+				end
+				if tex.Hide then
+					tex:Hide()
+				end
+			end
+		end
+	end
+
+	local function ShowExtraMicroIcons(button)
+		local saved = button._sarychExtraIcons
+		if not saved then
+			return
+		end
+		for _, info in ipairs(saved) do
+			local tex = info.tex
+			if tex then
+				if tex.SetAlpha then
+					tex:SetAlpha(info.alpha or 1)
+				end
+				if info.coords and info.coords[1] and tex.SetTexCoord then
+					tex:SetTexCoord(unpack(info.coords))
+				end
+				if info.shown and tex.Show then
+					tex:Show()
+				end
+			end
+		end
+	end
+
 	for _, entry in ipairs(MICRO_MENU_BUTTONS) do
 		local button = _G[entry.button]
 		if button then
@@ -1032,6 +1220,14 @@ local function ApplyMicroMenuStyle()
 			local disabled = button:GetDisabledTexture()
 
 			if useDf and coords then
+				if entry.dfOnly and not button._sarychMicroOrig then
+					button._sarychMicroOrig = {
+						normal = SnapshotMicroTex(normal),
+						pushed = SnapshotMicroTex(pushed),
+						highlight = SnapshotMicroTex(highlight),
+						disabled = SnapshotMicroTex(disabled),
+					}
+				end
 				if not disabled and button.SetDisabledTexture then
 					button:SetDisabledTexture("")
 					disabled = button:GetDisabledTexture()
@@ -1043,6 +1239,18 @@ local function ApplyMicroMenuStyle()
 				if highlight and highlight.SetBlendMode then
 					highlight:SetBlendMode("ADD")
 				end
+				if entry.dfOnly then
+					HideExtraMicroIcons(button)
+				end
+			elseif entry.dfOnly then
+				local snap = button._sarychMicroOrig
+				if snap then
+					RestoreMicroTex(normal, snap.normal, button)
+					RestoreMicroTex(pushed, snap.pushed, button)
+					RestoreMicroTex(disabled, snap.disabled, button)
+					RestoreMicroTex(highlight, snap.highlight, button)
+				end
+				ShowExtraMicroIcons(button)
 			else
 				local base = entry.classic
 				SetMicroTex(normal, ClassicMicroPath(base, "Up"), nil, false, button)
@@ -2371,7 +2579,7 @@ function module:SetupPanelOnUpdate()
         -- Создаем throttled таймер (обновление каждые 0.02 секунды для плавной анимации)
         local updateInterval = 0.02
         module.panelUpdateTimer = AceTimer:ScheduleRepeatingTimer(function()
-            -- Нечего анимировать — выходим до чтения настроек (тик идёт 50 раз/сек).
+            -- Нечего анимировать - выходим до чтения настроек (тик идёт 50 раз/сек).
             if mouseLeaveTimer <= 0 and not isPanelsFading then return end
 
             local hideSidePanels = GetSetting('hideSidePanels', false)
@@ -2410,7 +2618,7 @@ function module:SetupPanelOnUpdate()
     else
         -- Fallback на OnUpdate, если AceTimer недоступен
         module.panelUpdateFrame:SetScript("OnUpdate", function(self, elapsed)
-            -- Нечего анимировать — выходим до чтения настроек.
+            -- Нечего анимировать - выходим до чтения настроек.
             if mouseLeaveTimer <= 0 and not isPanelsFading then return end
 
             local hideSidePanels = GetSetting('hideSidePanels', false)

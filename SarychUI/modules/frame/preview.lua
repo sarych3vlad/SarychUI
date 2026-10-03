@@ -1,4 +1,4 @@
--- SarychUI Combat Indicator — sticky options preview (5 frames + combat icons).
+-- SarychUI Combat Indicator - sticky options preview (5 frames + combat icons).
 
 local CreateFrame = CreateFrame
 local ipairs = ipairs
@@ -8,8 +8,14 @@ local tonumber = tonumber
 
 SarychUI = SarychUI or {}
 
+local function Tr(s)
+	if type(s) ~= "string" or s == "" then return s end
+	if SarychUI.T then return SarychUI:T(s) end
+	return s
+end
+
 -- Compact sticky preview (~half options content height).
--- 2 rows × scaled frames ≈ half the options pane.
+-- 2 rows x scaled frames ~= half the options pane.
 local FRAME_SCALE = 0.85
 local FRAME_W = 232 * FRAME_SCALE -- ~197
 local FRAME_H = 100 * FRAME_SCALE -- ~85
@@ -26,6 +32,7 @@ local KEY_TO_SLOT = {
 	combatIndicatorEliteOffset = "elite",
 	combatIndicatorRogueOffset = "combo",
 	enableCombatIndicator = "all",
+	enableFocusComboPoints = "focusCombo",
 }
 
 local PORTRAITS = {
@@ -100,7 +107,7 @@ end
 
 function Preview:SetActiveKey(key)
 	self._activeKey = key
-	-- Highlight only — do not rebuild sticky host.
+	-- Highlight only - do not rebuild sticky host.
 	if SarychUI and SarychUI.ApplyOptionsPreviewLive then
 		SarychUI.ApplyOptionsPreviewLive(self, key, self._live[key])
 	else
@@ -200,7 +207,7 @@ local function MakePlayer(parent, label, portraitPath)
 	local nameFs = f:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
 	nameFs:SetSize(S(100), S(12))
 	nameFs:SetPoint("CENTER", S(50), S(19))
-	nameFs:SetText(label or "Игрок")
+	nameFs:SetText(label or Tr("Игрок"))
 	nameFs:SetJustifyH("CENTER")
 	nameFs:SetTextColor(1.0, 0.82, 0)
 
@@ -233,7 +240,7 @@ local function MakePlayer(parent, label, portraitPath)
 	return f
 end
 
--- Blizzard ComboFrame.xml: TOPRIGHT of TargetFrame -44,-9; points chain TOP→BOTTOM.
+-- Blizzard ComboFrame.xml: TOPRIGHT of TargetFrame -44,-9; points chain TOP->BOTTOM.
 local function MakeComboPoints(parent)
 	local combo = CreateFrame("Frame", nil, parent)
 	combo:SetSize(S(40), S(90))
@@ -278,7 +285,7 @@ local function MakeComboPoints(parent)
 		highlight:SetTexture("Interface\\ComboFrame\\ComboPoint")
 		highlight:SetTexCoord(0.375, 0.5625, 0, 1)
 
-		-- First 3 filled (active), last 2 empty — like having 3 combo points.
+		-- First 3 filled (active), last 2 empty - like having 3 combo points.
 		if i > 3 then
 			highlight:SetAlpha(0)
 			bg:SetVertexColor(0.45, 0.45, 0.45, 0.85)
@@ -308,7 +315,7 @@ local function MakeTarget(parent, label, portraitPath, opts)
 	local nameFs = f:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
 	nameFs:SetSize(S(100), S(12))
 	nameFs:SetPoint("CENTER", -S(50), S(19))
-	nameFs:SetText(label or "Цель")
+	nameFs:SetText(label or Tr("Цель"))
 	nameFs:SetJustifyH("CENTER")
 	nameFs:SetTextColor(1.0, 0.82, 0)
 
@@ -414,20 +421,20 @@ function Preview:Create(parent)
 	local gapY = 6
 
 	-- Row 1: Player | Target | Focus  (fits half options pane)
-	local player = MakePlayer(stage, "Игрок", PORTRAITS[1])
+	local player = MakePlayer(stage, Tr("Игрок"), PORTRAITS[1])
 	player:SetPoint("TOPLEFT", stage, "TOPLEFT", 2, -2)
 
-	local target = MakeTarget(stage, "Цель", PORTRAITS[6], { hp = 0.7, mana = 0.5 })
+	local target = MakeTarget(stage, Tr("Цель"), PORTRAITS[6], { hp = 0.7, mana = 0.5 })
 	target:SetPoint("TOP", stage, "TOP", 0, -2)
 
-	local focus = MakeTarget(stage, "Фокус", PORTRAITS[5], { hp = 0.55, mana = 0.8 })
+	local focus = MakeTarget(stage, Tr("Фокус"), PORTRAITS[5], { combo = true, hp = 0.55, mana = 0.8 })
 	focus:SetPoint("TOPRIGHT", stage, "TOPRIGHT", -2, -2)
 
 	-- Row 2: Elite | Combo
-	local elite = MakeTarget(stage, "Элита", PORTRAITS[7], { elite = true, hp = 0.9, mana = 0.3 })
+	local elite = MakeTarget(stage, Tr("Элита"), PORTRAITS[7], { elite = true, hp = 0.9, mana = 0.3 })
 	elite:SetPoint("TOPLEFT", player, "BOTTOMLEFT", 0, -gapY)
 
-	local combo = MakeTarget(stage, "Комбо", PORTRAITS[3], { combo = true, hp = 0.4, mana = 0.2 })
+	local combo = MakeTarget(stage, Tr("Комбо"), PORTRAITS[3], { combo = true, hp = 0.4, mana = 0.2 })
 	combo:SetPoint("TOPRIGHT", focus, "BOTTOMRIGHT", 0, -gapY)
 
 	local iconPlayer = MakeCombatIcon(player)
@@ -457,7 +464,7 @@ function Preview:Create(parent)
 		icon:SetSize(s, s)
 		icon:ClearAllPoints()
 		icon:SetPoint("CENTER", anchor, relativePoint or "CENTER", x, y)
-		-- Only combat icons highlight on hover — never the unit frames.
+		-- Only combat icons highlight on hover - never the unit frames.
 		ApplyHighlight(icon, IsActive(slot) or IsActive("all"))
 	end
 
@@ -475,10 +482,11 @@ function Preview:Create(parent)
 		local fY = Num(LiveOr("combatIndicatorFocusY", 0), 0)
 		local eliteOff = Num(LiveOr("combatIndicatorEliteOffset", 30), 30)
 		local rogueOff = Num(LiveOr("combatIndicatorRogueOffset", 10), 10)
+		local focusComboEnabled = LiveFlag("enableFocusComboPoints", false)
 
 		-- Exact module anchors (scaled):
-		--   player: CENTER ← PlayerFrame LEFT (posX-24, posY)
-		--   target/focus: CENTER ← *Portrait* CENTER (posX, posY)
+		--   player: CENTER <- PlayerFrame LEFT (posX-24, posY)
+		--   target/focus: CENTER <- *Portrait* CENTER (posX, posY)
 		--   elite: same as target + eliteOffset
 		--   combo/rogue: same as target + rogueOffset (normal mob)
 		PlaceIcon(iconPlayer, player, "LEFT", SX(pX - 24), SX(pY), size, "player")
@@ -490,6 +498,15 @@ function Preview:Create(parent)
 		local show = enabled and true or false
 		for _, icon in pairs(host._icons) do
 			if show then icon:Show() else icon:Hide() end
+		end
+
+		if focus._combo then
+			if focusComboEnabled then
+				focus._combo:Show()
+				focus._combo:SetAlpha(IsActive("focusCombo") and 1 or (Preview._activeKey and 0.55 or 1))
+			else
+				focus._combo:Hide()
+			end
 		end
 
 		-- Keep unit frames fully visible; only icons dim when another slot is active.
