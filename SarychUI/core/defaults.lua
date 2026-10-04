@@ -529,9 +529,13 @@ SarychUI.defaults = {
 				-- Color indication settings
 				colorCooldownEnabled = true,
 				colorCooldownAlpha = 0.6,
+				colorCooldownColor = { 0.4, 0.4, 0.4, 0.6 },
 				colorManaEnabled = true,
+				colorManaColor = { 0.1, 0.1, 1.0, 1.0 },
 				colorRangeEnabled = true,
+				colorRangeColor = { 0.8, 0.2, 0.2, 1.0 },
 				colorUnusableEnabled = true,
+				colorUnusableColor = { 0.2, 0.2, 0.2, 1.0 },
 				
 				-- Appearance settings
 				hideGryphons = true,
@@ -1132,7 +1136,7 @@ SarychUI.defaults = {
 	
 	-- Global settings (not per character)
 	global = {
-        version = "1.1.0a",
+        version = "1.1.0b",
 		general = {
 			-- Saved size of the config window (matches ElvUI / ElvUI_NamePlates_Standalone defaults).
 			AceGUI = {
@@ -1448,6 +1452,27 @@ local function MigrateProfileDefaults(profile)
 	local mmbDb = profile.modules and profile.modules.mainmenubar
 	local mmbDefaults = SarychUI.defaults.profile.modules.mainmenubar
 	if mmbDb and mmbDefaults then
+		local function EnsureIndicationColor(key, legacyAlpha)
+			local defaults = mmbDefaults[key]
+			local color = mmbDb[key]
+			if type(color) ~= "table" then
+				color = {}
+				mmbDb[key] = color
+			end
+			for i = 1, 4 do
+				if color[i] == nil then
+					if i == 4 and legacyAlpha ~= nil then
+						color[i] = legacyAlpha
+					else
+						color[i] = defaults[i]
+					end
+				end
+			end
+		end
+		EnsureIndicationColor("colorCooldownColor", mmbDb.colorCooldownAlpha)
+		EnsureIndicationColor("colorManaColor")
+		EnsureIndicationColor("colorRangeColor")
+		EnsureIndicationColor("colorUnusableColor")
 		if mmbDb.microMenuStyle == nil then
 			mmbDb.microMenuStyle = mmbDefaults.microMenuStyle
 		end

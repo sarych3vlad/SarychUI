@@ -1066,15 +1066,26 @@ local options = {
 								end
 							end,
 						},
+						sponsors = {
+							type = "description",
+							name = function()
+								if L and L["SarychUI Sponsors"] then
+									return L["SarychUI Sponsors"]
+								end
+								return SarychUI:T("|cFFFFD700Спонсоры:|r bezdomen")
+							end,
+							order = 3,
+							width = "full",
+						},
 						thanks = {
 							type = "description",
 							name = function()
 								if L and L["SarychUI Thanks"] then
 									return L["SarychUI Thanks"]
 								end
-								return SarychUI:T("|cFFFFD700Благодарности:|r Hannahmckay, Dismoral (Евгений), gluconaft, Vuren, rtr_, bezdomen, textenter")
+								return SarychUI:T("|cFFFFD700Благодарности:|r Hannahmckay, Dismoral (Евгений), gluconaft, Vuren, rtr_, bezdomen, textenter, Avdosy")
 							end,
-							order = 3,
+							order = 4,
 							width = "full",
 						},
 					},

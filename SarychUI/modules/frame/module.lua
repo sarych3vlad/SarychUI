@@ -226,7 +226,12 @@ local function PaintNameBackground(tex, unit)
         return
     end
     tex:SetTexture(NAME_BG_DEFAULT)
-    tex:SetVertexColor(UnpackNameBgColor())
+    -- Blizzard recolors this texture from TargetFrame_CheckFaction with a
+    -- three-component SetVertexColor call. Keep the configured opacity on the
+    -- region itself so a faction/target refresh cannot make it opaque again.
+    local r, g, b, a = UnpackNameBgColor()
+    tex:SetVertexColor(r, g, b, 1)
+    tex:SetAlpha(a)
 end
 
 local function SetBorderTexture(tex, path, coords)
@@ -1518,6 +1523,9 @@ function module:EnsurePVPHooks()
     end
 	if _G.FocusFrame_CheckFaction then
 		self:SecureHook("FocusFrame_CheckFaction", reapply)
+    end
+    if _G.TargetFrame_CheckFaction then
+        self:SecureHook("TargetFrame_CheckFaction", reapply)
     end
 end
 

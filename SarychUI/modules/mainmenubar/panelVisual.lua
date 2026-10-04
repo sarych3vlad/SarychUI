@@ -864,20 +864,16 @@ local function ApplyButtonBorderAlpha()
         if not button then return end
         local nt = button.GetNormalTexture and button:GetNormalTexture()
         local pt = button.GetPushedTexture and button:GetPushedTexture()
-        local ht = button.GetHighlightTexture and button:GetHighlightTexture()
-        local ct = button.GetCheckedTexture and button:GetCheckedTexture()
         local lortiOn = _G.SarychUI_LortiUI and _G.SarychUI_LortiUI.enabled
         if dark and not lortiOn then
             if nt then nt:SetVertexColor(dark.r or 0.37, dark.g or 0.37, dark.b or 0.37, dark.a or 1) end
             if pt then pt:SetVertexColor(dark.r or 0.37, dark.g or 0.37, dark.b or 0.37, dark.a or 1) end
         end
         local a = buttonBorderAlphaEnabled and (buttonBorderAlpha or 0.4) or 1
+        -- UI-Quickslot2 (NormalTexture) is the rim around the icon. Pushed,
+        -- highlight and checked textures cover the button interior and must not
+        -- inherit the border opacity.
         if nt then nt:SetAlpha(a) end
-        if not lortiOn then
-            if pt then pt:SetAlpha(a) end
-            if ht then ht:SetAlpha(a) end
-            if ct then ct:SetAlpha(a) end
-        end
     end
     
     local buttonTypes = {
@@ -2273,8 +2269,6 @@ local isPanelsFading = false -- Флаг для отслеживания ани�
 local panelsFadeTimer = 0 -- Таймер для анимации исчезновения панелей
 local MOUSE_LEAVE_DELAY = 0.04 -- Задержка в секундах перед скрытием
 local PANELS_FADE_DURATION = 0.04 -- Время плавного исчезновения панелей
-local lastPanelUpdate = 0 -- Дебаунс для предотвращения избыточных обновлений
-local PANEL_UPDATE_DEBOUNCE = 0.1 -- Дебаунс в секундах для обновлений панелей
 local isFadingOutAfterCombat = false -- Флаг для откладывания операций с панелями при выходе из боя
 
 -- Animation control now handled by SarychUI.CombatAnimations
@@ -2295,13 +2289,9 @@ function module:SetPanelsVisibility(show)
         show = true
     end
     
-    -- Оптимизация: дебаунс для предотвращения избыточных обновлений панелей
-    local currentTime = GetTime()
-    if currentTime - lastPanelUpdate < PANEL_UPDATE_DEBOUNCE and not (isMouseOverPanels or mouseLeaveTimer > 0) then
-        return -- Пропускаем слишком частые обновления, но не при наведении мыши или таймере
-    end
-    lastPanelUpdate = currentTime
-    
+    -- Не подавляем конечное состояние debounce'ом: fade короче 0.1 секунды,
+    -- поэтому такой ранний выход оставлял панели на промежуточной alpha.
+
     -- Оптимизация: откладываем операции с панелями если идет выход из боя
     if isFadingOutAfterCombat then
         C_Timer.After(0.1, function()

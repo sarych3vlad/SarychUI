@@ -50,6 +50,31 @@ local function GetSetting(key, default)
 	return default
 end
 
+local INDICATION_COLOR_DEFAULTS = {
+	colorCooldownColor = { 0.4, 0.4, 0.4, 0.6 },
+	colorManaColor = { 0.1, 0.1, 1.0, 1.0 },
+	colorRangeColor = { 0.8, 0.2, 0.2, 1.0 },
+	colorUnusableColor = { 0.2, 0.2, 0.2, 1.0 },
+}
+
+local function GetIndicationColor(key)
+	local db = GetMMBDB()
+	local color = db and db[key]
+	local defaults = INDICATION_COLOR_DEFAULTS[key]
+	local r = type(color) == "table" and color[1] or nil
+	local g = type(color) == "table" and color[2] or nil
+	local b = type(color) == "table" and color[3] or nil
+	local a = type(color) == "table" and color[4] or nil
+	if r == nil then r = defaults[1] end
+	if g == nil then g = defaults[2] end
+	if b == nil then b = defaults[3] end
+	if a == nil and key == "colorCooldownColor" and db then
+		a = db.colorCooldownAlpha
+	end
+	if a == nil then a = defaults[4] end
+	return r, g, b, a
+end
+
 --------------------------------------------------------------------
 SarychUI.ActionBarTextPreview = SarychUI.ActionBarTextPreview or {}
 local Preview = SarychUI.ActionBarTextPreview
@@ -243,41 +268,41 @@ local function ResetIconNormal(icon)
 end
 
 -- Matches panelColor.lua indication colors.
-local function ApplyCooldownLook(icon, enabled, alpha)
+local function ApplyCooldownLook(icon, enabled, r, g, b, alpha)
 	if enabled then
 		icon:SetDesaturated(true)
-		icon:SetVertexColor(0.4, 0.4, 0.4)
+		icon:SetVertexColor(r, g, b)
 		icon:SetAlpha(alpha or 1)
 	else
 		ResetIconNormal(icon)
 	end
 end
 
-local function ApplyManaLook(icon, enabled)
+local function ApplyManaLook(icon, enabled, r, g, b, alpha)
 	if enabled then
 		icon:SetDesaturated(false)
-		icon:SetVertexColor(0.1, 0.1, 1.0)
-		icon:SetAlpha(1)
+		icon:SetVertexColor(r, g, b)
+		icon:SetAlpha(alpha or 1)
 	else
 		ResetIconNormal(icon)
 	end
 end
 
-local function ApplyRangeLook(icon, enabled)
+local function ApplyRangeLook(icon, enabled, r, g, b, alpha)
 	if enabled then
 		icon:SetDesaturated(false)
-		icon:SetVertexColor(0.8, 0.2, 0.2)
-		icon:SetAlpha(1)
+		icon:SetVertexColor(r, g, b)
+		icon:SetAlpha(alpha or 1)
 	else
 		ResetIconNormal(icon)
 	end
 end
 
-local function ApplyUnusableLook(icon, enabled)
+local function ApplyUnusableLook(icon, enabled, r, g, b, alpha)
 	if enabled then
 		icon:SetDesaturated(false)
-		icon:SetVertexColor(0.2, 0.2, 0.2)
-		icon:SetAlpha(1)
+		icon:SetVertexColor(r, g, b)
+		icon:SetAlpha(alpha or 1)
 	else
 		ResetIconNormal(icon)
 	end
@@ -313,15 +338,18 @@ function ColorPreview:Create(parent)
 
 	local function Layout()
 		local cdOn = GetSetting("colorCooldownEnabled", false)
-		local cdAlpha = GetSetting("colorCooldownAlpha", 1) or 1
 		local manaOn = GetSetting("colorManaEnabled", false)
 		local rangeOn = GetSetting("colorRangeEnabled", false)
 		local unusableOn = GetSetting("colorUnusableEnabled", false)
+		local cdR, cdG, cdB, cdA = GetIndicationColor("colorCooldownColor")
+		local manaR, manaG, manaB, manaA = GetIndicationColor("colorManaColor")
+		local rangeR, rangeG, rangeB, rangeA = GetIndicationColor("colorRangeColor")
+		local unusableR, unusableG, unusableB, unusableA = GetIndicationColor("colorUnusableColor")
 
-		ApplyCooldownLook(buttons[1]._icon, cdOn, cdAlpha)
-		ApplyManaLook(buttons[2]._icon, manaOn)
-		ApplyRangeLook(buttons[3]._icon, rangeOn)
-		ApplyUnusableLook(buttons[4]._icon, unusableOn)
+		ApplyCooldownLook(buttons[1]._icon, cdOn, cdR, cdG, cdB, cdA)
+		ApplyManaLook(buttons[2]._icon, manaOn, manaR, manaG, manaB, manaA)
+		ApplyRangeLook(buttons[3]._icon, rangeOn, rangeR, rangeG, rangeB, rangeA)
+		ApplyUnusableLook(buttons[4]._icon, unusableOn, unusableR, unusableG, unusableB, unusableA)
 	end
 
 	host.Refresh = Layout

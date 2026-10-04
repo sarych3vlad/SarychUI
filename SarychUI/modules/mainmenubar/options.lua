@@ -12,6 +12,47 @@ local function NotifyOptionsChange()
 	end
 end
 
+local INDICATION_COLOR_DEFAULTS = {
+    colorCooldownColor = { 0.4, 0.4, 0.4, 0.6 },
+    colorManaColor = { 0.1, 0.1, 1.0, 1.0 },
+    colorRangeColor = { 0.8, 0.2, 0.2, 1.0 },
+    colorUnusableColor = { 0.2, 0.2, 0.2, 1.0 },
+}
+
+local function GetIndicationColor(key)
+    local db = SarychUI.db.profile.modules.mainmenubar
+    local color = db[key]
+    local defaults = INDICATION_COLOR_DEFAULTS[key]
+    local r = type(color) == "table" and color[1] or nil
+    local g = type(color) == "table" and color[2] or nil
+    local b = type(color) == "table" and color[3] or nil
+    local a = type(color) == "table" and color[4] or nil
+    if r == nil then r = defaults[1] end
+    if g == nil then g = defaults[2] end
+    if b == nil then b = defaults[3] end
+    if a == nil and key == "colorCooldownColor" then
+        a = db.colorCooldownAlpha
+    end
+    if a == nil then a = defaults[4] end
+    return r, g, b, a
+end
+
+local function SetIndicationColor(key, r, g, b, a)
+    local db = SarychUI.db.profile.modules.mainmenubar
+    db[key] = { r, g, b, a }
+    -- Keep the retired standalone cooldown-alpha value synchronized for old
+    -- profiles and external consumers that may still read it.
+    if key == "colorCooldownColor" then
+        db.colorCooldownAlpha = a
+    end
+    if SarychUI.modules and SarychUI.modules.mainmenubar then
+        SarychUI.modules.mainmenubar:UpdateColorIndication()
+    end
+    if SarychUI.ActionBarColorPreview and SarychUI.ActionBarColorPreview.RefreshAll then
+        SarychUI.ActionBarColorPreview:RefreshAll()
+    end
+end
+
 -- Get options table for this module
 local function GetOptions()
     return {
@@ -268,28 +309,20 @@ local function GetOptions()
                                         NotifyOptionsChange()
                                     end,
                                 },
-                                color_cooldown_alpha = {
-                                    type = "range",
-                                    name = L["Color_Cooldown_Alpha"],
-                                    desc = L["Color_Cooldown_Alpha_Desc"],
+                                color_cooldown_color = {
+                                    type = "color",
+                                    name = L["Color_Indication_Color"] or "Цвет и интенсивность",
+                                    desc = L["Color_Indication_Color_Desc"] or "Выберите цвет; альфа регулирует интенсивность эффекта.",
+                                    hasAlpha = true,
                                     order = 2,
-                                    min = 0,
-                                    max = 1,
-                                    step = 0.1,
                                     disabled = function()
                                         return not SarychUI.db.profile.modules.mainmenubar.colorCooldownEnabled
                                     end,
-                                    get = function(info)
-                                        return SarychUI.db.profile.modules.mainmenubar.colorCooldownAlpha
+                                    get = function()
+                                        return GetIndicationColor("colorCooldownColor")
                                     end,
-                                    set = function(info, value)
-                                        SarychUI.db.profile.modules.mainmenubar.colorCooldownAlpha = value
-                                        if SarychUI.modules and SarychUI.modules.mainmenubar then
-                                            SarychUI.modules.mainmenubar:UpdateColorIndication()
-                                        end
-                                        if SarychUI.ActionBarColorPreview and SarychUI.ActionBarColorPreview.RefreshAll then
-                                            SarychUI.ActionBarColorPreview:RefreshAll()
-                                        end
+                                    set = function(_, r, g, b, a)
+                                        SetIndicationColor("colorCooldownColor", r, g, b, a)
                                     end,
                                 },
                             },
@@ -318,6 +351,23 @@ local function GetOptions()
                                         if SarychUI.ActionBarColorPreview and SarychUI.ActionBarColorPreview.RefreshAll then
                                             SarychUI.ActionBarColorPreview:RefreshAll()
                                         end
+                                        NotifyOptionsChange()
+                                    end,
+                                },
+                                color_mana_color = {
+                                    type = "color",
+                                    name = L["Color_Indication_Color"] or "Цвет и интенсивность",
+                                    desc = L["Color_Indication_Color_Desc"] or "Выберите цвет; альфа регулирует интенсивность эффекта.",
+                                    hasAlpha = true,
+                                    order = 2,
+                                    disabled = function()
+                                        return not SarychUI.db.profile.modules.mainmenubar.colorManaEnabled
+                                    end,
+                                    get = function()
+                                        return GetIndicationColor("colorManaColor")
+                                    end,
+                                    set = function(_, r, g, b, a)
+                                        SetIndicationColor("colorManaColor", r, g, b, a)
                                     end,
                                 },
                             },
@@ -346,6 +396,23 @@ local function GetOptions()
                                         if SarychUI.ActionBarColorPreview and SarychUI.ActionBarColorPreview.RefreshAll then
                                             SarychUI.ActionBarColorPreview:RefreshAll()
                                         end
+                                        NotifyOptionsChange()
+                                    end,
+                                },
+                                color_range_color = {
+                                    type = "color",
+                                    name = L["Color_Indication_Color"] or "Цвет и интенсивность",
+                                    desc = L["Color_Indication_Color_Desc"] or "Выберите цвет; альфа регулирует интенсивность эффекта.",
+                                    hasAlpha = true,
+                                    order = 2,
+                                    disabled = function()
+                                        return not SarychUI.db.profile.modules.mainmenubar.colorRangeEnabled
+                                    end,
+                                    get = function()
+                                        return GetIndicationColor("colorRangeColor")
+                                    end,
+                                    set = function(_, r, g, b, a)
+                                        SetIndicationColor("colorRangeColor", r, g, b, a)
                                     end,
                                 },
                             },
@@ -374,6 +441,23 @@ local function GetOptions()
                                         if SarychUI.ActionBarColorPreview and SarychUI.ActionBarColorPreview.RefreshAll then
                                             SarychUI.ActionBarColorPreview:RefreshAll()
                                         end
+                                        NotifyOptionsChange()
+                                    end,
+                                },
+                                color_unusable_color = {
+                                    type = "color",
+                                    name = L["Color_Indication_Color"] or "Цвет и интенсивность",
+                                    desc = L["Color_Indication_Color_Desc"] or "Выберите цвет; альфа регулирует интенсивность эффекта.",
+                                    hasAlpha = true,
+                                    order = 2,
+                                    disabled = function()
+                                        return not SarychUI.db.profile.modules.mainmenubar.colorUnusableEnabled
+                                    end,
+                                    get = function()
+                                        return GetIndicationColor("colorUnusableColor")
+                                    end,
+                                    set = function(_, r, g, b, a)
+                                        SetIndicationColor("colorUnusableColor", r, g, b, a)
                                     end,
                                 },
                             },

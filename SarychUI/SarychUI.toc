@@ -3,7 +3,7 @@
 ## Notes: Complete UI for WotLK 3.3.5
 ## Notes-ruRU: Комплексный интерфейс для WotLK 3.3.5
 ## Author: Сарыч
-## Version: 1.1.0a
+## Version: 1.1.0b
 ## SavedVariables: SarychUIDB, CompactRaidFrameDB, EnhancedRaidFramesDB, OmniCDDB, InternalCooldownsDB, BagnonForeverDB, BigDebuffsDB, OmniBarDB, LootClickerDB, LootHistoryDB, MapsterDB, SarychUIElvNamePlatesDB, SarychUIElvNamePlatesPrivateDB, SarychUIElvBagsDB, SarychUIElvBagsPrivateDB, GladiusExDB, EquipenceDB, TrufiGCDGlSave, Postal3DB, AUCTIONATOR_SAVEDVARS, AUCTIONATOR_PRICING_HISTORY, AUCTIONATOR_SHOPPING_LISTS, AUCTIONATOR_PRICE_DATABASE, AUCTIONATOR_MEAN_PRICE_DATABASE, AUCTIONATOR_LAST_SCAN_TIME, AUCTIONATOR_TOONS, AUCTIONATOR_STACKING_PREFS, AUCTIONATOR_SCAN_MINLEVEL, _CursorOptions, InspectEquipConfig, RaidRoll_DB, RaidRoll_DBPC, TalentedDB
 ## SavedVariablesPerCharacter: TrufiGCDChSave, AUCTIONATOR_SHOW_ST_PRICE, AUCTIONATOR_ENABLE_ALT, AUCTIONATOR_OPEN_FIRST, AUCTIONATOR_OPEN_BUY, AUCTIONATOR_OPEN_ALL_BAGS, AUCTIONATOR_DEF_DURATION, AUCTIONATOR_SHOW_TIPS, AUCTIONATOR_V_TIPS, AUCTIONATOR_A_TIPS, AUCTIONATOR_D_TIPS, AUCTIONATOR_SHIFT_TIPS, AUCTIONATOR_DE_DETAILS_TIPS, AUCTIONATOR_DEFTAB, AUCTIONATOR_CHARACTER_RECENTS, _CursorOptionsCharacter, BASpammerDB, BaudBag_Cfg, BaudBag_Cache, RR_Accept_All_Rolls, RR_Track_Unannounced_Rolls, RR_Roll_Tracking_Enabled, RR_AllowExtraRolls, RR_Show_Ranks, RR_RankPriority, RR_ExtraWidth, RR_ShowGroupNumber, RR_RollFrameHeight
 

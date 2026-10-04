@@ -26,6 +26,30 @@ local updateTimerByButton = setmetatable({}, { __mode = "k" })
 local iconByButton = setmetatable({}, { __mode = "k" })
 local colorStateByButton = setmetatable({}, { __mode = "k" })
 
+local INDICATION_COLOR_DEFAULTS = {
+    colorCooldownColor = { 0.4, 0.4, 0.4, 0.6 },
+    colorManaColor = { 0.1, 0.1, 1.0, 1.0 },
+    colorRangeColor = { 0.8, 0.2, 0.2, 1.0 },
+    colorUnusableColor = { 0.2, 0.2, 0.2, 1.0 },
+}
+
+local function GetIndicationColor(db, key)
+    local color = db and db[key]
+    local defaults = INDICATION_COLOR_DEFAULTS[key]
+    local r = type(color) == "table" and color[1] or nil
+    local g = type(color) == "table" and color[2] or nil
+    local b = type(color) == "table" and color[3] or nil
+    local a = type(color) == "table" and color[4] or nil
+    if r == nil then r = defaults[1] end
+    if g == nil then g = defaults[2] end
+    if b == nil then b = defaults[3] end
+    if a == nil and key == "colorCooldownColor" and db then
+        a = db.colorCooldownAlpha
+    end
+    if a == nil then a = defaults[4] end
+    return r, g, b, a
+end
+
 -- Initialize color system
 function module:InitializeColorSystem()
     -- Hooks are permanent; re-running Initialize must not stack another copy.
@@ -103,22 +127,25 @@ function module:UpdateButtonColorIndication(button, force)
     local desat, r, g, b, alpha
 
     if duration > 1.51 and colorCooldownEnabled then
-        -- Black and white plus reduced brightness while on a real cooldown.
-        desat, r, g, b, alpha = true, 0.4, 0.4, 0.4, currentDb.colorCooldownAlpha
+        desat = true
+        r, g, b, alpha = GetIndicationColor(currentDb, "colorCooldownColor")
     elseif duration > 1.51 and not colorCooldownEnabled then
         desat, r, g, b, alpha = false, 1.0, 1.0, 1.0, 1.0
     elseif notEnoughMana and colorManaEnabled then
-        desat, r, g, b, alpha = false, 0.1, 0.1, 1.0, 1.0
+        desat = false
+        r, g, b, alpha = GetIndicationColor(currentDb, "colorManaColor")
     elseif notEnoughMana and not colorManaEnabled then
         desat, r, g, b, alpha = false, 0.5, 0.5, 1.0, 1.0
     elseif isUsable then
         if (inRange == false or inRange == 0) and colorRangeEnabled then
-            desat, r, g, b, alpha = false, 0.8, 0.2, 0.2, 1.0
+            desat = false
+            r, g, b, alpha = GetIndicationColor(currentDb, "colorRangeColor")
         else
             desat, r, g, b, alpha = false, 1.0, 1.0, 1.0, 1.0
         end
     elseif colorUnusableEnabled then
-        desat, r, g, b, alpha = false, 0.2, 0.2, 0.2, 1.0
+        desat = false
+        r, g, b, alpha = GetIndicationColor(currentDb, "colorUnusableColor")
     else
         desat, r, g, b, alpha = false, 0.4, 0.4, 0.4, 1.0
     end
