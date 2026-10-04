@@ -27,6 +27,7 @@ local GetContainerNumFreeSlots = GetContainerNumFreeSlots
 local Blizzard_GetContainerNumSlots = GetContainerNumSlots
 local GetCurrentGuildBankTab = GetCurrentGuildBankTab
 local ContainerIDToInventoryID = ContainerIDToInventoryID
+local GetInventorySlotInfo = GetInventorySlotInfo
 local GetInventoryItemLink = GetInventoryItemLink
 local GetInventoryItemID = GetInventoryItemID
 local GetItemCount = GetItemCount
@@ -36,6 +37,7 @@ local GetGuildBankItemLink = GetGuildBankItemLink
 local GetGuildBankTabInfo = GetGuildBankTabInfo
 local GetItemInfo = GetItemInfo
 local GetItemQualityColor = GetItemQualityColor
+local GetBankSlotCost = GetBankSlotCost
 local GetMoney = GetMoney
 local GetNumBankSlots = GetNumBankSlots
 local GetKeyRingSize = GetKeyRingSize
@@ -150,15 +152,78 @@ function B:HasCachedBankBag(bagID)
 end
 
 function B:GetOfflineNumBankSlots()
-	-- Offline "Toggle Bags" should list only bags that actually exist in cache,
-	-- not empty purchased bank slots (those looked like phantom bags).
-	local n = 0
+	-- Preserve purchased-but-empty bank slots. They are valid drop targets at
+	-- the banker and must not disappear merely because no bag is equipped.
+	local cache = B:GetBankCache()
+	local purchased = cache and tonumber(cache.numSlots)
+	if purchased then
+		purchased = floor(purchased)
+		if purchased < 0 then purchased = 0 end
+		if purchased > NUM_BANKBAGSLOTS then purchased = NUM_BANKBAGSLOTS end
+		return purchased
+	end
+
+	-- Compatibility with snapshots written before numSlots was cached: keep
+	-- every position up to the highest cached bag instead of compacting holes.
+	local highest = 0
 	for bagID = 5, 11 do
 		if B:HasCachedBankBag(bagID) then
-			n = n + 1
+			highest = bagID - 4
 		end
 	end
-	return n
+	return highest
+end
+
+local function GetBankBagSlotTexture(bagID, bagLink)
+	if bagLink then
+		local texture = (GetItemIcon and GetItemIcon(bagLink)) or select(10, GetItemInfo(bagLink))
+		if texture then return texture end
+	end
+	if GetInventorySlotInfo and type(bagID) == "number" then
+		local _, texture = GetInventorySlotInfo("Bag"..(bagID - 4))
+		if texture then return texture end
+	end
+	return "Interface\\PaperDoll\\UI-PaperDoll-Slot-Bag"
+end
+
+function B:ShowBankSlotPurchasePopup()
+	if not B.bankIsOpen then return end
+	local purchased, full = GetNumBankSlots()
+	if full then return end
+	local cost = GetBankSlotCost and GetBankSlotCost(purchased or 0)
+	if BankFrame and cost then
+		BankFrame.nextSlotCost = cost
+	end
+	E:StaticPopup_Show("CONFIRM_BUY_BANK_SLOT")
+end
+
+function B:PutItemInBankBagSlot(holder)
+	if not holder or not B.bankIsOpen then return end
+	local bagID = holder.id or holder:GetID()
+	local purchased = GetNumBankSlots() or 0
+	if not bagID or bagID < 5 then return end
+	if bagID - 4 > purchased then
+		B:ShowBankSlotPurchasePopup()
+		return
+	end
+	local inventoryID = holder:GetInventorySlot()
+	if inventoryID then
+		PutItemInBag(inventoryID)
+	end
+end
+
+function B:ShowOfflineBankBagTooltip(holder)
+	if not holder or B.bankIsOpen then return end
+	local bagID = holder.id or holder:GetID()
+	local cached = bagID and B:GetCachedBankBag(bagID)
+	GameTooltip:SetOwner(holder, "ANCHOR_LEFT")
+	GameTooltip:ClearLines()
+	if cached and cached.BagLink and pcall(GameTooltip.SetHyperlink, GameTooltip, cached.BagLink) then
+		GameTooltip:Show()
+		return
+	end
+	GameTooltip:SetText(BANK_BAG or ((GetLocale and GetLocale() == "ruRU") and "Сумка банка" or "Bank Bag"), 1, 1, 1)
+	GameTooltip:Show()
 end
 
 function B:UpdateBankInteractionButtons()
@@ -172,12 +237,20 @@ function B:UpdateBankInteractionButtons()
 			f.sortButton:Enable()
 		end
 	end
-	-- Purchase Bags / vendor grays are not used on the bank toolbar.
-	if f.purchaseBagButton then
-		f.purchaseBagButton:Hide()
-	end
+    -- Bank slots can only be purchased during a live bank session.
+    if f.purchaseBagButton then
+        local _, full = GetNumBankSlots()
+        if offline or full then
+            f.purchaseBagButton:Hide()
+        else
+            f.purchaseBagButton:Show()
+        end
+    end
 	if f.vendorGraysButton then
 		f.vendorGraysButton:Hide()
+	end
+	if E.embeddedInSarychUI and B.LayoutSarychUIBagChrome then
+		B:LayoutSarychUIBagChrome(f)
 	end
 end
 
@@ -2579,7 +2652,8 @@ function B:LayoutSarychUIBagChrome(f)
 	placeRight(f.keyButton)
 	placeRight(f.bagsButton)
 	placeRight(f.bankButton)
-	-- Coin actions stay on bags only; bank toolbar does not need Purchase Bags / Vendor Grays.
+	-- Bank keeps its purchase action while at a banker; inventory-only actions
+	-- remain hidden there.
 	if not f.isBank then
 		if f.vendorGraysButton then
 			f.vendorGraysButton:Show()
@@ -2602,7 +2676,13 @@ function B:LayoutSarychUIBagChrome(f)
 			f.sectionSplitButton:Hide()
 		end
 		if f.purchaseBagButton then
-			f.purchaseBagButton:Hide()
+			local _, full = GetNumBankSlots()
+			if B.bankIsOpen and not full then
+				f.purchaseBagButton:Show()
+				placeRight(f.purchaseBagButton)
+			else
+				f.purchaseBagButton:Hide()
+			end
 		end
 	end
 
@@ -3796,6 +3876,51 @@ function B:UpdateAllBagSlots()
 	end
 end
 
+function B:UpdateOfflineBankSlotInteraction(slot, enabled)
+	if not slot then return end
+
+	local hitbox = slot._suiOfflineBankHitbox
+	if enabled and slot.cachedLink then
+		if not hitbox then
+			hitbox = CreateFrame("Frame", nil, slot)
+			hitbox:SetAllPoints(slot)
+			hitbox:EnableMouse(true)
+			hitbox:SetScript("OnEnter", function(self)
+				local owner = self:GetParent()
+				local link = owner and owner.cachedLink
+				if not link or B.bankIsOpen then return end
+				if owner.LockHighlight then owner:LockHighlight() end
+				GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+				GameTooltip:ClearLines()
+				if pcall(GameTooltip.SetHyperlink, GameTooltip, link) then
+					GameTooltip:Show()
+				else
+					GameTooltip_Hide()
+				end
+			end)
+			hitbox:SetScript("OnLeave", function(self)
+				local owner = self:GetParent()
+				if owner and owner.UnlockHighlight then owner:UnlockHighlight() end
+				if GameTooltip:GetOwner() == self then
+					GameTooltip_Hide()
+				end
+			end)
+			slot._suiOfflineBankHitbox = hitbox
+		end
+
+		hitbox:SetFrameLevel(slot:GetFrameLevel() + 5)
+		hitbox:Show()
+	else
+		if hitbox then
+			if GameTooltip:GetOwner() == hitbox then
+				GameTooltip_Hide()
+			end
+			hitbox:Hide()
+		end
+		if slot.UnlockHighlight then slot:UnlockHighlight() end
+	end
+end
+
 function B:UpdateSlot(frame, bagID, slotID)
 	if not (frame and frame.Bags) then return end
 	if (frame.Bags[bagID] and frame.Bags[bagID].numSlots ~= GetContainerNumSlots(bagID)) or not frame.Bags[bagID] or not frame.Bags[bagID][slotID] then return end
@@ -3834,11 +3959,13 @@ function B:UpdateSlot(frame, bagID, slotID)
 	B:EnsureSlotLayers(slot)
 
 	slot:Show()
-	-- Offline bank is view-only: disable mouse so Blizzard OnClick stays untainted.
+	-- Keep the secure Blizzard item button inert in offline mode, but place an
+	-- independent hover-only hitbox above it so cached item tooltips still work.
+	local offlineBank = E.embeddedInSarychUI and frame.isBank and not B.bankIsOpen and B:IsBankBagID(bagID)
 	if slot.EnableMouse then
-		local offlineBank = E.embeddedInSarychUI and frame.isBank and not B.bankIsOpen and B:IsBankBagID(bagID)
 		slot:EnableMouse(not offlineBank)
 	end
+	B:UpdateOfflineBankSlotInteraction(slot, offlineBank)
 	slot.questIcon:Hide()
 	slot.JunkIcon:Hide()
 	slot.itemLevel:SetText("")
@@ -4569,10 +4696,12 @@ function B:Layout(isBank, inventorySignature, categoryOnly)
 				-- Main bank (like backpack): always listed so hover can highlight its slots.
 				showBankBagButton = true
 			elseif offlineBank then
-				-- Per-slot cache check (not "first N purchased") so missing bags stay hidden.
-				showBankBagButton = B:HasCachedBankBag(bagID)
+				-- Keep purchased-but-empty slots visible in the cached view.
+				showBankBagButton = (i - 1) <= numContainerSlots
 			else
-				showBankBagButton = numContainerSlots >= 1 and (i - 1 <= numContainerSlots)
+				-- Match Blizzard/BaudBag: draw every bank-bag position. Locked
+				-- positions are tinted below; purchased empty ones accept bags.
+				showBankBagButton = true
 			end
 		end
 		if (not isBank) or showBankBagButton then
@@ -4590,9 +4719,13 @@ function B:Layout(isBank, inventorySignature, categoryOnly)
 					else
 						f.ContainerHolder[i] = CreateFrame("CheckButton", "ElvUIBankBag"..bagID - 4, f.ContainerHolder, "BankItemButtonBagTemplate")
 						f.ContainerHolder[i]:SetScript("OnClick", function(holder)
-							if E.embeddedInSarychUI and not B.bankIsOpen then return end
-							local inventoryID = holder:GetInventorySlot()
-							PutItemInBag(inventoryID)
+							B:PutItemInBankBagSlot(holder)
+						end)
+						f.ContainerHolder[i]:SetScript("OnReceiveDrag", function(holder)
+							B:PutItemInBankBagSlot(holder)
+						end)
+						f.ContainerHolder[i]:HookScript("OnEnter", function(holder)
+							B:ShowOfflineBankBagTooltip(holder)
 						end)
 					end
 				else
@@ -4661,21 +4794,31 @@ function B:Layout(isBank, inventorySignature, categoryOnly)
 					icon:SetTexture("Interface\\Icons\\INV_Box_02")
 				end
 			elseif isBank and not offlineBank then
-				BankFrameItemButton_Update(f.ContainerHolder[i])
-				BankFrameItemButton_UpdateLocked(f.ContainerHolder[i])
+				local holder = f.ContainerHolder[i]
+				local purchased = (bagID - 4) <= numContainerSlots
+				BankFrameItemButton_Update(holder)
+				BankFrameItemButton_UpdateLocked(holder)
+				holder.tooltipText = purchased and BANK_BAG or BANK_BAG_PURCHASE
+				local inventoryID = holder:GetInventorySlot()
+				local bagLink = inventoryID and GetInventoryItemLink("player", inventoryID)
+				if not bagLink and holder.iconTexture then
+					holder.iconTexture:SetTexture(GetBankBagSlotTexture(bagID))
+					holder.iconTexture:Show()
+				end
+				if purchased then
+					SetItemButtonTextureVertexColor(holder, 1, 1, 1)
+				else
+					SetItemButtonTextureVertexColor(holder, 1, 0.1, 0.1)
+				end
 			elseif isBank and offlineBank and f.ContainerHolder[i] then
 				local cached = B:GetCachedBankBag(bagID)
 				local icon = f.ContainerHolder[i].iconTexture
 				if icon then
-					local tex
-					if cached and cached.BagLink then
-						tex = (GetItemIcon and GetItemIcon(cached.BagLink)) or select(10, GetItemInfo(cached.BagLink))
-					end
-					if not tex and (cached and (cached.Size or 0) > 0) then
-						tex = "Interface\\Icons\\INV_Misc_Bag_08"
-					end
-					icon:SetTexture(tex or "")
+					icon:SetTexture(GetBankBagSlotTexture(bagID, cached and cached.BagLink))
+					icon:Show()
 				end
+				f.ContainerHolder[i].tooltipText = BANK_BAG
+				SetItemButtonTextureVertexColor(f.ContainerHolder[i], 1, 1, 1)
 			end
 
 			f.ContainerHolder[i]:Show()
@@ -5491,10 +5634,14 @@ function B:ContructContainerFrame(name, isBank)
 		f.bagsButton:SetScript("OnEnter", B.Tooltip_Show)
 		f.bagsButton:SetScript("OnLeave", GameTooltip_Hide)
 		f.bagsButton:SetScript("OnClick", function()
-			local numSlots = GetNumBankSlots()
+			local numSlots
 			if E.embeddedInSarychUI and not B.bankIsOpen then
 				-- Offline strip always has main bank (+ any cached bags).
 				numSlots = B:GetOfflineNumBankSlots() + 1
+			else
+				-- At a banker all bank-bag positions are useful: purchased empty
+				-- slots accept bags and locked slots expose the purchase flow.
+				numSlots = NUM_BANKBAGSLOTS + 1
 			end
 			PlaySound("igMainMenuOption")
 			if numSlots >= 1 then
@@ -5515,12 +5662,7 @@ function B:ContructContainerFrame(name, isBank)
 		f.purchaseBagButton:SetScript("OnEnter", B.Tooltip_Show)
 		f.purchaseBagButton:SetScript("OnLeave", GameTooltip_Hide)
 		f.purchaseBagButton:SetScript("OnClick", function()
-			local _, full = GetNumBankSlots()
-			if full then
-				E:StaticPopup_Show("CANNOT_BUY_BANK_SLOT")
-			else
-				E:StaticPopup_Show("BUY_BANK_SLOT")
-			end
+			B:ShowBankSlotPurchasePopup()
 		end)
 
 		f:SetScript("OnShow", function()
@@ -6085,6 +6227,7 @@ function B:PLAYERBANKBAGSLOTS_CHANGED()
 	if B.bankIsOpen then
 		B:CacheBankContents()
 	end
+	B:UpdateBankInteractionButtons()
 end
 
 function B:GUILDBANKBAGSLOTS_CHANGED()

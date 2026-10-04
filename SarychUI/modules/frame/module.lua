@@ -268,6 +268,15 @@ local function want_visible(s)
     return s.alt or s.hover or s.combat
 end
 
+-- SUI should only own Blizzard's HP/MP text while at least one of its
+-- additional visibility modes is enabled. Otherwise the TextStatusBar
+-- template (and its playerStatusText/targetStatusText CVars) must remain the
+-- sole source of truth.
+local function IsBarTextControlEnabled()
+    return SettingOn("showOnAlt", 1)
+        or GetSetting("showTextIndicatorsInCombat", false) == true
+end
+
 -- Универсальная функция анимации альфы
 local function AnimateAlpha(frame, duration, fromA, toA)
     if not frame or not frame.SetAlpha then return end
@@ -296,6 +305,7 @@ end
 
 local function apply(bar, useAnimation)
     if not bar then return end
+    if not IsBarTextControlEnabled() then return end
     local s = st[bar]
     if not s then
         s = {alt=false, hover=false, combat=false, shown=false}
@@ -383,6 +393,7 @@ end
 
 local function set_alt(bar, v)
     if not bar then return end
+    if not IsBarTextControlEnabled() then return end
     local s = st[bar] or {}
     s.alt = v
     st[bar] = s
@@ -391,6 +402,7 @@ end
 
 local function set_hover(bar, v)
     if not bar then return end
+    if not IsBarTextControlEnabled() then return end
     local s = st[bar] or {}
     s.hover = v
     st[bar] = s
@@ -399,6 +411,7 @@ end
 
 local function set_combat(bar, v)
     if not bar then return end
+    if not IsBarTextControlEnabled() then return end
     local s = st[bar] or {}
     s.combat = v
     st[bar] = s
@@ -407,6 +420,120 @@ end
 
 -- Сохранённые оригинальные скрипты для восстановления
 local saved = {}
+local savedBars = setmetatable({}, { __mode = "k" })
+
+local function CaptureBarBehavior(bar)
+    if not bar then return nil end
+    local original = savedBars[bar]
+    if original and original.managed then return original end
+    original = original or {}
+    local mouseEnabled
+    if bar.IsMouseEnabled then
+        mouseEnabled = not not bar:IsMouseEnabled()
+    end
+    original.OnEnter = bar:GetScript("OnEnter")
+    original.OnLeave = bar:GetScript("OnLeave")
+    original.mouseEnabled = mouseEnabled
+    original.managed = false
+    savedBars[bar] = original
+    return original
+end
+
+local function FindUnitFrame(frame)
+    while frame do
+        if frame.unit and (frame == PlayerFrame or frame == TargetFrame
+            or frame == PetFrame or frame == FocusFrame) then
+            return frame
+        end
+        frame = frame:GetParent()
+    end
+    return nil
+end
+
+local function WireBarHover(bar)
+    if not bar then return end
+    local original = CaptureBarBehavior(bar)
+    if original.managed then return end
+
+    bar:EnableMouse(true)
+    bar:SetScript("OnEnter", function(self)
+        set_hover(self, true)
+        local unitFrame = FindUnitFrame(self)
+        if unitFrame and unitFrame.unit then
+            if UnitFrame_OnEnter then
+                UnitFrame_OnEnter(unitFrame)
+            elseif saved[unitFrame] and saved[unitFrame].OnEnter then
+                saved[unitFrame].OnEnter(unitFrame)
+            end
+        end
+    end)
+    bar:SetScript("OnLeave", function(self)
+        set_hover(self, false)
+        local unitFrame = FindUnitFrame(self)
+        if unitFrame and unitFrame.unit then
+            if UnitFrame_OnLeave then
+                UnitFrame_OnLeave()
+            elseif saved[unitFrame] and saved[unitFrame].OnLeave then
+                saved[unitFrame].OnLeave()
+            end
+        end
+    end)
+    original.managed = true
+end
+
+local function ReleaseBarToBlizzard(bar)
+    if not bar then return end
+    local original = savedBars[bar]
+    if not original or not original.managed then return end
+
+    bar:SetScript("OnEnter", original.OnEnter)
+    bar:SetScript("OnLeave", original.OnLeave)
+    if original.mouseEnabled ~= nil then
+        bar:EnableMouse(original.mouseEnabled)
+    end
+    original.managed = false
+
+    st[bar] = nil
+    local textElement = GetBarText(bar)
+    if textElement then
+        if UIFrameFadeRemoveFrame then
+            UIFrameFadeRemoveFrame(textElement)
+        end
+        if textElement.SetAlpha then
+            textElement:SetAlpha(1)
+        end
+    end
+
+    -- Clear SUI's lockShow and immediately let Blizzard resolve visibility
+    -- from the bar CVar. Preserve the standard hover state during a live
+    -- settings change so the text does not flicker under the cursor.
+    if HideTextStatusBarText then
+        HideTextStatusBarText(bar)
+    else
+        bar.lockShow = 0
+    end
+    if bar.IsMouseOver and bar:IsMouseOver() and ShowTextStatusBarText then
+        ShowTextStatusBarText(bar)
+    end
+    if TextStatusBar_UpdateTextString then
+        TextStatusBar_UpdateTextString(bar)
+    end
+end
+
+function module:UpdateBarTextControl()
+    NormalizeBars()
+    local enabled = IsBarTextControlEnabled()
+    for _, bar in ipairs(bars) do
+        if bar then
+            if enabled then
+                WireBarHover(bar)
+            else
+                ReleaseBarToBlizzard(bar)
+            end
+        end
+    end
+    return enabled
+end
 
 -- Initialize module
 function module:Initialize()
@@ -462,87 +589,19 @@ function module:Enable()
     -- Normalize bars (ensure they exist)
     NormalizeBars()
     
-    -- Сохраняем оригинальные обработчики тултипов и восстанавливаем их
-    -- Это необходимо для показа тултипов при наведении на фреймы
+    -- Remember the unit-frame tooltip handlers for the managed bar-hover
+    -- fallback. Do not replace the unit frames' own scripts.
     for _, fr in ipairs({PlayerFrame, TargetFrame, PetFrame, FocusFrame}) do
         if fr then
             saved[fr] = saved[fr] or {
                 OnEnter = fr:GetScript("OnEnter"),
                 OnLeave = fr:GetScript("OnLeave"),
             }
-            -- Восстанавливаем обработчики тултипов
-            -- Если оригинальный обработчик был сохранен, используем его
-            -- Иначе используем стандартные функции UnitFrame_OnEnter/OnLeave
-            if saved[fr].OnEnter then
-                fr:SetScript("OnEnter", saved[fr].OnEnter)
-            elseif UnitFrame_OnEnter then
-                fr:SetScript("OnEnter", UnitFrame_OnEnter)
-            end
-            if saved[fr].OnLeave then
-                fr:SetScript("OnLeave", saved[fr].OnLeave)
-            elseif UnitFrame_OnLeave then
-                fr:SetScript("OnLeave", UnitFrame_OnLeave)
-            end
         end
     end
     
-    -- Включаем свой «баровый» ховер
-    local function WireBarHover(bar)
-        if not bar then return end
-        bar:EnableMouse(true)
-        
-        -- Функция для поиска родительского unit-фрейма
-        local function FindUnitFrame(frame)
-            if not frame then return nil end
-            -- Проверяем текущий фрейм
-            if frame.unit and (frame == PlayerFrame or frame == TargetFrame or frame == PetFrame or frame == FocusFrame) then
-                return frame
-            end
-            -- Проверяем родителя
-            local parent = frame:GetParent()
-            if parent then
-                if parent.unit and (parent == PlayerFrame or parent == TargetFrame or parent == PetFrame or parent == FocusFrame) then
-                    return parent
-                end
-                -- Рекурсивно проверяем родителя родителя (на случай вложенности)
-                return FindUnitFrame(parent)
-            end
-            return nil
-        end
-        
-        bar:SetScript("OnEnter", function(self)
-            -- Показываем текст HP/MP при наведении
-            set_hover(self, true)
-            -- Показываем тултип юнита
-            local unitFrame = FindUnitFrame(self)
-            if unitFrame and unitFrame.unit then
-                -- Вызываем оригинальный обработчик тултипа для unit-фрейма
-                if UnitFrame_OnEnter then
-                    UnitFrame_OnEnter(unitFrame)
-                elseif saved[unitFrame] and saved[unitFrame].OnEnter then
-                    saved[unitFrame].OnEnter(unitFrame)
-                end
-            end
-        end)
-        bar:SetScript("OnLeave", function(self)
-            -- Скрываем текст HP/MP при уходе мыши
-            set_hover(self, false)
-            -- Скрываем тултип юнита
-            local unitFrame = FindUnitFrame(self)
-            if unitFrame and unitFrame.unit then
-                -- Вызываем оригинальный обработчик скрытия тултипа
-                if UnitFrame_OnLeave then
-                    UnitFrame_OnLeave()
-                elseif saved[unitFrame] and saved[unitFrame].OnLeave then
-                    saved[unitFrame].OnLeave()
-                end
-            end
-        end)
-    end
-    
-    for _, bar in ipairs(bars) do
-        WireBarHover(bar)
-    end
+    -- Own bar hover/visibility only while an SUI-specific display mode is on.
+    self:UpdateBarTextControl()
     
     -- Create text indicators first
     self:CreateTextIndicators()
@@ -577,12 +636,13 @@ function module:Enable()
     -- Обновляем состояние боя для текстовых индикаторов
     self:UpdateCombatState()
     
-    -- Синхронизируем состояние текстовых индикаторов при загрузке
-    -- Это нужно, чтобы скрыть текст при релоаде, даже если CVars включены
-    -- Применяем состояние для всех баров без анимации
-    for _, bar in ipairs(bars) do
-        if bar then
-            apply(bar, false)
+    -- Synchronize only while SUI owns the text. With both visibility modes
+    -- disabled Blizzard remains untouched.
+    if IsBarTextControlEnabled() then
+        for _, bar in ipairs(bars) do
+            if bar then
+                apply(bar, false)
+            end
         end
     end
 end
@@ -639,29 +699,10 @@ function module:Disable()
         SarychUI.DragMode:ShowGrid(false)
     end
     
-    for _, fr in ipairs({PlayerFrame, TargetFrame, PetFrame, FocusFrame}) do
-        if fr and saved and saved[fr] then
-            fr:SetScript("OnEnter", saved[fr].OnEnter)
-            fr:SetScript("OnLeave", saved[fr].OnLeave)
-        end
-    end
-    
-    -- Снимаем свой hover с баров и сбрасываем состояния
+    -- Restore the exact Blizzard behavior captured before SUI took ownership.
     for _, bar in ipairs(bars) do
         if bar then
-            bar:SetScript("OnEnter", nil)
-            bar:SetScript("OnLeave", nil)
-            -- снимаем все наши флаги и видимость
-            st[bar] = {alt=false, hover=false, combat=false, shown=false}
-            HideTextStatusBarText(bar)
-            if TextStatusBar_UpdateTextString then
-                TextStatusBar_UpdateTextString(bar)
-            end
-            -- Сбрасываем альфу текстового элемента
-            local textElement = GetBarText(bar)
-            if textElement and textElement.SetAlpha then
-                textElement:SetAlpha(1) -- Возвращаем дефолтную альфу
-            end
+            ReleaseBarToBlizzard(bar)
         end
     end
     
@@ -699,6 +740,7 @@ end
 
 -- Alt state change handler (updates percents and HP/MP text via state machine)
 function module:SyncBarAltFlags(pressed)
+    if not IsBarTextControlEnabled() then return end
     if pressed == nil then
         pressed = IsAltPressed()
     end
@@ -716,6 +758,7 @@ end
 
 -- Обновление состояния боя для всех баров
 function module:UpdateCombatState()
+    if not IsBarTextControlEnabled() then return end
     local showInCombat = GetSetting('showTextIndicatorsInCombat', false) == true
     local isInCombat = UnitAffectingCombat("player")
     for _, bar in ipairs(bars) do
@@ -801,11 +844,12 @@ function module:OnEvent(event, ...)
             self:UpdateFocusComboPoints()
         end
         
-        -- Синхронизируем состояние текстовых индикаторов при входе в мир
-        -- Это нужно, чтобы скрыть текст при релоаде, даже если CVars включены
-        for _, bar in ipairs(bars) do
-            if bar then
-                apply(bar, false)
+        -- Synchronize only while an SUI visibility mode owns the bars.
+        if IsBarTextControlEnabled() then
+            for _, bar in ipairs(bars) do
+                if bar then
+                    apply(bar, false)
+                end
             end
         end
     elseif event == "ZONE_CHANGED_NEW_AREA" or event == "PLAYER_UNGHOST" or event == "PLAYER_ALIVE" or event == "PLAYER_LOGIN" then
@@ -1191,6 +1235,10 @@ function module:ApplyTextIndicators()
     -- Update fonts if LibSharedMedia is available
     self:UpdateTextIndicatorFonts()
     self:ApplyBarFontSizes()
+    if not self:UpdateBarTextControl() then
+        self:UpdateTextIndicators()
+        return
+    end
     self:SyncBarAltFlags()
     self:UpdateTextIndicators()
     -- Update combat state to show/hide text indicators in combat

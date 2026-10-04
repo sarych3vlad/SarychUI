@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.1.0-2b2a27?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-1.1.0a-2b2a27?style=flat-square">
   <img alt="Client" src="https://img.shields.io/badge/client-3.3.5a%20(12340)-2b2a27?style=flat-square">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-2b2a27?style=flat-square">
   <a href="https://discord.gg/Thyh85WfmP"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord&logoColor=white"></a>
