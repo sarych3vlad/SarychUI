@@ -1136,7 +1136,7 @@ SarychUI.defaults = {
 	
 	-- Global settings (not per character)
 	global = {
-        version = "1.1.0b",
+        version = "1.1.0c",
 		general = {
 			-- Saved size of the config window (matches ElvUI / ElvUI_NamePlates_Standalone defaults).
 			AceGUI = {

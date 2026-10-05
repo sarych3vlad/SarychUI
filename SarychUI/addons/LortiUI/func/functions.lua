@@ -52,7 +52,7 @@ local function CallWidget(obj, method, ...)
 	obj[method] = fn
 end
 
-local function applyBackground(bu)
+local function applyBackground(bu, anchor)
 	if not cfg.background.showbg and not cfg.background.showshadow then
 		return
 	end
@@ -60,9 +60,10 @@ local function applyBackground(bu)
 		bu.bg:Show()
 		return
 	end
+	anchor = anchor or bu
 	bu.bg = CreateFrame("Frame", nil, bu)
-	bu.bg:SetPoint("TOPLEFT", bu, "TOPLEFT", -4, 4)
-	bu.bg:SetPoint("BOTTOMRIGHT", bu, "BOTTOMRIGHT", 4, -4)
+	bu.bg:SetPoint("TOPLEFT", anchor, "TOPLEFT", -4, 4)
+	bu.bg:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", 4, -4)
 	local lvl = bu:GetFrameLevel() or 1
 	if lvl < 1 then lvl = 1 end
 	bu.bg:SetFrameLevel(lvl - 1)
@@ -75,7 +76,7 @@ local function applyBackground(bu)
 	if cfg.background.showbg and not cfg.background.useflatbackground then
 		local t = bu.bg:CreateTexture(nil, "BACKGROUND")
 		t:SetTexture(cfg.textures.buttonback)
-		t:SetAllPoints(bu)
+		t:SetAllPoints(anchor)
 		t:SetVertexColor(cfg.background.backgroundcolor.r, cfg.background.backgroundcolor.g, cfg.background.backgroundcolor.b, cfg.background.backgroundcolor.a)
 	end
 
@@ -128,7 +129,7 @@ local function ColorActiveTex(ct)
 end
 
 local function ctSetVertexColorFunc(ct, r, g, b)
-	if not L.enabled or L._painting or not ct then
+	if not L.enabled or L._painting or not ct or ct.suiLortiKeepBlizzardColor then
 		return
 	end
 	if r == 1 and g == 1 and b == 1 then
@@ -186,17 +187,17 @@ local function SetRegionTexture(tex, path)
 	end
 end
 
-local function PinOverlay(tex, path, blend)
+local function PinOverlay(tex, path, blend, anchor)
 	if not tex then
 		return
 	end
 	if path then
 		SetRegionTexture(tex, path)
 	end
-	local parent = tex.GetParent and tex:GetParent()
-	if parent then
+	anchor = anchor or (tex.GetParent and tex:GetParent())
+	if anchor then
 		tex:ClearAllPoints()
-		tex:SetAllPoints(parent)
+		tex:SetAllPoints(anchor)
 	end
 	if tex.SetBlendMode and blend then
 		tex:SetBlendMode(blend)
@@ -204,27 +205,51 @@ local function PinOverlay(tex, path, blend)
 	tex:SetAlpha(1)
 end
 
-local function PaintActionOverlays(bu, fl)
-	PinOverlay(bu.GetHighlightTexture and bu:GetHighlightTexture(), cfg.textures.hover, "ADD")
-	PinOverlay(bu.GetPushedTexture and bu:GetPushedTexture(), cfg.textures.pushed, "BLEND")
+local function PaintActionOverlays(bu, fl, anchor, isItem)
+	PinOverlay(bu.GetHighlightTexture and bu:GetHighlightTexture(), cfg.textures.hover, "ADD", anchor)
+	local pushed = bu.GetPushedTexture and bu:GetPushedTexture()
+	PinOverlay(pushed, cfg.textures.pushed, "BLEND", anchor)
 	local ct = bu.GetCheckedTexture and bu:GetCheckedTexture()
-	PinOverlay(ct, cfg.textures.checked, "ADD")
-	ColorActiveTex(ct)
-	HookCheckedTex(ct)
-	PinOverlay(fl, cfg.textures.flash, "ADD")
+	-- CheckedTexture is Blizzard's yellow queued/current-action indicator
+	-- (for example Heroic Strike). Keep it intact for action buttons instead
+	-- of replacing it with Lorti's black checked overlay.
+	if isItem then
+		PinOverlay(ct, cfg.textures.checked, "ADD", anchor)
+		ColorActiveTex(ct)
+		HookCheckedTex(ct)
+	end
+	PinOverlay(fl, cfg.textures.flash, "ADD", anchor)
 end
 
 local function ApplyLortiTextures(bu, name, isItem)
-	local action = bu.action
 	local ic = _G[name .. "Icon"] or _G[name .. "IconTexture"]
 	local fl = _G[name .. "Flash"]
 	local nt = _G[name .. "NormalTexture2"] or _G[name .. "NormalTexture"] or (bu.GetNormalTexture and bu:GetNormalTexture())
+	-- LargeItemButtonTemplate / QuestItemTemplate buttons include the item name
+	-- in the button itself.  Their IconTexture is the square visual slot; using
+	-- the whole button as the anchor stretches both the icon and Lorti artwork.
+	local decorationAnchor = isItem and ic or bu
+	if not isItem then
+		local saved = bu.suiLortiSaved
+		if saved and bu.SetCheckedTexture then
+			bu:SetCheckedTexture(saved.checked)
+			local checked = bu.GetCheckedTexture and bu:GetCheckedTexture()
+			if checked then
+				-- Keep Blizzard's CheckButtonHilight white-tinted, which preserves
+				-- the native yellow queued/current-action indicator.
+				checked.suiLortiKeepBlizzardColor = true
+				L._painting = true
+				checked:SetVertexColor(1, 1, 1, 1)
+				L._painting = false
+			end
+		end
+	end
 
-	PaintActionOverlays(bu, fl)
+	PaintActionOverlays(bu, fl, decorationAnchor, isItem)
 
 	local normalTex = cfg.textures.normal
 	local vr, vg, vb, va = cfg.color.normal.r, cfg.color.normal.g, cfg.color.normal.b, cfg.color.normal.a
-	if (not isItem) and action and IsEquippedAction(action) then
+	if (not isItem) and bu.action and IsEquippedAction(bu.action) then
 		normalTex = cfg.textures.equipped
 		vr, vg, vb, va = cfg.color.equipped.r, cfg.color.equipped.g, cfg.color.equipped.b, 1
 	end
@@ -233,7 +258,7 @@ local function ApplyLortiTextures(bu, name, isItem)
 	if nt then
 		SetRegionTexture(nt, normalTex)
 		nt:ClearAllPoints()
-		nt:SetAllPoints(bu)
+		nt:SetAllPoints(decorationAnchor or bu)
 		L._painting = true
 		nt:SetVertexColor(vr, vg, vb, va)
 		L._painting = false
@@ -242,9 +267,13 @@ local function ApplyLortiTextures(bu, name, isItem)
 
 	if ic then
 		ic:SetTexCoord(0.1, 0.9, 0.1, 0.9)
-		ic:SetPoint("TOPLEFT", bu, "TOPLEFT", 2, -2)
-		ic:SetPoint("BOTTOMRIGHT", bu, "BOTTOMRIGHT", -2, 2)
+		if not isItem then
+			ic:ClearAllPoints()
+			ic:SetPoint("TOPLEFT", bu, "TOPLEFT", 2, -2)
+			ic:SetPoint("BOTTOMRIGHT", bu, "BOTTOMRIGHT", -2, 2)
+		end
 	end
+	return decorationAnchor
 end
 
 -- rActionButtonStyler_AB_style
@@ -347,10 +376,10 @@ function L:PaintItemButton(button)
 		return
 	end
 	SaveButton(button, name)
-	ApplyLortiTextures(button, name, true)
+	local decorationAnchor = ApplyLortiTextures(button, name, true)
 	button.suiLortiStyled = true
 	if not button.bg then
-		applyBackground(button)
+		applyBackground(button, decorationAnchor)
 	else
 		button.bg:Show()
 	end

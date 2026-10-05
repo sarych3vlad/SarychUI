@@ -1000,7 +1000,7 @@ function OW:RefreshFooterCredit()
 	if not credit then
 		return
 	end
-    local ver = (SUI and SUI.version) or "1.1.0b"
+    local ver = (SUI and SUI.version) or "1.1.0c"
 	local author = (SarychUI and SarychUI.T and SarychUI:T("Автор:")) or "Автор:"
 	credit:SetText(author .. " Сарыч / WotLK 3.3.5 / " .. tostring(ver))
 end

@@ -117,7 +117,48 @@
 			</OnLeave>
 		</Scripts>
 	</Button>
-	<Frame name="AddonList" enableMouse="true" parent="UIParent" frameStrata="HIGH" inherits="ButtonFrameTemplate" hidden="true">
+
+	<!--
+		Do not inherit the global ButtonFrameTemplate here. Details also declares a
+		virtual template with that generic name and, depending on addon load order,
+		its version can win. That template points at a post-WotLK background path,
+		which the 3.3.5 client renders as a solid green missing texture.
+
+		Keep the frame chrome private to SarychUI while reusing the compatible
+		PortraitFrameTemplate and InsetFrameTemplate supplied by !!!ClassicAPI.
+	-->
+	<Frame name="SarychUIAddonListButtonFrameTemplate" inherits="PortraitFrameTemplate" virtual="true">
+		<Layers>
+			<Layer level="BORDER" textureSubLevel="1">
+				<Texture name="$parentBtnCornerLeft" inherits="UI-Frame-BtnCornerLeft">
+					<Anchors>
+						<Anchor point="BOTTOMLEFT" x="-2" y="-1"/>
+					</Anchors>
+				</Texture>
+				<Texture name="$parentBtnCornerRight" inherits="UI-Frame-BtnCornerRight">
+					<Anchors>
+						<Anchor point="BOTTOMRIGHT" x="0" y="-1"/>
+					</Anchors>
+				</Texture>
+				<Texture name="$parentButtonBottomBorder" inherits="_UI-Frame-BtnBotTile">
+					<Anchors>
+						<Anchor point="BOTTOMLEFT" relativeTo="$parentBtnCornerLeft" relativePoint="BOTTOMRIGHT" y="3"/>
+						<Anchor point="BOTTOMRIGHT" relativeTo="$parentBtnCornerRight" relativePoint="BOTTOMLEFT"/>
+					</Anchors>
+				</Texture>
+			</Layer>
+		</Layers>
+		<Frames>
+			<Frame name="$parentInset" useParentLevel="true" inherits="InsetFrameTemplate" parentKey="Inset">
+				<Anchors>
+					<Anchor point="TOPLEFT" x="4" y="-60"/>
+					<Anchor point="BOTTOMRIGHT" x="-6" y="26"/>
+				</Anchors>
+			</Frame>
+		</Frames>
+	</Frame>
+
+	<Frame name="AddonList" enableMouse="true" parent="UIParent" frameStrata="HIGH" inherits="SarychUIAddonListButtonFrameTemplate" hidden="true">
 		<Size x="500" y="478"/>
 		<Anchors>
 			<Anchor point="CENTER" x="0" y="24"/>
