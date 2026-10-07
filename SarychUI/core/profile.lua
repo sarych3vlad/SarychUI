@@ -168,6 +168,241 @@ function SarychUI:GetActiveProfile()
 	return nil
 end
 
+-----------------------------------------------------------------------
+-- Linked addon profiles (ElvUI NamePlates live in a separate AceDB)
+-- Snapshot/restore so save → apply on another character keeps plate size etc.
+-----------------------------------------------------------------------
+local LINKED_ENP = "ElvUI_NamePlates"
+
+local function GetENPEngine()
+	return _G.SarychUI_ElvUI_NamePlates and _G.SarychUI_ElvUI_NamePlates[1]
+end
+
+-- ProfileDB defaults table (P) from the ENP engine pack.
+local function GetENPProfileDefaults()
+	local pack = _G.SarychUI_ElvUI_NamePlates
+	local P = pack and pack[4]
+	return type(P) == "table" and P or nil
+end
+
+local function GetENPRawSV()
+	return _G.SarychUIElvNamePlatesDB
+end
+
+local function EnsureENPRawSV()
+	local sv = GetENPRawSV()
+	if type(sv) ~= "table" then
+		_G.SarychUIElvNamePlatesDB = { profiles = {}, profileKeys = {} }
+		sv = _G.SarychUIElvNamePlatesDB
+	end
+	sv.profiles = sv.profiles or {}
+	sv.profileKeys = sv.profileKeys or {}
+	return sv
+end
+
+-- AceDB strips unchanged defaults from SV; merge them back so linked snapshots
+-- always contain required keys like profile.general.
+local function mergeMissingDefaults(dest, default)
+	if type(default) ~= "table" then
+		return dest
+	end
+	if type(dest) ~= "table" then
+		dest = {}
+	end
+	for k, v in pairs(default) do
+		if k ~= "*" and k ~= "**" then
+			if type(v) == "table" then
+				dest[k] = mergeMissingDefaults(dest[k], v)
+			elseif dest[k] == nil then
+				dest[k] = v
+			end
+		end
+	end
+	return dest
+end
+
+local function NormalizeENPProfileData(data)
+	if type(data) ~= "table" then
+		return nil
+	end
+	local copy = cloneProfileTable(data)
+	return mergeMissingDefaults(copy, GetENPProfileDefaults())
+end
+
+local function ReadENPActiveProfileData()
+	local E = GetENPEngine()
+	if E and E.initialized and E.data and type(E.data.profile) == "table" then
+		return NormalizeENPProfileData(E.data.profile)
+	end
+
+	local sv = GetENPRawSV()
+	if type(sv) ~= "table" or type(sv.profiles) ~= "table" then
+		return nil
+	end
+	local charName = SarychUI.GetCharacterProfileName and SarychUI:GetCharacterProfileName()
+	local key = (type(sv.profileKeys) == "table" and charName and sv.profileKeys[charName]) or charName
+	if type(key) == "string" and type(sv.profiles[key]) == "table" then
+		return NormalizeENPProfileData(sv.profiles[key])
+	end
+	return nil
+end
+
+local function WriteENPProfileInto(dest, data)
+	for k in pairs(dest) do
+		dest[k] = nil
+	end
+	for k, v in pairs(data) do
+		if type(v) == "table" then
+			dest[k] = cloneProfileTable(v)
+		else
+			dest[k] = v
+		end
+	end
+end
+
+local function WriteENPProfileData(profileKey, data)
+	if type(profileKey) ~= "string" or profileKey == "" or type(data) ~= "table" then
+		return false
+	end
+	local copy = NormalizeENPProfileData(data)
+	if not copy then
+		return false
+	end
+
+	local E = GetENPEngine()
+	if E and E.initialized and E.data then
+		local db = E.data
+		local current = db.GetCurrentProfile and db:GetCurrentProfile()
+		-- Keep the live AceDB profile table identity when overwriting the active key.
+		if current == profileKey and type(db.profile) == "table" then
+			WriteENPProfileInto(db.profile, copy)
+			local sv = EnsureENPRawSV()
+			sv.profiles[profileKey] = db.profile
+			return true
+		end
+		local profiles = db.profiles
+		if type(profiles) == "table" then
+			profiles[profileKey] = copy
+		end
+	end
+
+	local sv = EnsureENPRawSV()
+	sv.profiles[profileKey] = copy
+	return true
+end
+
+local function SetENPProfileKey(profileKey)
+	if type(profileKey) ~= "string" or profileKey == "" then
+		return
+	end
+	local charName = SarychUI.GetCharacterProfileName and SarychUI:GetCharacterProfileName()
+	local E = GetENPEngine()
+	if E and E.initialized and E.data and E.data.SetProfile then
+		local current = E.data.GetCurrentProfile and E.data:GetCurrentProfile()
+		if current ~= profileKey then
+			E.data:SetProfile(profileKey)
+		end
+		return
+	end
+	local sv = EnsureENPRawSV()
+	if charName then
+		sv.profileKeys[charName] = profileKey
+	end
+end
+
+function SarychUI:SnapshotLinkedAddonProfiles(intoProfile)
+	if self._suppressLinkedProfileSync then
+		return
+	end
+	intoProfile = intoProfile or self:GetActiveProfile()
+	if type(intoProfile) ~= "table" then
+		return
+	end
+	local data = ReadENPActiveProfileData()
+	if not data then
+		return
+	end
+	intoProfile._linkedAddonProfiles = intoProfile._linkedAddonProfiles or {}
+	intoProfile._linkedAddonProfiles[LINKED_ENP] = data
+end
+
+function SarychUI:ApplyLinkedAddonProfiles(profileKey)
+	if self._suppressLinkedProfileSync then
+		return
+	end
+	profileKey = profileKey
+		or (self.db and self.db.GetCurrentProfile and self.db:GetCurrentProfile())
+	if type(profileKey) ~= "string" or profileKey == "" then
+		return
+	end
+
+	local profile = self:GetActiveProfile()
+	local snapshot = profile
+		and profile._linkedAddonProfiles
+		and profile._linkedAddonProfiles[LINKED_ENP]
+
+	if type(snapshot) == "table" then
+		-- Refresh embedded snapshot with defaults filled in (fixes older saves).
+		local normalized = NormalizeENPProfileData(snapshot)
+		if normalized and profile and profile._linkedAddonProfiles then
+			profile._linkedAddonProfiles[LINKED_ENP] = normalized
+		end
+
+		WriteENPProfileData(profileKey, normalized or snapshot)
+		local E = GetENPEngine()
+		if E and E.initialized and E.data then
+			local current = E.data.GetCurrentProfile and E.data:GetCurrentProfile()
+			if current == profileKey then
+				-- Live table already rewritten by WriteENPProfileData; refresh UI.
+				if E.RefreshConfig then
+					E:RefreshConfig()
+				end
+			else
+				self._suppressLinkedProfileSync = true
+				E.data:SetProfile(profileKey)
+				self._suppressLinkedProfileSync = nil
+			end
+		else
+			SetENPProfileKey(profileKey)
+		end
+		return
+	end
+
+	-- No snapshot yet (older profiles): still align ENP AceDB profile name so
+	-- future edits stay tied to this SarychUI profile.
+	local sv = GetENPRawSV()
+	if type(sv) == "table" and type(sv.profiles) == "table" and type(sv.profiles[profileKey]) == "table" then
+		SetENPProfileKey(profileKey)
+		local E = GetENPEngine()
+		if E and E.initialized and E.RefreshConfig then
+			E:RefreshConfig()
+		end
+		return
+	end
+	SetENPProfileKey(profileKey)
+end
+
+function SarychUI:DeleteLinkedAddonProfile(profileKey)
+	if type(profileKey) ~= "string" or profileKey == "" then
+		return
+	end
+	local E = GetENPEngine()
+	if E and E.initialized and E.data and E.data.DeleteProfile then
+		pcall(E.data.DeleteProfile, E.data, profileKey, true)
+	end
+	local sv = GetENPRawSV()
+	if type(sv) == "table" and type(sv.profiles) == "table" then
+		sv.profiles[profileKey] = nil
+	end
+end
+
+function SarychUI:ResetLinkedAddonProfiles()
+	local E = GetENPEngine()
+	if E and E.initialized and E.data and E.data.ResetProfile then
+		E.data:ResetProfile()
+	end
+end
+
 function SarychUI:GetModuleProfile(moduleName)
 	local profile = self:GetActiveProfile()
 	if not profile or not profile.modules then
@@ -275,9 +510,13 @@ function SarychUI:SaveCurrentProfileAs(name)
 		return false, "no_db"
 	end
 
+	-- Capture ElvUI NamePlates (separate AceDB) into the SarychUI profile snapshot.
+	self:SnapshotLinkedAddonProfiles(source)
+
 	local currentKey = self.db.GetCurrentProfile and self.db:GetCurrentProfile() or nil
 	if currentKey == name then
 		self:SyncLegacyProfileStorage()
+		self:ApplyLinkedAddonProfiles(name)
 		self:NotifyProfileOptionsChanged()
 		return true, "current"
 	end
@@ -470,6 +709,7 @@ function SarychUI:ForkToCharacterProfile(sourceName)
 		return false
 	end
 
+	self:SnapshotLinkedAddonProfiles(source)
 	profiles[charName] = cloneProfileTable(source)
 
 	self._suppressAlwaysUseSync = true
@@ -1175,6 +1415,9 @@ function SarychUI:CustomizeProfileOptions(profileOpts)
 			elseif SarychUI.db and SarychUI.db.DeleteProfile then
 				SarychUI.db:DeleteProfile(value)
 			end
+			if SarychUI.DeleteLinkedAddonProfile then
+				SarychUI:DeleteLinkedAddonProfile(value)
+			end
 			RefreshProfileUI()
 		end
 	end
@@ -1248,6 +1491,13 @@ function SarychUI:ApplyCurrentProfile(opts)
 		self:ApplySarych2KLinkedAddonDefaults(false)
 	end
 
+	-- Restore ElvUI NamePlates size/layout from the active SarychUI profile.
+	if opts.applyLinkedAddons ~= false and self.ApplyLinkedAddonProfiles then
+		local key = opts.linkedProfileKey
+			or (self.db and self.db.GetCurrentProfile and self.db:GetCurrentProfile())
+		self:ApplyLinkedAddonProfiles(key)
+	end
+
 	if self.ApplyFeatureCoordination then
 		self:ApplyFeatureCoordination({
 			source = opts.source or "ApplyCurrentProfile",
@@ -1292,6 +1542,8 @@ end
 function SarychUI:OnProfileShutdown(event, db)
 	if db and db.profile then
 		self._profileSwitchOldSignature = self:GetProfileReloadSignature(db.profile)
+		-- Persist latest NamePlates settings into the profile being left.
+		self:SnapshotLinkedAddonProfiles(db.profile)
 	end
 end
 
@@ -1310,6 +1562,7 @@ function SarychUI:OnProfileChanged(event, db, newProfileKey)
 		reason = "profile switch",
 		fullProfileApply = true,
 		applyAddons = true,
+		linkedProfileKey = newProfileKey,
 	})
 
 	if applied and oldSignature ~= newSignature and self.ShowReloadPopup then
@@ -1318,6 +1571,21 @@ function SarychUI:OnProfileChanged(event, db, newProfileKey)
 end
 
 function SarychUI:OnProfileCopied(event, db, sourceProfileKey)
+	-- Older profiles may lack an embedded NamePlates snapshot; pull from the
+	-- ENP AceDB profile with the same name when present.
+	local profile = self:GetActiveProfile()
+	local hasSnapshot = profile
+		and profile._linkedAddonProfiles
+		and type(profile._linkedAddonProfiles[LINKED_ENP]) == "table"
+	if not hasSnapshot and type(sourceProfileKey) == "string" and profile then
+		local sv = GetENPRawSV()
+		local src = sv and sv.profiles and sv.profiles[sourceProfileKey]
+		if type(src) == "table" then
+			profile._linkedAddonProfiles = profile._linkedAddonProfiles or {}
+			profile._linkedAddonProfiles[LINKED_ENP] = cloneProfileTable(src)
+		end
+	end
+
 	self:ApplyCurrentProfile({
 		source = "OnProfileCopied",
 		refreshPlates = true,
@@ -1328,12 +1596,16 @@ function SarychUI:OnProfileCopied(event, db, sourceProfileKey)
 end
 
 function SarychUI:OnProfileReset(event, db)
+	if self.ResetLinkedAddonProfiles then
+		self:ResetLinkedAddonProfiles()
+	end
 	self:ApplyCurrentProfile({
 		source = "OnProfileReset",
 		refreshPlates = true,
 		reason = "profile reset",
 		fullProfileApply = true,
 		applyAddons = true,
+		applyLinkedAddons = false,
 	})
 end
 
@@ -1355,6 +1627,17 @@ function SarychUI:RegisterProfileCallbacks()
 	self.db.RegisterCallback(self, "OnProfileReset", function(event, db)
 		sui:OnProfileReset(event, db)
 	end)
+
+	if not self._linkedProfileLogoutFrame then
+		local f = CreateFrame("Frame")
+		f:RegisterEvent("PLAYER_LOGOUT")
+		f:SetScript("OnEvent", function()
+			if sui.SnapshotLinkedAddonProfiles then
+				sui:SnapshotLinkedAddonProfiles()
+			end
+		end)
+		self._linkedProfileLogoutFrame = f
+	end
 
 	self._profileCallbacksRegistered = true
 end

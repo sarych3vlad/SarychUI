@@ -1072,7 +1072,7 @@ local options = {
 								if L and L["SarychUI Sponsors"] then
 									return L["SarychUI Sponsors"]
 								end
-								return SarychUI:T("|cFFFFD700Спонсоры:|r bezdomen")
+								return SarychUI:T("|cFFFFD700Спонсоры:|r bezdomen, Avdosy")
 							end,
 							order = 3,
 							width = "full",

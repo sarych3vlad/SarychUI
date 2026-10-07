@@ -2251,10 +2251,11 @@ function W:Keybinding(parent, text, get, set, tooltipFn)
 	return row
 end
 
-function W:Dropdown(parent, text, values, get, set, placeholder, flagPathFn)
+function W:Dropdown(parent, text, values, get, set, placeholder, flagPathFn, inlineLabel)
 	local row = CreateFrame("Frame", nil, parent)
 	local hasLabel = type(text) == "string" and text ~= ""
-	row:SetHeight(hasLabel and 40 or 22)
+	local sideLabel = hasLabel and inlineLabel and true or false
+	row:SetHeight((hasLabel and not sideLabel) and 40 or 22)
 	placeholder = placeholder or "-"
 	if type(flagPathFn) ~= "function" then
 		flagPathFn = nil
@@ -2263,18 +2264,28 @@ function W:Dropdown(parent, text, values, get, set, placeholder, flagPathFn)
 	local label
 	if hasLabel then
 		label = MakeLabel(row, text)
-		label:SetPoint("TOPLEFT", 0, 0)
+		if sideLabel then
+			label:SetPoint("LEFT", row, "LEFT", 0, 0)
+			label:SetWidth((T.sizes and T.sizes.inlineLabelW) or 120)
+			label:SetJustifyH("LEFT")
+		else
+			label:SetPoint("TOPLEFT", 0, 0)
+		end
 	end
 	row.label = label
 
 	local btn = CreateFrame("Button", nil, row)
 	btn:SetHeight(22)
-	if label then
+	if label and sideLabel then
+		btn:SetPoint("LEFT", label, "RIGHT", 8, 0)
+		btn:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+	elseif label then
 		btn:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -2)
+		btn:SetPoint("RIGHT", row, "RIGHT", 0, 0)
 	else
 		btn:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+		btn:SetPoint("RIGHT", row, "RIGHT", 0, 0)
 	end
-	btn:SetPoint("RIGHT", row, "RIGHT", 0, 0)
 	T:ApplyFlat(btn, T.colors.buttonBg, T.colors.borderSoft)
 
 	local flagIcon = btn:CreateTexture(nil, "OVERLAY")

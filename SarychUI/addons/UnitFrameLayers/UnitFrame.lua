@@ -32,10 +32,13 @@ function UpdateHealthBarColor(frame)
         classColorHPEnabled = val ~= false
     end
 
-    -- Если настройка выключена, снимаем блокировку и не трогаем цвет
-    -- Пусть Blizzard сам управляет цветом естественным образом
+    -- Если настройка выключена, снимаем блокировку и сразу возвращаем зелёный
+    -- (иначе цвет «залипает» до reload)
     if not classColorHPEnabled then
         frame.healthbar.lockColor = nil
+        if UnitIsPlayer(frame.unit) then
+            frame.healthbar:SetStatusBarColor(0.0, 1.0, 0.0)
+        end
         return
     end
 
@@ -665,7 +668,12 @@ hooksecurefunc("UnitFrameHealthBar_Update", function(statusbar, unit)
 	if statusbar.AnimatedLossBar then
 		statusbar.AnimatedLossBar:UpdateHealthMinMax();
 	end
-	UnitFrameHealPredictionBars_Update(statusbar:GetParent());
+	local parent = statusbar:GetParent();
+	UnitFrameHealPredictionBars_Update(parent);
+	-- После стандартной перекраски Blizzard снова ставим цвет класса (live toggle).
+	if parent then
+		UpdateHealthBarColor(parent);
+	end
 end);
 
 hooksecurefunc("UnitFrame_Update", function(self, isParty)
@@ -675,6 +683,7 @@ hooksecurefunc("UnitFrame_Update", function(self, isParty)
 	UnitFrameHealPredictionBars_UpdateMax(self);
 	UnitFrameHealPredictionBars_Update(self);
 	UnitFrameManaCostPredictionBars_Update(self);
+	UpdateHealthBarColor(self);
 end);
 
 hooksecurefunc("UnitFrame_OnEvent", function(self, event, ...)

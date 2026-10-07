@@ -556,9 +556,8 @@ local ADIBAGS_HEADER_GAP = 2
 -- Extra air under the toolbar for the first category header row.
 local ADIBAGS_FIRST_HEADER_TOP_PAD = 2
 
--- AdiBags NewItemTracking-compatible presentation. The status is intentionally
--- session-local: it starts from a clean baseline after login and is reset with
--- the small N button on the bag toolbar.
+-- AdiBags NewItemTracking-compatible presentation. The status is session-local:
+-- clean baseline after login, cleared on slot hover / bag close, or via the N button.
 local NEW_ITEM_GLOW_COLOR = { 0.3, 1, 0.3, 0.7 }
 local NEW_ITEM_GLOW_SCALE = 1.5
 local NEW_ITEM_SCAN_DELAY = 0.15
@@ -781,7 +780,30 @@ function B:ResetNewItems()
 	twipe(B._suiNewItemIDs)
 	B._suiNewItemCounts = CollectTrackedItemCounts(B._suiNewItemCounts)
 	B._suiNewItemBaselineReady = true
+	if C_NewItems and C_NewItems.ClearAll then
+		pcall(C_NewItems.ClearAll)
+	end
 	B:RefreshNewItemPresentation()
+end
+
+function B:ClearNewItemID(itemID)
+	if not itemID or not B._suiNewItemIDs or B._suiNewItemIDs[itemID] ~= true then
+		return false
+	end
+	B._suiNewItemIDs[itemID] = nil
+	B:RefreshNewItemPresentation()
+	return true
+end
+
+-- Blizzard/C_NewItems-compatible acknowledge: hover clears "new" for that item.
+function B:MarkNewItemSlotSeen(slot)
+	if not (E.embeddedInSarychUI and slot and slot.hasItem) then return end
+	local bagID, slotID = slot.bagID, slot.slotID
+	if bagID and slotID and C_NewItems and C_NewItems.RemoveNewItem then
+		pcall(C_NewItems.RemoveNewItem, bagID, slotID)
+	end
+	local itemID = slot.itemID or GetSlotItemID(bagID, slotID, slot)
+	B:ClearNewItemID(itemID)
 end
 
 function B:ClearAdiBagsFreeSpaceFlags(slot)
@@ -1957,7 +1979,9 @@ function B:LayoutSarychUIBagFooter(bagFrame)
 		end
 		local mf = bagFrame.suiMoneyFrame
 		mf:SetHeight(footerH)
+		mf:SetFrameStrata(B:GetSarychUIBagFrameStrata())
 		mf:SetFrameLevel((bagFrame:GetFrameLevel() or 0) + 5)
+		mf:EnableMouse(true)
 
 		local gt = bagFrame.goldText
 		gt:SetParent(mf)
@@ -2970,17 +2994,40 @@ function B:ShowBagMoveTooltip(owner)
 end
 
 function B:GetSarychUIBagFrameStrata()
-	if E.embeddedInSarychUI then
-		return "MEDIUM"
-	end
+	-- Same as ElvUI bags (DIALOG). Embedded mode used MEDIUM before, which let
+	-- Details!/Skada DIALOG panels receive clicks through the bag window.
 	return E.db.bags.strata or "DIALOG"
 end
+
+local SARYCHUI_BAG_FRAME_LEVEL = 130
 
 function B:ApplySarychUIBagFrameLayers(frame)
 	if not E.embeddedInSarychUI or not frame then return end
 	local strata = B:GetSarychUIBagFrameStrata()
 	frame:SetFrameStrata(strata)
+	frame:EnableMouse(true)
+
+	if frame.holderFrame then
+		frame.holderFrame:SetFrameStrata(strata)
+		frame.holderFrame:EnableMouse(true)
+	end
+	if frame.suiTitleBar then
+		frame.suiTitleBar:SetFrameStrata(strata)
+	end
+	if frame.suiToolBar then
+		frame.suiToolBar:SetFrameStrata(strata)
+	end
+
 	bagsDragDebug("frame layers", FrameDebugName(frame), strata, frame.GetFrameLevel and frame:GetFrameLevel() or "?")
+end
+
+function B:RaiseSarychUIBagFrame(frame)
+	if not E.embeddedInSarychUI or not frame then return end
+	B:ApplySarychUIBagFrameLayers(frame)
+	local level = SARYCHUI_BAG_FRAME_LEVEL
+	if (frame:GetFrameLevel() or 0) < level then
+		frame:SetFrameLevel(level)
+	end
 end
 
 function B:SarychUIBagsDragStart(frame)
@@ -4249,6 +4296,7 @@ function B:SetupSlotHover(slot)
 				GameTooltip:SetHyperlink(self.cachedLink)
 				GameTooltip:Show()
 			end
+			B:MarkNewItemSlotSeen(self)
 		end)
 	end
 
@@ -5819,7 +5867,7 @@ function B:ContructContainerFrame(name, isBank)
 			f.newItemsButton:Point("RIGHT", (f.sectionSplitButton or f.vendorGraysButton), "LEFT", -5, 0)
 			f.newItemsButton:StyleButton(nil, true)
 			f.newItemsButton.ttText = "Сбросить новые предметы"
-			f.newItemsButton.ttText2 = "Убирает секцию «Новое» и зелёную анимацию со слотов."
+			f.newItemsButton.ttText2 = "Убирает секцию «Новое» и зелёную анимацию. Также снимается наведением на предмет или закрытием сумок."
 			f.newItemsButton:SetScript("OnEnter", B.Tooltip_Show)
 			f.newItemsButton:SetScript("OnLeave", GameTooltip_Hide)
 			f.newItemsButton:SetScript("OnClick", function()
@@ -6099,7 +6147,13 @@ function B:OpenBags()
 	else
 		B:UpdateTokens()
 	end
+	if E.embeddedInSarychUI then
+		B:RaiseSarychUIBagFrame(B.BagFrame)
+	end
 	B.BagFrame:Show()
+	if E.embeddedInSarychUI then
+		B:RaiseSarychUIBagFrame(B.BagFrame)
+	end
 	bagDebug("Open unified bags")
 	B:UpdateBlizzardBagButtonCheckedState()
 end
@@ -6117,6 +6171,11 @@ function B:CloseBags()
 	if B.BankFrame then
 		B:StopSortSpinner(B.BankFrame)
 		B.BankFrame:Hide()
+	end
+
+	-- Closing bags acknowledges unseen loot (same idea as C_NewItems on BAG_CLOSED).
+	if E.embeddedInSarychUI and B._suiNewItemIDs and next(B._suiNewItemIDs) then
+		B:ResetNewItems()
 	end
 
 	B:UpdateBlizzardBagButtonCheckedState()
@@ -6170,7 +6229,9 @@ function B:OpenOfflineBank()
 	B:ApplySarychUIBagChrome(B.BankFrame)
 	B:UpdateBankTitle()
 	B:UpdateBankInteractionButtons()
+	B:RaiseSarychUIBagFrame(B.BankFrame)
 	B.BankFrame:Show()
+	B:RaiseSarychUIBagFrame(B.BankFrame)
 end
 
 function B:ToggleBankView()
@@ -6211,9 +6272,13 @@ function B:OpenBank()
 		B:ApplyElvUIBankWindowPosition(B.BankFrame)
 		B:UpdateBankTitle()
 		B:UpdateBankInteractionButtons()
+		B:RaiseSarychUIBagFrame(B.BankFrame)
 	end
 
 	B.BankFrame:Show()
+	if E.embeddedInSarychUI then
+		B:RaiseSarychUIBagFrame(B.BankFrame)
+	end
 	-- Default BankFrame_OnShow sound (Blizzard bank UI is suppressed).
 	if not alreadyOpen then
 		PlaySound("igMainMenuOpen")

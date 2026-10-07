@@ -39,7 +39,11 @@ end
 
 -- Initialize module
 function module:Initialize()
-    -- Basic initialization
+    -- Blizzard format(getglobal("CHAT_"..arg1.."_NOTICE")) can error on custom
+    -- server notices (e.g. AzerothCore NOT_IN_LFG). Install early, always.
+    if _G.SarychUI_InstallChannelNoticeGlobalStringGuard then
+        _G.SarychUI_InstallChannelNoticeGlobalStringGuard()
+    end
 end
 
 -- Enable module

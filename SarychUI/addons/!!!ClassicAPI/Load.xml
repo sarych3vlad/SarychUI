@@ -12,7 +12,10 @@
 
 	<Script file="Util\EventHandler.lua" />
 	<Script file="Util\WidgetAPI.lua" />
+	<!-- EXPERIMENT (taint): EventHandlerCompat.lua replaces Frame:RegisterEvent & co with insecure Lua closures,
+	     which taints Blizzard's lazily created CastSequenceManager (ChatFrame.lua:790-801) -> /castsequence FORBIDDEN.
 	<Script file="Util\EventHandlerCompat.lua" />
+	-->
 
 	<Script file="Util\Unit.lua" />
 	<Script file="Util\Cooldown.lua" />

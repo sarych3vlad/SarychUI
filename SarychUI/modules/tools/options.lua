@@ -51,6 +51,51 @@ local function Refresh()
 	end
 end
 
+local ALT_ANNOUNCE_CHANNEL_VALUES = {
+	adaptive = "Адаптивно",
+	say = "/сказать",
+	party = "/группа",
+	raid = "/рейд",
+	battleground = "/поле боя",
+	guild = "/гильдия",
+	yell = "/крик",
+	__order = { "adaptive", "say", "party", "raid", "battleground", "guild", "yell" },
+}
+
+local function AltAnnounceAnyEnabled()
+	if not IsModuleEnabled() then return false end
+	return isOn("enableAltCD") or isOn("enableAltUnitBars")
+		or isOn("enableAltAuras") or isOn("enableAltOmniCD")
+end
+
+local function MakeAltAnnounceChannelSelect(dbKey, name, desc, order, defaultMode)
+	return {
+		type = "select",
+		name = name,
+		desc = desc,
+		order = order,
+		width = "full",
+		suiInlineLabel = true,
+		values = ALT_ANNOUNCE_CHANNEL_VALUES,
+		get = function()
+			local db = DB()
+			local mode = db and db[dbKey]
+			if mode and ALT_ANNOUNCE_CHANNEL_VALUES[mode] then
+				return mode
+			end
+			return defaultMode
+		end,
+		set = function(_, value)
+			local db = DB(); if not db then return end
+			db[dbKey] = (value and ALT_ANNOUNCE_CHANNEL_VALUES[value]) and value or defaultMode
+			Refresh()
+		end,
+		disabled = function()
+			return not AltAnnounceAnyEnabled()
+		end,
+	}
+end
+
 function module:GetOptions()
 	return {
 		type = "group",
@@ -225,6 +270,47 @@ function module:GetOptions()
 									return not IsOmniCDEnabled()
 								end,
 							},
+							altAnnounceChannelHeader = {
+								type = "description",
+								name = "Канал отправки по месту:",
+								order = 5,
+								fontSize = "medium",
+							},
+							altAnnounceChannelBG = MakeAltAnnounceChannelSelect(
+								"altAnnounceChannelBG",
+								"Поле боя",
+								"Канал для объявлений на поле боя. По умолчанию /сказать — только рядом.",
+								6,
+								"say"
+							),
+							altAnnounceChannelArena = MakeAltAnnounceChannelSelect(
+								"altAnnounceChannelArena",
+								"Арена",
+								"Канал для объявлений на арене. По умолчанию адаптивно.",
+								7,
+								"adaptive"
+							),
+							altAnnounceChannelRaid = MakeAltAnnounceChannelSelect(
+								"altAnnounceChannelRaid",
+								"Рейд",
+								"Канал вне БГ/арены, когда вы в рейде.",
+								8,
+								"adaptive"
+							),
+							altAnnounceChannelParty = MakeAltAnnounceChannelSelect(
+								"altAnnounceChannelParty",
+								"Группа",
+								"Канал вне БГ/арены, когда вы в группе (не в рейде).",
+								9,
+								"adaptive"
+							),
+							altAnnounceChannelSolo = MakeAltAnnounceChannelSelect(
+								"altAnnounceChannelSolo",
+								"Вне группы",
+								"Канал, когда вы не в группе, рейде, на арене и не на поле боя.",
+								10,
+								"adaptive"
+							),
 						},
 					},
 

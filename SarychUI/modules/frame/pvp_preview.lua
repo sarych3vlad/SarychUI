@@ -46,6 +46,8 @@ local KEY_TO_SLOT = {
 	nameBackgroundMode = "nameBg",
 	nameBackgroundColor = "nameBg",
 	nameBackgroundExcludePlayer = "playerNameBg",
+	classColorHP = "healthClass",
+	playerClassColorHP = "playerHealthClass",
 }
 
 local PORTRAIT_PLAYER = "Interface\\CharacterFrame\\TemporaryPortrait-Male-Human"
@@ -71,6 +73,11 @@ local function FrameDB()
 	return mods and mods.frame or {}
 end
 
+local function UnitFrameLayersDB()
+	local addons = SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.addons
+	return addons and addons.UnitFrameLayers or nil
+end
+
 local function LiveOr(key, fallback)
 	local live = Preview._live
 	if live[key] ~= nil then
@@ -85,6 +92,25 @@ end
 local function LiveFlag(key, fallback)
 	local v = LiveOr(key, fallback)
 	return v == 1 or v == true
+end
+
+-- UnitFrameLayers toggles live under addons.UnitFrameLayers, not modules.frame.
+local function LiveUFLFlag(key, defaultOn)
+	local live = Preview._live
+	if live[key] ~= nil then
+		if defaultOn then
+			return live[key] ~= false
+		end
+		return live[key] == true
+	end
+	local db = UnitFrameLayersDB()
+	if not db or db[key] == nil then
+		return defaultOn and true or false
+	end
+	if defaultOn then
+		return db[key] ~= false
+	end
+	return db[key] == true
 end
 
 local function IsActive(slotName)
@@ -278,6 +304,26 @@ local function ClassRGB(classToken)
 	return nil
 end
 
+local function PaintPreviewHealth(bar, classToken, isPlayer)
+	if not bar then return end
+	local classHP = LiveUFLFlag("classColorHP", true)
+	local playerClassHP = LiveUFLFlag("playerClassColorHP", false)
+	local active = (isPlayer and IsActive("playerHealthClass")) or ((not isPlayer) and IsActive("healthClass"))
+	local useClass = classHP and ((not isPlayer) or playerClassHP)
+	if active then
+		bar:SetStatusBarColor(1, 0.92, 0.35)
+		return
+	end
+	if useClass then
+		local r, g, b = ClassRGB(classToken)
+		if r then
+			bar:SetStatusBarColor(r, g, b)
+			return
+		end
+	end
+	bar:SetStatusBarColor(0, 1, 0)
+end
+
 local function PaintPreviewName(fs, classToken, isPlayer)
 	if not fs then return end
 	local skipPlayer = LiveFlag("classColoredNamesExcludePlayer", false)
@@ -415,6 +461,7 @@ local function MakePlayer(parent)
 	health:SetValue(0.78)
 	health:SetStatusBarColor(0, 1, 0)
 	health:SetFrameLevel(f:GetFrameLevel() + 1)
+	f.health = health
 
 	local mana = CreateFrame("StatusBar", nil, f)
 	mana:SetSize(S(119), S(12))
@@ -539,6 +586,7 @@ local function MakeTarget(parent)
 	health:SetValue(0.7)
 	health:SetStatusBarColor(0, 1, 0)
 	health:SetFrameLevel(f:GetFrameLevel() + 1)
+	f.health = health
 
 	-- TargetFrameManaBar 119x12 TOPRIGHT -106,-52 BarColor 0,0,1
 	local mana = CreateFrame("StatusBar", nil, f)
@@ -644,6 +692,8 @@ function Preview:Create(parent)
 		PaintPreviewNameBg(target.nameBg, "PALADIN", false)
 		PaintPreviewName(player.name, playerClass, true)
 		PaintPreviewName(target.name, "PALADIN", false)
+		PaintPreviewHealth(player.health, playerClass, true)
+		PaintPreviewHealth(target.health, "PALADIN", false)
 
 		local function PaintClassIcon(wrap, class, active, side)
 			local icon = wrap.icon

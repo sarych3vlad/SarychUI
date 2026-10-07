@@ -492,6 +492,11 @@ function E:Initialize()
 
 	self.initialized = true
 	self:InitializeModules()
+	-- Apply linked SarychUI profile snapshot after modules exist so RefreshConfig
+	-- can reconfigure plates safely (and defaults like db.general are present).
+	if SarychUI and SarychUI.ApplyLinkedAddonProfiles then
+		SarychUI:ApplyLinkedAddonProfiles()
+	end
 	self:ApplySarychUINameplateProductDefaults(false)
 
 	if self.RegisterOptions then

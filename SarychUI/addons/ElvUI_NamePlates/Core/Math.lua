@@ -32,16 +32,21 @@ E.GetFormattedTextStyles = {
 }
 
 function E:BuildPrefixValues()
+	local general = E.db and E.db.general
+	if not general then
+		return
+	end
+
 	if next(E.ShortPrefixValues) then wipe(E.ShortPrefixValues) end
 
-	E.ShortPrefixValues = E:CopyTable(E.ShortPrefixValues, E.ShortPrefixStyles[E.db.general.numberPrefixStyle])
-	E.ShortValueDec = format("%%.%df", E.db.general.decimalLength or 1)
+	E.ShortPrefixValues = E:CopyTable(E.ShortPrefixValues, E.ShortPrefixStyles[general.numberPrefixStyle])
+	E.ShortValueDec = format("%%.%df", general.decimalLength or 1)
 
 	for _, style in ipairs(E.ShortPrefixValues) do
 		style[2] = E.ShortValueDec..style[2]
 	end
 
-	local gftDec = tostring(E.db.general.decimalLength or 1)
+	local gftDec = tostring(general.decimalLength or 1)
 	for style, str in pairs(E.GetFormattedTextStyles) do
 		E.GetFormattedTextStyles[style] = gsub(str, "%d", gftDec)
 	end

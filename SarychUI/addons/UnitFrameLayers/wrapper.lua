@@ -37,14 +37,26 @@ function wrapper:IsRuntimeEnabled()
 	return GetRuntimeEnabledFromDB()
 end
 
+local function ShowDisableReloadPopup()
+	if SarychUI and SarychUI.ShowReloadPopup then
+		SarychUI:ShowReloadPopup("|cff1784d1UnitFrameLayers|r будет полностью выключен после перезагрузки (/reload).")
+	elseif StaticPopup_Show then
+		StaticPopup_Show("SARYCHUI_RELOAD_UI")
+	end
+end
+
 function wrapper:SetRuntimeEnabled(enable)
 	enable = enable and true or false
+	local wasEnabled = self:IsRuntimeEnabled()
 	if enable then
 		self.enabled = false
 		self:Enable()
 	else
 		self.enabled = true
 		self:Disable()
+		if wasEnabled then
+			ShowDisableReloadPopup()
+		end
 	end
 	return true
 end
@@ -140,82 +152,24 @@ function wrapper:GetOptions()
 			enabled = {
 				type = "toggle",
 				name = "Включить",
-				desc = "Включить/выключить UnitFrameLayers",
+				desc = "Включить/выключить UnitFrameLayers. При выключении нужен /reload.",
 				order = 1,
 				get = function()
 					return wrapper:IsRuntimeEnabled()
 				end,
 				set = function(_, value)
 					wrapper:SetRuntimeEnabled(value)
-				end,
-			},
-			classColorHP = {
-				type = "toggle",
-				name = "Цвет класса для полосы здоровья",
-				disabled = function()
-					return not wrapper:IsRuntimeEnabled()
-				end,
-				desc = "Включить/выключить цвет полосы здоровья в цвет класса игрока",
-				order = 2,
-				width = "double",
-				get = function()
-					-- Если значение не установлено, возвращаем true (по умолчанию включено)
-					local val = SarychUI.db.profile.addons.UnitFrameLayers.classColorHP
-					return val ~= false  -- nil или true = включено, false = выключено
-				end,
-				set = function(info, value)
-					-- Сохраняем значение (true или false)
-					SarychUI.db.profile.addons.UnitFrameLayers.classColorHP = value
-					-- Обновляем цвет HP в реальном времени для всех доступных фреймов
-					local units = {"player", "target", "focus", "party1", "party2", "party3", "party4"}
-					for _, u in ipairs(units) do
-						local frame = _G[u.."Frame"]
-						if frame and frame.healthbar then
-							-- Вызываем UpdateHealthBarColor напрямую (проверка UnitExists внутри функции)
-							if UpdateHealthBarColor then
-								UpdateHealthBarColor(frame)
-							end
-						end
-					end
-				end,
-			},
-			playerClassColorHP = {
-				type = "toggle",
-				name = "Плеер: цвет класса для полосы здоровья",
-				desc = "Включить/выключить цвет полосы здоровья игрока в цвет класса",
-				order = 3,
-				width = "double",
-				hidden = function()
-					-- Скрываем, если основная настройка выключена
-					local val = SarychUI.db.profile.addons.UnitFrameLayers.classColorHP
-					return val == false
-				end,
-				disabled = function()
-					-- Отключаем, если основная настройка выключена
-					local val = SarychUI.db.profile.addons.UnitFrameLayers.classColorHP
-					return val == false
-				end,
-				get = function()
-					-- Если значение не установлено, возвращаем false (по умолчанию выключено)
-					local val = SarychUI.db.profile.addons.UnitFrameLayers.playerClassColorHP
-					return val == true
-				end,
-				set = function(info, value)
-					-- Сохраняем значение (true или false)
-					SarychUI.db.profile.addons.UnitFrameLayers.playerClassColorHP = value
-					-- Обновляем цвет HP игрока в реальном времени
-					local frame = _G["PlayerFrame"]
-					if frame and frame.healthbar then
-						if UpdateHealthBarColor then
-							UpdateHealthBarColor(frame)
-						end
+					if SarychUI and SarychUI.NotifySarychUIOptionsChange then
+						SarychUI:NotifySarychUIOptionsChange()
+					elseif SarychUI and SarychUI.RefreshConfig then
+						SarychUI:RefreshConfig()
 					end
 				end,
 			},
 			description = {
 				type = "description",
-				name = "Добавление анимации и текстур предикт лечения / абсорба и т.д. к стандартным blizz-frames.\n\nАвтор: " .. (self.author or "Неизвестен") .. "\nВерсия: " .. (self.version or "Неизвестна"),
-				order = 4,
+				name = "Добавление анимации и текстур предикт лечения / абсорба и т.д. к стандартным blizz-frames.\nВключение - сразу; полное выключение - после /reload.\n\nНастройки цвета полосы здоровья по классу: SarychUI → Фреймы → Внешний вид → Фреймы.\n\nАвтор: " .. (self.author or "Неизвестен") .. "\nВерсия: " .. (self.version or "Неизвестна"),
+				order = 2,
 				width = "full",
 			},
 		},

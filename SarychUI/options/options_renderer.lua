@@ -804,7 +804,7 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 			ApplyConfirm(opt, info, function()
 				CallSet(opt, info, value)
 			end)
-		end, TUI(opt.suiPlaceholder or opt.placeholder), flagPathFn)
+		end, TUI(opt.suiPlaceholder or opt.placeholder), flagPathFn, opt.suiInlineLabel and true or false)
 	elseif t == "input" then
 		if opt.suiSaveButton and W.InputWithButton then
 			-- suiKeepInput: keep shown value after OK (settings). Default clears (add-to-list).
@@ -1341,7 +1341,7 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 						ApplyConfirm(eOpt, eInfo, function()
 							CallSet(eOpt, eInfo, value)
 						end)
-					end, eOpt.suiPlaceholder or eOpt.placeholder, eFlagPathFn)
+					end, eOpt.suiPlaceholder or eOpt.placeholder, eFlagPathFn, eOpt.suiInlineLabel and true or false)
 				elseif eOpt.type == "input" then
 					if eOpt.suiSaveButton and W.InputWithButton then
 						widget = W:InputWithButton(panel, eName, tostring(eOpt.suiSaveButton), function()

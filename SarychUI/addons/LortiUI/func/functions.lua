@@ -361,6 +361,22 @@ function L.StyleShapeshiftButtons()
 	end
 end
 
+-- Only item-style buttons that live on the main menu bar panel are skinned.
+-- Everything else (professions, talents/inspect, LFD rewards, loot, quests,
+-- bags, bank, merchant, trade, mail...) must keep Blizzard's default look:
+-- the gloss/vertex tint made those icons far too dark.
+local function IsPanelItemButtonName(name)
+	if type(name) ~= "string" then
+		return false
+	end
+	if name == "MainMenuBarBackpackButton" then
+		return true
+	end
+	return name:match("^CharacterBag%dSlot$") ~= nil
+end
+
+L.IsPanelItemButtonName = IsPanelItemButtonName
+
 function L:PaintItemButton(button)
 	if not self.enabled then
 		return
@@ -372,7 +388,7 @@ function L:PaintItemButton(button)
 		return
 	end
 	local name = button.GetName and button:GetName()
-	if not name then
+	if not name or not IsPanelItemButtonName(name) then
 		return
 	end
 	SaveButton(button, name)
@@ -464,49 +480,8 @@ L.paperDollSlots = {
 }
 
 function L:PaintAllItemButtons()
-	local i, j, slot
-	for i = 1, 13 do
-		for j = 1, 36 do
-			self:PaintItemButton("ContainerFrame" .. i .. "Item" .. j)
-		end
-	end
-	for i = 1, #self.paperDollSlots do
-		slot = self.paperDollSlots[i]
-		self:PaintItemButton("Character" .. slot)
-		self:PaintItemButton("Inspect" .. slot)
-	end
-	for i = 1, 28 do
-		self:PaintItemButton("BankFrameItem" .. i)
-	end
-	for i = 1, 7 do
-		self:PaintItemButton("BankFrameBag" .. i)
-	end
-	for i = 1, 12 do
-		self:PaintItemButton("MerchantItem" .. i .. "ItemButton")
-	end
-	self:PaintItemButton("MerchantBuyBackItemItemButton")
-	for i = 1, 4 do
-		self:PaintItemButton("LootButton" .. i)
-	end
-	for i = 1, 10 do
-		self:PaintItemButton("QuestLogItem" .. i)
-		self:PaintItemButton("QuestDetailItem" .. i)
-		self:PaintItemButton("QuestRewardItem" .. i)
-		self:PaintItemButton("QuestInfoItem" .. i)
-	end
-	for i = 1, 7 do
-		self:PaintItemButton("TradePlayerItem" .. i .. "ItemButton")
-		self:PaintItemButton("TradeRecipientItem" .. i .. "ItemButton")
-	end
-	for i = 1, 16 do
-		self:PaintItemButton("SendMailAttachment" .. i)
-		self:PaintItemButton("OpenMailAttachment" .. i)
-	end
-	for i = 1, 8 do
-		for j = 1, 14 do
-			self:PaintItemButton("GuildBankColumn" .. i .. "Button" .. j)
-		end
-	end
+	-- Panel-only: backpack + bag slots on the main menu bar.
+	local i
 	self:PaintItemButton("MainMenuBarBackpackButton")
 	for i = 0, 3 do
 		self:PaintItemButton("CharacterBag" .. i .. "Slot")
@@ -593,22 +568,6 @@ function L:InstallButtonHooks()
 			end
 		end)
 	end
-	if ContainerFrame_Update then
-		hooksecurefunc("ContainerFrame_Update", function(frame)
-			if not L.enabled or not frame then
-				return
-			end
-			local fname = frame.GetName and frame:GetName()
-			local size = frame.size or 36
-			local n
-			for n = 1, size do
-				L:PaintItemButton(fname and _G[fname .. "Item" .. n])
-			end
-		end)
-	end
-	if PaperDollItemSlotButton_Update then
-		hooksecurefunc("PaperDollItemSlotButton_Update", function(slot)
-			L:PaintItemButton(slot)
-		end)
-	end
+	-- ContainerFrame_Update / PaperDollItemSlotButton_Update hooks were removed:
+	-- bag, character and inspect item slots keep their default Blizzard textures.
 end

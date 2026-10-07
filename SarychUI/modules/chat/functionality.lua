@@ -2002,3 +2002,115 @@ _G.EnableChatCharCount = EnableChatCharCount
 _G.DisableChatCharCount = DisableChatCharCount
 _G.ApplyChatCharCountSettings = ApplyChatCharCountSettings
 
+-- ========================================
+-- CHANNEL NOTICE GlobalString SAFETY
+-- Blizzard ChatFrame_MessageEventHandler does:
+--   local globalstring = getglobal("CHAT_"..arg1.."_NOTICE")
+--   format(globalstring, ...)
+-- Private servers (e.g. AzerothCore NOT_IN_LFG) may send arg1 values with no
+-- matching CHAT_*_NOTICE GlobalString, which errors. Ensure a string exists
+-- before Blizzard reaches format().
+-- ========================================
+
+local CHANNEL_NOTICE_FALLBACK = "|Hchannel:%d|h[%s]|h"
+local CONVERSATION_NOTICE_FALLBACK = "%s: %s"
+
+local function ChatGlobalGet(name)
+	if type(name) ~= "string" or name == "" then
+		return nil
+	end
+	if type(getglobal) == "function" then
+		return getglobal(name)
+	end
+	return _G[name]
+end
+
+local function ChatGlobalSet(name, value)
+	if type(name) ~= "string" or name == "" then
+		return
+	end
+	_G[name] = value
+	if type(setglobal) == "function" then
+		pcall(setglobal, name, value)
+	end
+end
+
+local function EnsureChatNoticeGlobal(noticeType, keyPrefix, fallback)
+	if type(noticeType) ~= "string" or noticeType == "" then
+		return fallback
+	end
+	keyPrefix = keyPrefix or "CHAT_"
+	local bnKey = keyPrefix .. noticeType .. "_NOTICE_BN"
+	local key = keyPrefix .. noticeType .. "_NOTICE"
+
+	-- Mirror Blizzard: prefer *_NOTICE_BN, then *_NOTICE.
+	local globalstring = ChatGlobalGet(bnKey)
+	if globalstring == nil then
+		globalstring = ChatGlobalGet(key)
+	end
+	if globalstring == nil then
+		globalstring = fallback or CHANNEL_NOTICE_FALLBACK
+		ChatGlobalSet(key, globalstring)
+	end
+	return globalstring
+end
+
+local function SeedKnownMissingChannelNotices()
+	-- AzerothCore LookingForGroup: arg1 = "NOT_IN_LFG", client has no CHAT_NOT_IN_LFG_NOTICE.
+	if ChatGlobalGet("CHAT_NOT_IN_LFG_NOTICE") == nil then
+		local locale = (GetLocale and GetLocale()) or "enUS"
+		local text
+		if locale == "ruRU" then
+			text = "|Hchannel:%d|h[%s]|h Чтобы присоединиться к этому каналу, нужно стоять в очереди поиска группы."
+		else
+			text = "|Hchannel:%d|h[%s]|h You must be queued for Looking For Group to join this channel."
+		end
+		ChatGlobalSet("CHAT_NOT_IN_LFG_NOTICE", text)
+	end
+end
+
+local channelNoticeHandlerHooked = false
+local channelNoticeFiltersHooked = false
+
+local function ChannelNoticeEnsureFilter(self, event, arg1, ...)
+	-- Runs inside ChatFrame_MessageEventHandler before format(getglobal(...)).
+	if event == "CHAT_MSG_BN_CONVERSATION_NOTICE" then
+		EnsureChatNoticeGlobal(arg1, "CHAT_CONVERSATION_", CONVERSATION_NOTICE_FALLBACK)
+	else
+		EnsureChatNoticeGlobal(arg1, "CHAT_", CHANNEL_NOTICE_FALLBACK)
+	end
+	return false
+end
+
+local function InstallChannelNoticeGlobalStringGuard()
+	SeedKnownMissingChannelNotices()
+
+	if not channelNoticeFiltersHooked and type(ChatFrame_AddMessageEventFilter) == "function" then
+		channelNoticeFiltersHooked = true
+		ChatFrame_AddMessageEventFilter("CHAT_MSG_CHANNEL_NOTICE", ChannelNoticeEnsureFilter)
+		ChatFrame_AddMessageEventFilter("CHAT_MSG_CHANNEL_NOTICE_USER", ChannelNoticeEnsureFilter)
+		ChatFrame_AddMessageEventFilter("CHAT_MSG_BN_CONVERSATION_NOTICE", ChannelNoticeEnsureFilter)
+	end
+
+	-- Outer guard: covers clients/addons where filters are skipped or installed late.
+	if not channelNoticeHandlerHooked then
+		local orig = _G.ChatFrame_MessageEventHandler
+		if type(orig) == "function" then
+			channelNoticeHandlerHooked = true
+			_G.ChatFrame_MessageEventHandler = function(self, event, ...)
+				if event == "CHAT_MSG_CHANNEL_NOTICE" or event == "CHAT_MSG_CHANNEL_NOTICE_USER" then
+					local arg1 = ...
+					EnsureChatNoticeGlobal(arg1, "CHAT_", CHANNEL_NOTICE_FALLBACK)
+				elseif event == "CHAT_MSG_BN_CONVERSATION_NOTICE" then
+					local arg1 = ...
+					EnsureChatNoticeGlobal(arg1, "CHAT_CONVERSATION_", CONVERSATION_NOTICE_FALLBACK)
+				end
+				return orig(self, event, ...)
+			end
+		end
+	end
+end
+
+InstallChannelNoticeGlobalStringGuard()
+_G.SarychUI_InstallChannelNoticeGlobalStringGuard = InstallChannelNoticeGlobalStringGuard
+

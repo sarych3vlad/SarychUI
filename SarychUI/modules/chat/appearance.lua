@@ -1656,21 +1656,19 @@ InitializeChatAnimations()
 -- СТИЛЬ ВКЛАДОК ЧАТА (Blizzard-correct)
 -- ========================================
 
--- Подставь своё имя модуля, если нужно
 local MODULE = "chat"
+local TAB_FLASH_HIGHLIGHT_TEX = "Interface\\PaperDollInfoFrame\\UI-Character-Tab-Highlight"
 
 -- Дефолты Blizzard из FloatingChatFrame.lua
--- Эти значения - «как в клиенте по умолчанию», не зависят от аддона.
 local BLIZZ_DEFAULT_ALPHAS = {
-  CHAT_FRAME_TAB_SELECTED_MOUSEOVER_ALPHA = 1.0,  -- выбранная, hover
-  CHAT_FRAME_TAB_SELECTED_NOMOUSE_ALPHA   = 0.4,  -- выбранная, no mouse
-  CHAT_FRAME_TAB_ALERTING_MOUSEOVER_ALPHA = 1.0,  -- alert, hover
-  CHAT_FRAME_TAB_ALERTING_NOMOUSE_ALPHA   = 1.0,  -- alert, no mouse
-  CHAT_FRAME_TAB_NORMAL_MOUSEOVER_ALPHA   = 0.6,  -- обычная, hover
-  CHAT_FRAME_TAB_NORMAL_NOMOUSE_ALPHA     = 0.2,  -- обычная, no mouse
+  CHAT_FRAME_TAB_SELECTED_MOUSEOVER_ALPHA = 1.0,
+  CHAT_FRAME_TAB_SELECTED_NOMOUSE_ALPHA   = 0.4,
+  CHAT_FRAME_TAB_ALERTING_MOUSEOVER_ALPHA = 1.0,
+  CHAT_FRAME_TAB_ALERTING_NOMOUSE_ALPHA   = 1.0,
+  CHAT_FRAME_TAB_NORMAL_MOUSEOVER_ALPHA   = 0.6,
+  CHAT_FRAME_TAB_NORMAL_NOMOUSE_ALPHA     = 0.2,
 }
 
--- Кастомные альфы: «прячем без курсора, показываем при наведении»
 local CUSTOM_ALPHAS = {
   CHAT_FRAME_TAB_SELECTED_MOUSEOVER_ALPHA = 1,
   CHAT_FRAME_TAB_SELECTED_NOMOUSE_ALPHA   = 0,
@@ -1680,81 +1678,197 @@ local CUSTOM_ALPHAS = {
   CHAT_FRAME_TAB_NORMAL_NOMOUSE_ALPHA     = 0,
 }
 
--- Применить набор альф (любой таблицы выше)
+local tabsStyleHooksInstalled = false
+local tabsStyleFrame
+
 local function ApplyAlphaSet(t)
   for k, v in pairs(t) do _G[k] = v end
 end
 
--- Показать/скрыть бордер-текстуры вкладок
-local function SetTabBordersVisible(visible)
+local function GetChatTabParts(indexOrTab)
+  local tab, base
+  if type(indexOrTab) == "number" then
+    base = "ChatFrame" .. indexOrTab .. "Tab"
+    tab = _G[base]
+  elseif type(indexOrTab) == "table" and indexOrTab.GetName then
+    tab = indexOrTab
+    base = tab:GetName()
+  else
+    return nil
+  end
+  if not tab or not base then return nil end
+  return {
+    tab = tab,
+    base = base,
+    left = _G[base .. "Left"],
+    mid = _G[base .. "Middle"],
+    right = _G[base .. "Right"],
+    flash = _G[base .. "Flash"],
+    hlLeft = _G[base .. "HighlightLeft"],
+    hlMid = _G[base .. "HighlightMiddle"],
+    hlRight = _G[base .. "HighlightRight"],
+  }
+end
+
+-- Restore TabFlash + HIGHLIGHT layer geometry from FloatingChatFrame.xml ChatTabTemplate.
+-- Does not stop UIFrameFlash / FCF alert state.
+local function RepairChatTabFlashHighlight(parts)
+  if not parts or not parts.tab then return end
+  local left, mid, right, flash = parts.left, parts.mid, parts.right, parts.flash
+  if not (left and right and flash) then return end
+
+  -- Flash frame: LEFT->TabLeft, RIGHT->TabRight, height 32, y offset -7.
+  flash:ClearAllPoints()
+  if flash.SetHeight then flash:SetHeight(32) end
+  flash:SetPoint("LEFT", left, "LEFT", 0, -7)
+  flash:SetPoint("RIGHT", right, "RIGHT", 0, -7)
+
+  local tex = flash.GetRegions and flash:GetRegions() or nil
+  if tex and tex.IsObjectType and tex:IsObjectType("Texture") then
+    if tex.SetTexture then tex:SetTexture(TAB_FLASH_HIGHLIGHT_TEX) end
+    if tex.SetBlendMode then tex:SetBlendMode("ADD") end
+    if tex.SetTexCoord then tex:SetTexCoord(0, 1, 0, 1) end
+    tex:ClearAllPoints()
+    tex:SetAllPoints(flash)
+  end
+
+  -- Hover highlight slices stay tied to border pieces (width owned by TabResize).
+  if parts.hlLeft then
+    parts.hlLeft:ClearAllPoints()
+    if parts.hlLeft.SetSize then parts.hlLeft:SetSize(16, 32) end
+    parts.hlLeft:SetPoint("TOPLEFT", left, "TOPLEFT")
+    parts.hlLeft:SetPoint("BOTTOMRIGHT", left, "BOTTOMRIGHT")
+  end
+  if parts.hlMid and mid then
+    parts.hlMid:ClearAllPoints()
+    if parts.hlMid.SetHeight then parts.hlMid:SetHeight(32) end
+    parts.hlMid:SetPoint("TOPLEFT", mid, "TOPLEFT")
+    parts.hlMid:SetPoint("BOTTOMRIGHT", mid, "BOTTOMRIGHT")
+  end
+  if parts.hlRight then
+    parts.hlRight:ClearAllPoints()
+    if parts.hlRight.SetSize then parts.hlRight:SetSize(16, 32) end
+    parts.hlRight:SetPoint("TOPLEFT", right, "TOPLEFT")
+    parts.hlRight:SetPoint("BOTTOMRIGHT", right, "BOTTOMRIGHT")
+  end
+end
+
+local function RepairAllChatTabFlashHighlights()
   for i = 1, (_G.NUM_CHAT_WINDOWS or 10) do
-    local base = "ChatFrame"..i.."Tab"
-    local left  = _G[base.."Left"]
-    local mid   = _G[base.."Middle"]
-    local right = _G[base.."Right"]
-    if visible then
-      if left  and left.Show  then left:Show()  end
-      if mid   and mid.Show   then mid:Show()   end
-      if right and right.Show then right:Show() end
-    else
-      if left  and left.Hide  then left:Hide()  end
-      if mid   and mid.Hide   then mid:Hide()   end
-      if right and right.Hide then right:Hide() end
+    RepairChatTabFlashHighlight(GetChatTabParts(i))
+  end
+  -- Temporary whisper/BN tabs are listed in CHAT_FRAMES.
+  if type(_G.CHAT_FRAMES) == "table" then
+    for i = 1, #_G.CHAT_FRAMES do
+      local name = _G.CHAT_FRAMES[i]
+      local tab = type(name) == "string" and _G[name .. "Tab"]
+      if tab then
+        RepairChatTabFlashHighlight(GetChatTabParts(tab))
+      end
     end
   end
 end
 
--- Принудительно обновить альфу всех вкладок с учётом новых глобалок
+-- Keep Left/Middle/Right shown (alpha 0) so TabFlash anchors stay valid.
+local function SetTabBordersVisible(visible)
+  for i = 1, (_G.NUM_CHAT_WINDOWS or 10) do
+    local parts = GetChatTabParts(i)
+    if parts then
+      for _, tex in ipairs({ parts.left, parts.mid, parts.right }) do
+        if tex then
+          if tex.Show then tex:Show() end
+          if tex.SetAlpha then tex:SetAlpha(visible and 1 or 0) end
+        end
+      end
+      RepairChatTabFlashHighlight(parts)
+    end
+  end
+end
+
 local function RefreshAllTabAlphas()
   for i = 1, (_G.NUM_CHAT_WINDOWS or 10) do
-    local cf = _G["ChatFrame"..i]
+    local cf = _G["ChatFrame" .. i]
     if cf and cf.GetName then
       if _G.FCFTab_UpdateAlpha then
-        _G.FCFTab_UpdateAlpha(cf)  -- корректно пересчитает mouseOver/noMouse alpha
+        _G.FCFTab_UpdateAlpha(cf)
       else
-        -- запасной вариант: «пнуть» фейд, если вдруг старая сборка
-        local tab = _G[cf:GetName().."Tab"]
+        local tab = _G[cf:GetName() .. "Tab"]
         if tab then tab:SetAlpha(tab.noMouseAlpha or 1) end
       end
     end
   end
 end
 
--- Включено: кастом
 local function ApplyTabsStyle_On()
   ApplyAlphaSet(CUSTOM_ALPHAS)
   SetTabBordersVisible(false)
   RefreshAllTabAlphas()
+  RepairAllChatTabFlashHighlights()
 end
 
--- Выключено: дефолт Blizzard
 local function ApplyTabsStyle_Off()
-  ApplyAlphaSet(BLIZZ_DEFAULT_ALPHAS)   -- строго как в FloatingChatFrame.lua
+  ApplyAlphaSet(BLIZZ_DEFAULT_ALPHAS)
   SetTabBordersVisible(true)
   RefreshAllTabAlphas()
+  RepairAllChatTabFlashHighlights()
 end
 
--- Основная точка входа (читает твою настройку tabsStyleEnabled)
 local function ApplyTabsStyle()
   local db = SarychUI and SarychUI.db and SarychUI.db.profile
             and SarychUI.db.profile.modules and SarychUI.db.profile.modules[MODULE]
   if not db or db.enabled == 0 then return end
 
-  local enabled = (db.tabsStyleEnabled == 1)
-  if enabled then
+  if db.tabsStyleEnabled == 1 then
     ApplyTabsStyle_On()
   else
     ApplyTabsStyle_Off()
   end
 end
 
--- Инициализация и авто-повтор (как у тебя)
-local tabsStyleFrame
+local function InstallTabsStyleHooks()
+  if tabsStyleHooksInstalled or not hooksecurefunc then return end
+  tabsStyleHooksInstalled = true
+
+  if type(PanelTemplates_TabResize) == "function" then
+    hooksecurefunc("PanelTemplates_TabResize", function(tab)
+      if tab and tab.GetName and tostring(tab:GetName() or ""):match("^ChatFrame%d+Tab$") then
+        RepairChatTabFlashHighlight(GetChatTabParts(tab))
+      end
+    end)
+  end
+
+  if type(FCF_FlashTab) == "function" then
+    hooksecurefunc("FCF_FlashTab", function(chatFrame)
+      if chatFrame and chatFrame.GetName then
+        RepairChatTabFlashHighlight(GetChatTabParts(_G[chatFrame:GetName() .. "Tab"]))
+      end
+    end)
+  end
+
+  if type(FCF_DockUpdate) == "function" then
+    hooksecurefunc("FCF_DockUpdate", function()
+      RepairAllChatTabFlashHighlights()
+    end)
+  end
+
+  if type(FCF_OpenTemporaryWindow) == "function" then
+    hooksecurefunc("FCF_OpenTemporaryWindow", function()
+      if C_Timer and C_Timer.After then
+        C_Timer.After(0, function()
+          ApplyTabsStyle()
+          RepairAllChatTabFlashHighlights()
+        end)
+      else
+        ApplyTabsStyle()
+        RepairAllChatTabFlashHighlights()
+      end
+    end)
+  end
+end
 
 local function InitializeTabsStyle()
-  -- Guard: exported globally and previously invoked twice from this file, which
-  -- registered a second event frame doing the same work.
   if tabsStyleFrame then return end
+  InstallTabsStyleHooks()
 
   tabsStyleFrame = CreateFrame("Frame")
   local f = tabsStyleFrame
@@ -1763,8 +1877,7 @@ local function InitializeTabsStyle()
   f:RegisterEvent("UPDATE_CHAT_WINDOWS")
   f:SetScript("OnEvent", function(self)
     ApplyTabsStyle()
-    -- лёгкий повтор в течение ~3 сек на случай поздних перерисовок.
-    -- Раз в 0.1с достаточно: перерисовки редки, а полный ApplyTabsStyle недёшев.
+    -- Light follow-up: repair flash geometry only (avoid Hide/Show thrash).
     local t, since = 0, 0
     self:SetScript("OnUpdate", function(_, elapsed)
       t = t + elapsed
@@ -1773,38 +1886,31 @@ local function InitializeTabsStyle()
         return
       end
       since = since + elapsed
-      if since >= 0.1 then
+      if since >= 0.25 then
         since = 0
-        ApplyTabsStyle()
+        RepairAllChatTabFlashHighlights()
       end
     end)
   end)
 
-  C_Timer.After(1, ApplyTabsStyle)
+  if C_Timer and C_Timer.After then
+    C_Timer.After(1, ApplyTabsStyle)
+  end
 end
 
--- Функции для модуля (согласно правилам)
 local function EnableTabsStyle()
-    ApplyTabsStyle_On()
+  ApplyTabsStyle_On()
 end
 
 local function DisableTabsStyle()
-    ApplyTabsStyle_Off()
+  ApplyTabsStyle_Off()
 end
 
 local function ForceDisableTabsStyle()
-    -- Принудительное восстановление при отключении модуля
-    ApplyTabsStyle_Off()
+  ApplyTabsStyle_Off()
 end
 
--- Вызови это из своего модуля при инициализации:
 InitializeTabsStyle()
-
--- Если у тебя есть общая функция применения настроек модуля:
--- function SarychUI.modules[MODULE]:ApplyAllSettings()
---   ApplyTabsStyle()
---   -- другие настройки...
--- end
 
 
 -- ========================================

@@ -46,6 +46,83 @@ local function ApplyFrameSettings()
     end
 end
 
+local function IsUnitFrameLayersEnabled()
+    local addons = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.addons
+    local db = addons and addons.UnitFrameLayers
+    if db then
+        return db.enabled ~= false
+    end
+    local wrapper = SarychUI.GetAddOn and SarychUI:GetAddOn("UnitFrameLayers")
+    if wrapper and wrapper.IsRuntimeEnabled then
+        return wrapper:IsRuntimeEnabled()
+    end
+    return UnitFrameLayersEnabled ~= false
+end
+
+local function UnitFrameLayersDB()
+    if not SarychUI.db or not SarychUI.db.profile then return nil end
+    SarychUI.db.profile.addons = SarychUI.db.profile.addons or {}
+    local db = SarychUI.db.profile.addons.UnitFrameLayers
+    if not db then
+        db = { enabled = true }
+        SarychUI.db.profile.addons.UnitFrameLayers = db
+    end
+    return db
+end
+
+local function FrameForUnit(unit)
+    if unit == "player" then return PlayerFrame end
+    if unit == "target" then return TargetFrame end
+    if unit == "focus" then return FocusFrame end
+    local n = type(unit) == "string" and unit:match("^party(%d+)$")
+    if n then return _G["PartyMemberFrame" .. n] end
+    return _G[unit .. "Frame"]
+end
+
+local function RefreshUnitFrameLayersHealthColors()
+    if type(UpdateHealthBarColor) ~= "function" then return end
+    local units = { "player", "target", "focus", "party1", "party2", "party3", "party4" }
+    for i = 1, #units do
+        local unit = units[i]
+        local frame = FrameForUnit(unit)
+        if frame then
+            frame.unit = frame.unit or unit
+            if not frame.healthbar then
+                local name = frame.GetName and frame:GetName()
+                frame.healthbar = name and _G[name .. "HealthBar"] or nil
+            end
+            -- Только перекраска: UnitFrameHealthBar_Update после неё снова ставит зелёный.
+            UpdateHealthBarColor(frame)
+        end
+    end
+    -- Прямой проход по известным барам (на случай рассинхрона frame.healthbar)
+    local bars = {
+        { PlayerFrame, PlayerFrameHealthBar, "player" },
+        { TargetFrame, TargetFrameHealthBar, "target" },
+        { FocusFrame, FocusFrameHealthBar, "focus" },
+    }
+    for i = 1, #bars do
+        local frame, bar, unit = bars[i][1], bars[i][2], bars[i][3]
+        if frame and bar then
+            frame.healthbar = bar
+            frame.unit = frame.unit or unit
+            UpdateHealthBarColor(frame)
+        end
+    end
+    local preview = SarychUI.FramePvpPreview
+    if preview and preview.SetLiveValue then
+        local db = UnitFrameLayersDB()
+        if db then
+            preview:SetLiveValue("classColorHP", db.classColorHP ~= false)
+            preview:SetLiveValue("playerClassColorHP", db.playerClassColorHP == true)
+        else
+            preview:RefreshAll()
+        end
+    elseif preview and preview.RefreshAll then
+        preview:RefreshAll()
+    end
+end
+
 local function ApplyPositionDrag()
     if module.ApplyPositionDragMode then
         module:ApplyPositionDragMode()
@@ -958,6 +1035,70 @@ function module:GetOptions()
                                         set = function(_, v)
                                             SarychUI.db.profile.modules.frame.classColoredNamesExcludePlayer = v and 1 or 0
                                             ApplyFrameSettings()
+                                        end,
+                                    },
+                                },
+                            },
+                            classColorHPBox = {
+                                type = "group",
+                                name = "Цвет полосы здоровья",
+                                desc = "Для работы требуется включённый UnitFrameLayers во вкладке Аддоны.",
+                                order = 1.15,
+                                inline = true,
+                                suiHelpIcon = true,
+                                disabled = function() return not IsUnitFrameLayersEnabled() end,
+                                args = {
+                                    classColorHP = {
+                                        type = "toggle",
+                                        name = "Цвет класса для полосы здоровья",
+                                        desc = "Окрашивает полосу здоровья цели/фокуса (и других игроков) в цвет класса вместо зелёной.",
+                                        order = 1,
+                                        width = "full",
+                                        suiPreviewKey = "classColorHP",
+                                        get = function()
+                                            local db = UnitFrameLayersDB()
+                                            local val = db and db.classColorHP
+                                            return val ~= false
+                                        end,
+                                        set = function(_, value)
+                                            local db = UnitFrameLayersDB()
+                                            if not db then return end
+                                            db.classColorHP = value and true or false
+                                            RefreshUnitFrameLayersHealthColors()
+                                            RefreshConfig()
+                                        end,
+                                    },
+                                    playerClassColorHP = {
+                                        type = "toggle",
+                                        name = "Плеер: цвет класса для полосы здоровья",
+                                        desc = "Окрашивает полосу здоровья игрока в цвет класса. Если выключено — остаётся зелёной.",
+                                        order = 2,
+                                        width = "full",
+                                        suiPreviewKey = "playerClassColorHP",
+                                        -- При выключенном UnitFrameLayers обе галочки остаются видимыми (серыми).
+                                        hidden = function()
+                                            if not IsUnitFrameLayersEnabled() then
+                                                return false
+                                            end
+                                            local db = UnitFrameLayersDB()
+                                            return not db or db.classColorHP == false
+                                        end,
+                                        disabled = function()
+                                            if not IsUnitFrameLayersEnabled() then
+                                                return true
+                                            end
+                                            local db = UnitFrameLayersDB()
+                                            return not db or db.classColorHP == false
+                                        end,
+                                        get = function()
+                                            local db = UnitFrameLayersDB()
+                                            return db and db.playerClassColorHP == true
+                                        end,
+                                        set = function(_, value)
+                                            local db = UnitFrameLayersDB()
+                                            if not db then return end
+                                            db.playerClassColorHP = value and true or false
+                                            RefreshUnitFrameLayersHealthColors()
                                         end,
                                     },
                                 },

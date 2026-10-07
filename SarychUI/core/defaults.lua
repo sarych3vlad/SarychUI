@@ -213,6 +213,12 @@ SarychUI.defaults = {
                 enableAltUnitBars = 1,
                 enableAltAuras = 1,
                 enableAltOmniCD = 0,
+                -- Per-place Alt announce channel: adaptive | say | party | raid | battleground | guild | yell
+                altAnnounceChannelBG = "say",
+                altAnnounceChannelArena = "adaptive",
+                altAnnounceChannelRaid = "adaptive",
+                altAnnounceChannelParty = "adaptive",
+                altAnnounceChannelSolo = "adaptive",
 
                 -- Visual / combat text (moved to floating_text)
 
@@ -942,6 +948,8 @@ SarychUI.defaults = {
 			-- UnitFrameLayers addon
 			UnitFrameLayers = {
 				enabled = true,
+				classColorHP = true,
+				playerClassColorHP = false,
 			},
 			-- pw_lossofcontrol addon
 			pw_lossofcontrol = {
@@ -1136,7 +1144,7 @@ SarychUI.defaults = {
 	
 	-- Global settings (not per character)
 	global = {
-        version = "1.1.0c",
+        version = "1.1.1a",
 		general = {
 			-- Saved size of the config window (matches ElvUI / ElvUI_NamePlates_Standalone defaults).
 			AceGUI = {
@@ -1506,6 +1514,27 @@ local function MigrateProfileDefaults(profile)
 	end
 	if modules and modules.tools and modules.tools.enableAltOmniCD == nil then
 		modules.tools.enableAltOmniCD = SarychUI.defaults.profile.modules.tools.enableAltOmniCD
+	end
+	if modules and modules.tools then
+		local tools = modules.tools
+		local toolsDef = SarychUI.defaults.profile.modules.tools
+		if tools.altAnnounceChannelBG == nil then
+			tools.altAnnounceChannelBG = toolsDef.altAnnounceChannelBG
+		end
+		if tools.altAnnounceChannelArena == nil then
+			tools.altAnnounceChannelArena = toolsDef.altAnnounceChannelArena
+		end
+		if tools.altAnnounceChannelRaid == nil then
+			tools.altAnnounceChannelRaid = toolsDef.altAnnounceChannelRaid
+		end
+		if tools.altAnnounceChannelParty == nil then
+			tools.altAnnounceChannelParty = toolsDef.altAnnounceChannelParty
+		end
+		if tools.altAnnounceChannelSolo == nil then
+			tools.altAnnounceChannelSolo = toolsDef.altAnnounceChannelSolo
+		end
+		-- Retired single global channel picker.
+		tools.altAnnounceChannelMode = nil
 	end
 	if modules and modules.tools and modules.tools.enableKeyEcho == nil then
 		modules.tools.enableKeyEcho = 0

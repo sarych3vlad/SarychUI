@@ -1483,13 +1483,105 @@ end
 
 AltCD.PREFIX = "> "
 
-function AltCD.GetChatChannel()
-    if IsInRaid() then
+AltCD.CHANNEL_MODES = {
+    adaptive = true,
+    say = true,
+    party = true,
+    raid = true,
+    battleground = true,
+    guild = true,
+    yell = true,
+}
+
+-- Per-place channel prefs (db key -> default mode).
+AltCD.CHANNEL_CONTEXTS = {
+    { key = "bg",    dbKey = "altAnnounceChannelBG",    default = "say" },
+    { key = "arena", dbKey = "altAnnounceChannelArena", default = "adaptive" },
+    { key = "raid",  dbKey = "altAnnounceChannelRaid",  default = "adaptive" },
+    { key = "party", dbKey = "altAnnounceChannelParty", default = "adaptive" },
+    { key = "solo",  dbKey = "altAnnounceChannelSolo",  default = "adaptive" },
+}
+
+function AltCD.NormalizeChannelMode(mode, fallback)
+    if mode and AltCD.CHANNEL_MODES[mode] then
+        return mode
+    end
+    return fallback or "adaptive"
+end
+
+function AltCD.IsInBattleground()
+    if UnitInBattleground and UnitInBattleground("player") then
+        return true
+    end
+    local instanceType = IsInInstance and select(2, IsInInstance())
+    return instanceType == "pvp"
+end
+
+function AltCD.GetChannelContextKey()
+    if AltCD.IsInBattleground() then
+        return "bg"
+    end
+    local instanceType = IsInInstance and select(2, IsInInstance())
+    if instanceType == "arena" then
+        return "arena"
+    end
+    if (GetNumRaidMembers and GetNumRaidMembers() or 0) > 0 or (IsInRaid and IsInRaid()) then
+        return "raid"
+    end
+    if (GetNumPartyMembers and GetNumPartyMembers() or 0) > 0 or (IsInGroup and IsInGroup()) then
+        return "party"
+    end
+    return "solo"
+end
+
+function AltCD.GetChannelMode()
+    local db = DB()
+    local context = AltCD.GetChannelContextKey()
+    for i = 1, #AltCD.CHANNEL_CONTEXTS do
+        local entry = AltCD.CHANNEL_CONTEXTS[i]
+        if entry.key == context then
+            local mode = db and db[entry.dbKey]
+            return AltCD.NormalizeChannelMode(mode, entry.default)
+        end
+    end
+    return "adaptive"
+end
+
+function AltCD.GetAdaptiveChatChannel()
+    if (GetNumRaidMembers and GetNumRaidMembers() or 0) > 0 then
         return "RAID"
-    elseif IsInGroup() then
+    end
+    if IsInRaid and IsInRaid() then
+        return "RAID"
+    end
+    if (GetNumPartyMembers and GetNumPartyMembers() or 0) > 0 then
+        return "PARTY"
+    end
+    if IsInGroup and IsInGroup() then
         return "PARTY"
     end
     return "SAY"
+end
+
+function AltCD.ResolveChannelMode(mode)
+    if mode == "say" then
+        return "SAY"
+    elseif mode == "party" then
+        return "PARTY"
+    elseif mode == "raid" then
+        return "RAID"
+    elseif mode == "battleground" then
+        return "BATTLEGROUND"
+    elseif mode == "guild" then
+        return "GUILD"
+    elseif mode == "yell" then
+        return "YELL"
+    end
+    return AltCD.GetAdaptiveChatChannel()
+end
+
+function AltCD.GetChatChannel()
+    return AltCD.ResolveChannelMode(AltCD.GetChannelMode())
 end
 
 
@@ -6641,15 +6733,38 @@ local function ColorScoreBoard()
 	if instanceType ~= "pvp" and instanceType ~= "arena" then
 		return
 	end
-	local n = GetNumBattlefieldScores and GetNumBattlefieldScores() or 0
-	for i = 1, n do
+	-- Buttons are a fixed window (MAX_WORLDSTATE_SCORE_BUTTONS); scroll offset
+	-- maps button i -> GetBattlefieldScore(offset + i). Using raw i re-paints
+	-- page-1 names onto scrolled rows (icons/stats stay on the real players).
+	local maxButtons = MAX_WORLDSTATE_SCORE_BUTTONS or 20
+	local offset = 0
+	if FauxScrollFrame_GetOffset and WorldStateScoreScrollFrame then
+		offset = FauxScrollFrame_GetOffset(WorldStateScoreScrollFrame) or 0
+	end
+	local numScores = GetNumBattlefieldScores and GetNumBattlefieldScores() or 0
+	local playerName = UnitName("player")
+	local isArena = instanceType == "arena"
+	for i = 1, maxButtons do
 		local fs = _G["WorldStateScoreButton" .. i .. "NameText"]
 		if fs then
-			local name, _, _, _, _, _, _, _, _, class = GetBattlefieldScore(i)
-			if name and class then
-				local c = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
-				if c then
-					fs:SetText(format("|cff%02x%02x%02x%s|r", c.r * 255 + 0.5, c.g * 255 + 0.5, c.b * 255 + 0.5, name))
+			local index = offset + i
+			if index <= numScores then
+				local name, _, _, _, _, _, _, _, _, classToken = GetBattlefieldScore(index)
+				if name then
+					-- Embedded |cff colors need a white vertex; Blizzard faction tint
+					-- would otherwise multiply over class colors.
+					if fs.SetVertexColor then
+						fs:SetVertexColor(1, 1, 1)
+					end
+					-- Default WorldStateFrame: own name on BG is gold (1.0, 0.82, 0).
+					if (not isArena) and playerName and name == playerName then
+						fs:SetText(format("|cffffd100%s|r", name))
+					elseif classToken then
+						local c = RAID_CLASS_COLORS and RAID_CLASS_COLORS[classToken]
+						if c then
+							fs:SetText(format("|cff%02x%02x%02x%s|r", c.r * 255 + 0.5, c.g * 255 + 0.5, c.b * 255 + 0.5, name))
+						end
+					end
 				end
 			end
 		end
