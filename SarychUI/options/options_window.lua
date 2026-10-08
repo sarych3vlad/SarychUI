@@ -1000,7 +1000,7 @@ function OW:RefreshFooterCredit()
 	if not credit then
 		return
 	end
-    local ver = (SUI and SUI.version) or "1.1.1a"
+    local ver = (SUI and SUI.version) or "1.2.0"
 	local author = (SarychUI and SarychUI.T and SarychUI:T("Автор:")) or "Автор:"
 	credit:SetText(author .. " Сарыч / WotLK 3.3.5 / " .. tostring(ver))
 end
@@ -1014,7 +1014,7 @@ function OW:ClearNav()
 	self.navButtons = {}
 end
 
-function OW:AddNavItem(id, label, depth, onClick)
+function OW:AddNavItem(id, label, depth, onClick, helpTip)
 	depth = depth or 0
 	local itemH = T.sizes.navItemH or 22
 	local btn = CreateFrame("Button", nil, self.navChild)
@@ -1024,7 +1024,6 @@ function OW:AddNavItem(id, label, depth, onClick)
 
 	local fs = btn:CreateFontString(nil, "OVERLAY", T.fonts.nav)
 	fs:SetPoint("LEFT", 8 + depth * 10, 0)
-	fs:SetPoint("RIGHT", -4, 0)
 	fs:SetJustifyH("LEFT")
 	fs:SetText((SarychUI and SarychUI.T and SarychUI:T(label)) or label or id)
 	T:SetTextColor(fs, depth > 0 and "textDim" or "text")
@@ -1032,6 +1031,44 @@ function OW:AddNavItem(id, label, depth, onClick)
 	btn.sectionId = id
 	btn.depth = depth
 	btn:RegisterForClicks("LeftButtonDown")
+
+	if type(helpTip) == "string" and helpTip ~= "" then
+		local help = CreateFrame("Button", nil, btn)
+		help:SetSize(14, 14)
+		help:SetPoint("LEFT", fs, "RIGHT", 4, 0)
+		help:EnableMouse(true)
+		help:SetFrameLevel((btn:GetFrameLevel() or 1) + 2)
+		local helpTex = help:CreateTexture(nil, "ARTWORK")
+		helpTex:SetAllPoints()
+		helpTex:SetTexture("Interface\\GossipFrame\\AvailableQuestIcon")
+		help:SetScript("OnEnter", function(self)
+			local tip = (SarychUI and SarychUI.T and SarychUI:T(helpTip)) or helpTip
+			local W = SUI and SUI.OptionsWidgets
+			if W and W.ShowCooltip then
+				W.ShowCooltip(self, { tip })
+			else
+				GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+				GameTooltip:SetText(tip, 1, 0.82, 0, 1, true)
+				GameTooltip:Show()
+			end
+		end)
+		help:SetScript("OnLeave", function()
+			local W = SUI and SUI.OptionsWidgets
+			if W and W.HideCooltip then
+				W.HideCooltip()
+			end
+			GameTooltip:Hide()
+		end)
+		help:SetScript("OnClick", function()
+			if onClick and id then
+				onClick(id)
+			end
+		end)
+		btn.help = help
+		fs:SetPoint("RIGHT", btn, "RIGHT", -20, 0)
+	else
+		fs:SetPoint("RIGHT", -4, 0)
+	end
 
 	btn:SetScript("OnEnter", function(self)
 		if self._active then return end

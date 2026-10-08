@@ -234,6 +234,98 @@ local FRAME_MAP = {
 		end,
 	},
 
+	-- Player resources (nested module DB: plate / runes / …)
+	playerPlate = {
+		title = "Панель игрока",
+		moduleKey = "player_resources",
+		subKey = "plate",
+		xKey = "x",
+		yKey = "y",
+		aKey = "point",
+		rKey = "relativePoint",
+		dragFlag = "showDragFrame",
+		gridFlag = "showGrid",
+		alwaysPosition = true,
+		defaultX = 0,
+		defaultY = -120,
+		defaultA = "CENTER",
+		defaultR = "CENTER",
+		min = -800,
+		max = 800,
+		onApply = function()
+			local m = SarychUI and SarychUI.modules and SarychUI.modules.player_resources
+			if m and m.RefreshPlate then m:RefreshPlate() end
+		end,
+	},
+	playerShield = {
+		title = "Индикатор щита",
+		moduleKey = "player_resources",
+		subKey = "shield",
+		xKey = "x",
+		yKey = "y",
+		aKey = "point",
+		rKey = "relativePoint",
+		dragFlag = "showDragFrame",
+		gridFlag = "showGrid",
+		requireEnabled = "enabled",
+		alwaysPosition = true,
+		defaultX = -98,
+		defaultY = -120,
+		defaultA = "CENTER",
+		defaultR = "CENTER",
+		min = -800,
+		max = 800,
+		onApply = function()
+			local m = SarychUI and SarychUI.modules and SarychUI.modules.player_resources
+			if m and m.RefreshShield then m:RefreshShield() end
+		end,
+	},
+	playerRunes = {
+		title = "Руны",
+		moduleKey = "player_resources",
+		subKey = "runes",
+		xKey = "x",
+		yKey = "y",
+		aKey = "point",
+		rKey = "relativePoint",
+		dragFlag = "showDragFrame",
+		gridFlag = "showGrid",
+		requireEnabled = "enabled",
+		alwaysPosition = true,
+		defaultX = 0,
+		defaultY = -294,
+		defaultA = "CENTER",
+		defaultR = "CENTER",
+		min = -800,
+		max = 800,
+		onApply = function()
+			local m = SarychUI and SarychUI.modules and SarychUI.modules.player_resources
+			if m and m.RefreshRunes then m:RefreshRunes() end
+		end,
+	},
+	playerTotems = {
+		title = "Тотемы",
+		moduleKey = "player_resources",
+		subKey = "totems",
+		xKey = "x",
+		yKey = "y",
+		aKey = "point",
+		rKey = "relativePoint",
+		dragFlag = "showDragFrame",
+		gridFlag = "showGrid",
+		requireEnabled = "enabled",
+		alwaysPosition = true,
+		defaultX = 0,
+		defaultY = -294,
+		defaultA = "CENTER",
+		defaultR = "CENTER",
+		min = -800,
+		max = 800,
+		onApply = function()
+			local m = SarychUI and SarychUI.modules and SarychUI.modules.player_resources
+			if m and m.RefreshTotems then m:RefreshTotems() end
+		end,
+	},
 	-- Quest tracker (tools / Dragonflight layout)
 	questTracker = {
 		title = "Трекер заданий",
@@ -266,11 +358,130 @@ local FRAME_MAP = {
 	},
 }
 
+-- FrostAtomUI action bars (mainmenubar module, barMode = "frostatom").
+-- Config: modules.mainmenubar.frostatom.<key> (extra bars: .extraBars.barN).
+do
+	local FA_KEYS = {
+		{ "bar1", "frostatom.bar1", "BOTTOM", 0, 32 },
+		{ "bar2", "frostatom.bar2", "BOTTOM", 0, 216 },
+		{ "bar3", "frostatom.bar3", "BOTTOM", 0, 260 },
+		{ "bar4", "frostatom.bar4", "BOTTOM", 0, 304 },
+		{ "bar5", "frostatom.bar5", "BOTTOM", 0, 120 },
+		{ "bar6", "frostatom.bar6", "RIGHT", -662, -424 },
+		{ "bar7", "frostatom.extraBars.bar7", "CENTER", 0, 0 },
+		{ "bar8", "frostatom.extraBars.bar8", "CENTER", 0, -40 },
+		{ "bar9", "frostatom.extraBars.bar9", "CENTER", 0, -80 },
+		{ "bar10", "frostatom.extraBars.bar10", "CENTER", 0, -120 },
+		{ "stance", "frostatom.stance", "BOTTOMLEFT", -230, 166, "BOTTOM" },
+		{ "pet", "frostatom.pet", "BOTTOM", 68, 116 },
+		{ "totemBar", "frostatom.totemBar", "BOTTOM", -150, 154 },
+		{ "vehicleExit", "frostatom.vehicleExit", "BOTTOM", 250, 116 },
+		{ "microMenu", "frostatom.microMenu", "BOTTOMRIGHT", -45, 3 },
+		{ "bagButton", "frostatom.bagButton", "BOTTOMRIGHT", -10, 5 },
+	}
+	local FA_TITLES = {
+		bar1 = "Панель команд 1", bar2 = "Панель команд 2", bar3 = "Панель команд 3",
+		bar4 = "Панель команд 4", bar5 = "Панель команд 5", bar6 = "Панель команд 6",
+		bar7 = "Панель команд 7", bar8 = "Панель команд 8", bar9 = "Панель команд 9",
+		bar10 = "Панель команд 10",
+		stance = "Панель стоек", pet = "Панель питомца", totemBar = "Панель тотемов",
+		vehicleExit = "Выход из транспорта", microMenu = "Микроменю", bagButton = "Кнопка сумки",
+	}
+	for _, def in ipairs(FA_KEYS) do
+		local key, subKey, point, dx, dy, relPoint = def[1], def[2], def[3], def[4], def[5], def[6]
+		FRAME_MAP["faBar_" .. key] = {
+			title = FA_TITLES[key] or key,
+			moduleKey = "mainmenubar",
+			subKey = subKey,
+			xKey = "x",
+			yKey = "y",
+			aKey = "point",
+			rKey = "relativePoint",
+			dragFlag = "showDragFrame",
+			gridFlag = "showGrid",
+			alwaysPosition = true,
+			defaultX = dx,
+			defaultY = dy,
+			defaultA = point,
+			defaultR = relPoint or point,
+			min = -1600,
+			max = 1600,
+			onApply = function()
+				local FA = SarychUI and SarychUI.FrostAtomBars
+				if FA and FA.Refresh then
+					FA.Refresh(key)
+				end
+			end,
+		}
+	end
+	FRAME_MAP["faBar_playerCastbar"] = {
+		title = "Полоса каста",
+		moduleKey = "mainmenubar",
+		subKey = "frostatom.playerCastbar",
+		xKey = "x",
+		yKey = "y",
+		aKey = "point",
+		rKey = "relativePoint",
+		dragFlag = "showDragFrame",
+		gridFlag = "showGrid",
+		alwaysPosition = true,
+		defaultX = 0,
+		defaultY = 0,
+		defaultA = "BOTTOM",
+		defaultR = "BOTTOM",
+		min = -1600,
+		max = 1600,
+		point = "BOTTOM",
+		relativePoint = "BOTTOM",
+		resolveFramePosition = function(x, y)
+			local FA = SarychUI and SarychUI.FrostAtomBars
+			local dx, dy = 0, 95
+			if FA and FA.GetPlayerCastbarDefault then
+				dx, dy = FA.GetPlayerCastbarDefault()
+			end
+			return (tonumber(x) or 0) + dx, (tonumber(y) or 0) + dy
+		end,
+		fromFramePosition = function(x, y)
+			local FA = SarychUI and SarychUI.FrostAtomBars
+			local dx, dy = 0, 95
+			if FA and FA.GetPlayerCastbarDefault then
+				dx, dy = FA.GetPlayerCastbarDefault()
+			end
+			return (tonumber(x) or 0) - dx, (tonumber(y) or 0) - dy
+		end,
+		onApply = function()
+			local FA = SarychUI and SarychUI.FrostAtomBars
+			if FA and FA.Refresh then
+				FA.Refresh("playerCastbar")
+			end
+		end,
+	}
+end
+
 local session = nil -- { frameId, snapshot, draft, gridWasOn }
 
 local function ModuleDB(moduleKey)
 	local mods = SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules
 	return mods and mods[moduleKey]
+end
+
+local function ConfigDB(meta)
+	local db = meta and ModuleDB(meta.moduleKey)
+	if not db then
+		return nil
+	end
+	if meta.subKey then
+		-- Dotted sub keys walk nested tables ("frostatom.extraBars.bar7").
+		local t = db
+		for part in string.gmatch(meta.subKey, "[^%.]+") do
+			t = t and t[part]
+			if type(t) ~= "table" then
+				return nil
+			end
+		end
+		return t
+	end
+	return db
 end
 
 local function Clamp(v, lo, hi)
@@ -345,7 +556,7 @@ end
 local function AnyOtherDragActive(exceptId)
 	for id, meta in pairs(FRAME_MAP) do
 		if id ~= exceptId and meta.dragFlag and meta.moduleKey then
-			local db = ModuleDB(meta.moduleKey)
+			local db = ConfigDB(meta)
 			local flag = db and db[meta.dragFlag]
 			if flag == 1 or flag == true then
 				return true
@@ -356,7 +567,7 @@ local function AnyOtherDragActive(exceptId)
 end
 
 local function WriteDraftToDB(meta, draft, commitGrid)
-	local db = ModuleDB(meta.moduleKey)
+	local db = ConfigDB(meta)
 	if not db then return end
 	db[meta.xKey] = draft.x
 	db[meta.yKey] = draft.y
@@ -423,7 +634,7 @@ local function EnsureUI()
 	end
 
 	local f = CreateFrame("Frame", "SarychUI_PositionDragPanel", UIParent)
-	f:SetSize(260, 168)
+	f:SetSize(260, 196)
 	f:SetPoint("TOP", UIParent, "TOP", 0, -80)
 	RaisePanel(f)
 	f:EnableMouse(true)
@@ -457,6 +668,27 @@ local function EnsureUI()
 	title:SetText("Позиция")
 	f.title = title
 
+	local function MakeSlider(width, lo, hi, step)
+		local slider = CreateFrame("Slider", nil, f)
+		slider:SetSize(width, 16)
+		slider:SetOrientation("HORIZONTAL")
+		slider:SetMinMaxValues(lo, hi)
+		slider:SetValueStep(step)
+		local thumb = slider:CreateTexture(nil, "OVERLAY")
+		thumb:SetTexture("Interface\\Buttons\\WHITE8X8")
+		thumb:SetSize(8, 14)
+		thumb:SetVertexColor(0.95, 0.82, 0.20, 1)
+		slider:SetThumbTexture(thumb)
+		slider.thumb = thumb
+		local track = slider:CreateTexture(nil, "BACKGROUND")
+		track:SetTexture("Interface\\Buttons\\WHITE8X8")
+		track:SetHeight(3)
+		track:SetPoint("LEFT", slider, "LEFT", 0, 0)
+		track:SetPoint("RIGHT", slider, "RIGHT", 0, 0)
+		track:SetVertexColor(0.28, 0.28, 0.32, 1)
+		return slider
+	end
+
 	local function MakeRow(labelText, y)
 		local label = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 		label:SetPoint("TOPLEFT", 10, y)
@@ -473,23 +705,8 @@ local function EnsureUI()
 		edit:SetNumeric(false)
 		ApplyTheme(edit, { 0.06, 0.06, 0.07, 1 }, { 0.24, 0.24, 0.26, 1 })
 
-		local slider = CreateFrame("Slider", nil, f)
-		slider:SetSize(130, 16)
+		local slider = MakeSlider(130, -2000, 2000, 1)
 		slider:SetPoint("LEFT", edit, "RIGHT", 8, 0)
-		slider:SetOrientation("HORIZONTAL")
-		slider:SetMinMaxValues(-2000, 2000)
-		slider:SetValueStep(1)
-		local thumb = slider:CreateTexture(nil, "OVERLAY")
-		thumb:SetTexture("Interface\\Buttons\\WHITE8X8")
-		thumb:SetSize(8, 14)
-		thumb:SetVertexColor(0.95, 0.82, 0.20, 1)
-		slider:SetThumbTexture(thumb)
-		local track = slider:CreateTexture(nil, "BACKGROUND")
-		track:SetTexture("Interface\\Buttons\\WHITE8X8")
-		track:SetHeight(3)
-		track:SetPoint("LEFT", slider, "LEFT", 0, 0)
-		track:SetPoint("RIGHT", slider, "RIGHT", 0, 0)
-		track:SetVertexColor(0.28, 0.28, 0.32, 1)
 
 		return label, edit, slider
 	end
@@ -516,6 +733,79 @@ local function EnsureUI()
 	gridLabel:SetText("Сетка выравнивания")
 	f.gridBtn = gridBtn
 
+	-- Шаг сетки (общая настройка SarychUI.DragMode, как в FrostAtomUI).
+	local gridLo, gridHi, gridStep = 8, 128, 4
+	if SarychUI.DragMode and SarychUI.DragMode.GetGridSizeRange then
+		gridLo, gridHi, gridStep = SarychUI.DragMode:GetGridSizeRange()
+	end
+
+	local stepLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	stepLabel:SetPoint("TOPLEFT", 10, -116)
+	stepLabel:SetJustifyH("LEFT")
+	stepLabel:SetText("Шаг сетки")
+
+	local stepEdit = CreateFrame("EditBox", nil, f)
+	stepEdit:SetSize(40, 20)
+	stepEdit:SetPoint("LEFT", stepLabel, "RIGHT", 6, 0)
+	stepEdit:SetAutoFocus(false)
+	stepEdit:SetFontObject(GameFontHighlightSmall)
+	stepEdit:SetTextInsets(4, 4, 0, 0)
+	stepEdit:SetNumeric(true)
+	stepEdit:SetMaxLetters(3)
+	ApplyTheme(stepEdit, { 0.06, 0.06, 0.07, 1 }, { 0.24, 0.24, 0.26, 1 })
+
+	local stepSlider = MakeSlider(100, gridLo, gridHi, gridStep)
+	stepSlider:SetPoint("LEFT", stepEdit, "RIGHT", 8, 0)
+	stepSlider:SetPoint("RIGHT", f, "RIGHT", -12, 0)
+	f.stepLabel, f.stepEdit, f.stepSlider = stepLabel, stepEdit, stepSlider
+
+	local function SyncGridStep()
+		if not SarychUI.DragMode then return end
+		local on = SarychUI.DragMode:IsGridVisible() and true or false
+		local size = SarychUI.DragMode.GetGridSize and SarychUI.DragMode:GetGridSize() or 32
+		f._suppressStep = true
+		stepSlider:SetValue(size)
+		stepEdit:SetText(tostring(size))
+		f._suppressStep = false
+		local alpha = on and 1 or 0.4
+		stepLabel:SetAlpha(alpha)
+		stepEdit:SetAlpha(alpha)
+		stepSlider:SetAlpha(alpha)
+		stepEdit:EnableMouse(on)
+		stepSlider:EnableMouse(on)
+		if not on then
+			stepEdit:ClearFocus()
+		end
+	end
+	f.SyncGridStep = SyncGridStep
+
+	local function CommitGridStep(raw)
+		if f._suppressStep or not SarychUI.DragMode or not SarychUI.DragMode.SetGridSize then return end
+		local n = tonumber(raw)
+		if not n then
+			SyncGridStep()
+			return
+		end
+		SarychUI.DragMode:SetGridSize(n)
+		SyncGridStep()
+	end
+
+	stepSlider:SetScript("OnValueChanged", function(_, value)
+		if f._suppressStep then return end
+		CommitGridStep(value)
+	end)
+	stepEdit:SetScript("OnEnterPressed", function(self)
+		CommitGridStep(self:GetText())
+		self:ClearFocus()
+	end)
+	stepEdit:SetScript("OnEditFocusLost", function(self)
+		CommitGridStep(self:GetText())
+	end)
+	stepEdit:SetScript("OnEscapePressed", function(self)
+		SyncGridStep()
+		self:ClearFocus()
+	end)
+
 	local function MakeButton(text, x)
 		local btn = CreateFrame("Button", nil, f)
 		btn:SetSize(110, 24)
@@ -536,7 +826,7 @@ local function EnsureUI()
 	f.applyBtn = MakeButton("Применить", 12)
 	f.resetBtn = MakeButton("Сброс", 138)
 
-	local kids = { f.xEdit, f.xSlider, f.yEdit, f.ySlider, f.gridBtn, f.applyBtn, f.resetBtn, f.closeBtn }
+	local kids = { f.xEdit, f.xSlider, f.yEdit, f.ySlider, f.gridBtn, f.stepEdit, f.stepSlider, f.applyBtn, f.resetBtn, f.closeBtn }
 	for i = 1, #kids do
 		local k = kids[i]
 		if k and k.SetFrameLevel then
@@ -563,6 +853,7 @@ local function EnsureUI()
 		local gridOn = SarychUI.DragMode and SarychUI.DragMode:IsGridVisible()
 		if gridOn then check:Show() else check:Hide() end
 		f._suppress = false
+		SyncGridStep()
 	end
 	f.SyncEditsFromDraft = SyncEditsFromDraft
 
@@ -621,6 +912,7 @@ local function EnsureUI()
 		local on = not SarychUI.DragMode:IsGridVisible()
 		SarychUI.DragMode:ShowGrid(on)
 		if on then check:Show() else check:Hide() end
+		SyncGridStep()
 	end)
 
 	f.applyBtn:SetScript("OnClick", function()
@@ -719,7 +1011,7 @@ function Panel:Open(frameId)
 		self:Close(false)
 	end
 
-	local db = ModuleDB(meta.moduleKey) or {}
+	local db = ConfigDB(meta) or {}
 	local x = tonumber(db[meta.xKey])
 	if x == nil then x = meta.defaultX end
 	local y = tonumber(db[meta.yKey])
@@ -741,7 +1033,7 @@ function Panel:Open(frameId)
 	}
 
 	local ui = EnsureUI()
-	ui.title:SetText(meta.title)
+	ui.title:SetText((SarychUI and SarychUI.T and SarychUI:T(meta.title)) or meta.title)
 	ui:Show()
 	RaisePanel(ui)
 	ui.SyncEditsFromDraft()
@@ -764,7 +1056,7 @@ function Panel:Close(commit)
 	local snap = session.snapshot
 	local draft = session.draft
 
-	local db = meta and ModuleDB(meta.moduleKey)
+	local db = meta and ConfigDB(meta)
 
 	-- Draft is already live-written on every SetDraft. Close always keeps the
 	-- current position; Reset is the explicit revert to Open-time snapshot.
@@ -811,6 +1103,22 @@ function Panel:Close(commit)
 			if posOn and _G.SarychUI_QuestTracker and _G.SarychUI_QuestTracker.Refresh then
 				_G.SarychUI_QuestTracker.Refresh()
 			end
+		elseif meta and meta.moduleKey == "player_resources" and meta.subKey then
+			local posOn = meta.alwaysPosition and true or (db and (db[meta.positionFlag or "positioningEnabled"] == 1))
+			if meta.requireEnabled and db and db[meta.requireEnabled] ~= 1 then
+				posOn = false
+			end
+			SarychUI.DragMode:EnableEditMode(frameId, posOn and true or false, false, false)
+			if meta.onApply then
+				meta.onApply()
+			end
+		elseif meta and meta.moduleKey == "mainmenubar" then
+			-- FrostAtomUI bars: position is always applied from config; just
+			-- drop the drag chrome and re-layout.
+			SarychUI.DragMode:EnableEditMode(frameId, false, false, false)
+			if meta.onApply then
+				meta.onApply()
+			end
 		else
 			SarychUI.DragMode:EnableEditMode(frameId, false, false, false)
 		end
@@ -833,6 +1141,10 @@ end
 
 function Panel:OnDragPosition(frameId, x, y, point, relativePoint)
 	if not session or session.frameId ~= frameId then return false end
+	local meta = FRAME_MAP[frameId]
+	if meta and meta.fromFramePosition then
+		x, y = meta.fromFramePosition(x, y)
+	end
 	self:SetDraft(x, y, false, point, relativePoint, true)
 	return true
 end

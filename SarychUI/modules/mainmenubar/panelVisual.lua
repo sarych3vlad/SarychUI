@@ -64,13 +64,6 @@ local function SafeForLimit(value, fallback)
     return fallback or 0
 end
 
-local function GetNumShapeshiftFormsSafe()
-    if type(GetNumShapeshiftForms) == "function" then
-        return SafeForLimit(GetNumShapeshiftForms(), 0)
-    end
-    return 0
-end
-
 local function IsXPDisabled()
     if type(IsXPUserDisabled) == "function" then
         return IsXPUserDisabled()
@@ -714,27 +707,6 @@ local function ApplySecondaryPanelsBackgrounds()
             end
         end
 
-        for i = 1, GetNumShapeshiftFormsSafe() do
-            local button = _G["ShapeshiftButton" .. i]
-            if button then
-                local normalTexture = button:GetNormalTexture()
-                if normalTexture then
-                    if hideSecondaryPanelsBackgrounds then
-                        normalTexture:SetTexture(nil)
-                    elseif not lortiOn then
-                        normalTexture:SetTexture("Interface\\Buttons\\UI-Quickslot2")
-                    end
-                end
-                local border = _G["ShapeshiftButton" .. i .. "Border"]
-                if border then
-                    if hideSecondaryPanelsBackgrounds then
-                        border:SetTexture(nil)
-                    else
-                        border:SetTexture("Interface\\Buttons\\UI-Quickslot-Depress")
-                    end
-                end
-            end
-        end
     end
     
     -- Pet bar backgrounds
@@ -772,27 +744,6 @@ local function ApplySecondaryPanelsBackgrounds()
             end
         end
 
-        for i = 1, POSSESS_SLOTS do
-            local button = _G["PossessButton" .. i]
-            if button then
-                local normalTexture = button:GetNormalTexture()
-                if normalTexture then
-                    if hideSecondaryPanelsBackgrounds then
-                        normalTexture:SetTexture(nil)
-                    elseif not lortiOn then
-                        normalTexture:SetTexture("Interface\\Buttons\\UI-Quickslot2")
-                    end
-                end
-                local border = _G["PossessButton" .. i .. "Border"]
-                if border then
-                    if hideSecondaryPanelsBackgrounds then
-                        border:SetTexture(nil)
-                    else
-                        border:SetTexture("Interface\\Buttons\\UI-Quickslot-Depress")
-                    end
-                end
-            end
-        end
     end
 end
 
@@ -855,7 +806,9 @@ end
 
 -- Apply button border alpha
 local function ApplyButtonBorderAlpha()
-    local buttonBorderAlphaEnabled = GetSetting('buttonBorderAlphaEnabled', false)
+    local FA = SarychUI.FrostAtomBars
+    local frostActive = FA and FA.IsActive and FA.IsActive()
+    local buttonBorderAlphaEnabled = frostActive or GetSetting('buttonBorderAlphaEnabled', false)
     local buttonBorderAlpha = GetSetting('buttonBorderAlpha', 0.4)
     local toolsDb = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules and SarychUI.db.profile.modules.tools
     local dark = toolsDb and (toolsDb.enableDarkMode == 1 or toolsDb.enableDarkMode == true) and toolsDb.darkModeColor
@@ -870,15 +823,14 @@ local function ApplyButtonBorderAlpha()
             if pt then pt:SetVertexColor(dark.r or 0.37, dark.g or 0.37, dark.b or 0.37, dark.a or 1) end
         end
         local a = buttonBorderAlphaEnabled and (buttonBorderAlpha or 0.4) or 1
-        -- UI-Quickslot2 (NormalTexture) is the rim around the icon. Pushed,
-        -- highlight and checked textures cover the button interior and must not
-        -- inherit the border opacity.
+        -- NormalTexture is the button rim. Pushed, highlight and checked
+        -- textures cover the button interior and must not inherit its opacity.
         if nt then nt:SetAlpha(a) end
     end
     
     local buttonTypes = {
         "ActionButton", "MultiBarBottomLeftButton", "MultiBarBottomRightButton",
-        "MultiBarRightButton", "MultiBarLeftButton", "BonusActionButton", "ShapeshiftButton",
+        "MultiBarRightButton", "MultiBarLeftButton", "BonusActionButton",
         "MainMenuBarBackpackButton", "CharacterBag0Slot", "CharacterBag1Slot", "CharacterBag2Slot", "CharacterBag3Slot"
     }
 
@@ -888,6 +840,18 @@ local function ApplyButtonBorderAlpha()
         end
     end
     Paint(_G["MainMenuBarBackpackButton"])
+
+    if FA and FA.IsActive and FA.IsActive() and FA.ForEachStyledButton then
+        FA.ForEachStyledButton(Paint)
+        local petButtons = FA.ActionBar and FA.ActionBar.petButtons
+        if petButtons then
+            for i = 1, #petButtons do
+                if petButtons[i].sarychSupportsBorderAlpha then
+                    Paint(petButtons[i])
+                end
+            end
+        end
+    end
     
     for i = 1, 10 do
         Paint(_G["PetActionButton" .. i])
@@ -985,6 +949,9 @@ local CLASSIC_MICRO_HILIGHT = [[Interface\Buttons\UI-MicroButton-Hilight]]
 local MICRO_DF_TEX_W = 14 * 1.4
 local MICRO_DF_TEX_H = 19 * 1.4
 local microMenuStyleHooksInstalled
+local applyingMicroMenu
+local ApplyMicroMenuStyle
+local ApplyMicroMenuAlpha
 
 local function ClassicMicroPath(name, suffix)
 	if name == "Character" then
@@ -1070,12 +1037,23 @@ local function EnsureMicroMenuStyleHooks()
 	if microMenuStyleHooksInstalled then return end
 	microMenuStyleHooksInstalled = true
 
+	-- Blizzard restores default Character/MainMenu textures (full-size chrome)
+	-- after we swap in DF art. Re-apply so alpha hits the visible icon, not a
+	-- leftover rim sitting under/over it.
+	local function RefreshMicroMenuAfterBlizzard()
+		if applyingMicroMenu then return end
+		if ApplyMicroMenuStyle then
+			ApplyMicroMenuStyle()
+		end
+	end
+
 	local function HidePortraitIfDf()
 		if GetSetting("microMenuStyle", "dragonflight") ~= "dragonflight" then return end
 		if MicroButtonPortrait then
 			MicroButtonPortrait:SetTexCoord(0, 0, 0, 0)
 			MicroButtonPortrait:SetAlpha(0)
 		end
+		RefreshMicroMenuAfterBlizzard()
 	end
 
 	if type(hooksecurefunc) == "function" then
@@ -1086,10 +1064,19 @@ local function EnsureMicroMenuStyleHooks()
 			hooksecurefunc("CharacterMicroButton_SetNormal", HidePortraitIfDf)
 		end
 		if MainMenuMicroButton_SetPushed then
-			hooksecurefunc("MainMenuMicroButton_SetPushed", UpdatePerformanceBar)
+			hooksecurefunc("MainMenuMicroButton_SetPushed", function()
+				UpdatePerformanceBar()
+				RefreshMicroMenuAfterBlizzard()
+			end)
 		end
 		if MainMenuMicroButton_SetNormal then
-			hooksecurefunc("MainMenuMicroButton_SetNormal", UpdatePerformanceBar)
+			hooksecurefunc("MainMenuMicroButton_SetNormal", function()
+				UpdatePerformanceBar()
+				RefreshMicroMenuAfterBlizzard()
+			end)
+		end
+		if UpdateMicroButtons then
+			hooksecurefunc("UpdateMicroButtons", RefreshMicroMenuAfterBlizzard)
 		end
 	end
 
@@ -1102,7 +1089,9 @@ local function EnsureMicroMenuStyleHooks()
 	end
 end
 
-local function ApplyMicroMenuStyle()
+ApplyMicroMenuStyle = function()
+	if applyingMicroMenu then return end
+	applyingMicroMenu = true
 	EnsureMicroMenuStyleHooks()
 	local useDf = GetSetting("microMenuStyle", "dragonflight") == "dragonflight"
 
@@ -1160,29 +1149,33 @@ local function ApplyMicroMenuStyle()
 
 	local function HideExtraMicroIcons(button)
 		if not button._sarychExtraIcons then
-			local saved = {}
-			EachExtraMicroIcon(button, function(tex)
-				saved[#saved + 1] = {
+			button._sarychExtraIcons = {}
+		end
+		local savedByTex = {}
+		for _, info in ipairs(button._sarychExtraIcons) do
+			if info.tex then
+				savedByTex[info.tex] = info
+			end
+		end
+		EachExtraMicroIcon(button, function(tex)
+			if not savedByTex[tex] then
+				local info = {
 					tex = tex,
 					alpha = tex.GetAlpha and tex:GetAlpha() or 1,
 					shown = tex.IsShown and tex:IsShown() and true or false,
 					coords = tex.GetTexCoord and { tex:GetTexCoord() } or nil,
 				}
-			end)
-			button._sarychExtraIcons = saved
-		end
-		for _, info in ipairs(button._sarychExtraIcons) do
-			local tex = info.tex
-			if tex then
-				tex:SetAlpha(0)
-				if tex.SetTexCoord then
-					tex:SetTexCoord(0, 0, 0, 0)
-				end
-				if tex.Hide then
-					tex:Hide()
-				end
+				button._sarychExtraIcons[#button._sarychExtraIcons + 1] = info
+				savedByTex[tex] = info
 			end
-		end
+			tex:SetAlpha(0)
+			if tex.SetTexCoord then
+				tex:SetTexCoord(0, 0, 0, 0)
+			end
+			if tex.Hide then
+				tex:Hide()
+			end
+		end)
 	end
 
 	local function ShowExtraMicroIcons(button)
@@ -1235,9 +1228,7 @@ local function ApplyMicroMenuStyle()
 				if highlight and highlight.SetBlendMode then
 					highlight:SetBlendMode("ADD")
 				end
-				if entry.dfOnly then
-					HideExtraMicroIcons(button)
-				end
+				HideExtraMicroIcons(button)
 			elseif entry.dfOnly then
 				local snap = button._sarychMicroOrig
 				if snap then
@@ -1256,6 +1247,7 @@ local function ApplyMicroMenuStyle()
 				if highlight and highlight.SetBlendMode then
 					highlight:SetBlendMode("ADD")
 				end
+				ShowExtraMicroIcons(button)
 			end
 		end
 	end
@@ -1283,29 +1275,38 @@ local function ApplyMicroMenuStyle()
 
 	PositionPerformanceBar()
 	ApplyPerformanceBarVisibility()
+	if ApplyMicroMenuAlpha then
+		ApplyMicroMenuAlpha()
+	end
+	applyingMicroMenu = false
 end
 
 -- Apply micro menu alpha
-local function ApplyMicroMenuAlpha()
+ApplyMicroMenuAlpha = function()
     local microMenuAlphaEnabled = GetSetting('microMenuAlphaEnabled', false)
     local microMenuAlpha = GetSetting('microMenuAlpha', 0.95)
-    
-    local microButtons = {
-        "CharacterMicroButton", "SpellbookMicroButton", "TalentMicroButton", "AchievementMicroButton", "QuestLogMicroButton",
-        "LFDMicroButton", "MainMenuMicroButton", "SocialsMicroButton", "PVPMicroButton", "HelpMicroButton"
-    }
+    local a = microMenuAlphaEnabled and (microMenuAlpha or 0.95) or 1
 
-    for _, btn in ipairs(microButtons) do
-        local button = _G[btn]
-        if button then
-            for _, tex in ipairs({button:GetNormalTexture(), button:GetPushedTexture(), button:GetHighlightTexture(), button:GetDisabledTexture()}) do
-                if tex then 
-                    if microMenuAlphaEnabled then
-                        tex:SetAlpha(microMenuAlpha)
-                    else
-                        tex:SetAlpha(1.0)
-                    end
-                end
+    local seen = {}
+    local function Paint(button)
+        if not button or seen[button] then return end
+        seen[button] = true
+        for _, tex in ipairs({button:GetNormalTexture(), button:GetPushedTexture(), button:GetHighlightTexture(), button:GetDisabledTexture()}) do
+            if tex then
+                tex:SetAlpha(a)
+            end
+        end
+    end
+
+    for _, entry in ipairs(MICRO_MENU_BUTTONS) do
+        Paint(_G[entry.button])
+    end
+
+    local holder = _G.SarychUIMicroMenu
+    if holder and holder.GetChildren then
+        for _, child in ipairs({ holder:GetChildren() }) do
+            if child and child.GetNormalTexture then
+                Paint(child)
             end
         end
     end
@@ -1424,16 +1425,9 @@ function module:ShowElementsOnAlt()
     local showReputationBarOnAlt = GetSetting('showReputationBarOnAlt', false)
     local showSidePanelsOnAlt = GetSetting('showSidePanelsOnAlt', false)
     
-    -- Show hotkeys (только вне боя)
+    -- Hotkey visibility is owned exclusively by the Text panel.
     if showHotkeysOnAlt then
-        for i = 1, 12 do
-            _G["ActionButton" .. i .. "HotKey"]:SetAlpha(1)
-            _G["MultiBarBottomRightButton" .. i .. "HotKey"]:SetAlpha(1)
-            _G["MultiBarBottomLeftButton" .. i .. "HotKey"]:SetAlpha(1)
-            _G["MultiBarRightButton" .. i .. "HotKey"]:SetAlpha(1)
-            _G["MultiBarLeftButton" .. i .. "HotKey"]:SetAlpha(1)
-            _G["BonusActionButton" .. i .. "HotKey"]:SetAlpha(1)
-        end
+        if module.UpdateAllHotkeys then module:UpdateAllHotkeys(0, nil, "Classic:AltMode:pressed") end
     end
     
     -- Show page numbers (только вне боя)
@@ -1482,7 +1476,11 @@ function module:HideElementsOnAltRelease()
     BarsDebug("ALT released, hiding bar elements")
     
     -- Используем функции Hide*, которые содержат правильную логику приоритета боя
-    if module.HideHotkeys then module:HideHotkeys() end
+    if module.UpdateAllHotkeys then
+        module:UpdateAllHotkeys(0, nil, "Classic:AltMode:released")
+    elseif module.HideHotkeys then
+        module:HideHotkeys()
+    end
     if module.HidePageNumbers then module:HidePageNumbers() end
     if module.HideExperienceBar then module:HideExperienceBar() end
     if module.HideReputationBar then module:HideReputationBar() end

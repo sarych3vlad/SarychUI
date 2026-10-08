@@ -10,7 +10,6 @@ local dragData = {
 	isMoving = false,
 	justDragged = false,
 	startPosition = nil,
-	alignmentGrid = nil,
 }
 
 -- Создание drag frame
@@ -53,50 +52,12 @@ local function CreateDragFrame(frame, settings)
 	return dragframe
 end
 
--- Создание сетки выравнивания
-local function CreateAlignmentGrid()
-	if dragData.alignmentGrid then return dragData.alignmentGrid end
-	
-	local grid = CreateFrame('FRAME')
-	dragData.alignmentGrid = grid
-	grid:Hide()
-	grid:SetAllPoints(UIParent)
-	grid:SetFrameStrata("BACKGROUND")
-	grid:SetFrameLevel(0)
-	grid:SetToplevel(false)
-	grid:EnableMouse(false)
-	
-	local w, h = GetScreenWidth() * UIParent:GetEffectiveScale(), GetScreenHeight() * UIParent:GetEffectiveScale()
-	local ratio = w / h
-	local sqsize = w / 20
-	local wline = floor(sqsize - (sqsize % 2))
-	local hline = floor(sqsize / ratio - ((sqsize / ratio) % 2))
-	
-	-- Вертикальные линии
-	for i = 0, wline do
-		local t = grid:CreateTexture(nil, 'BACKGROUND')
-		if i == wline / 2 then
-			t:SetTexture(1, 0, 0, 0.5)
-		else
-			t:SetTexture(0, 0, 0, 0.5)
-		end
-		t:SetPoint('TOPLEFT', grid, 'TOPLEFT', i * w / wline - 1, 0)
-		t:SetPoint('BOTTOMRIGHT', grid, 'BOTTOMLEFT', i * w / wline + 1, 0)
+-- Сетка выравнивания общая для всех drag-режимов (SarychUI.DragMode,
+-- стиль FrostAtomUI с настраиваемым шагом).
+local function ShowSharedGrid(show)
+	if SarychUI and SarychUI.DragMode and SarychUI.DragMode.ShowGrid then
+		SarychUI.DragMode:ShowGrid(show and true or false)
 	end
-	
-	-- Горизонтальные линии
-	for i = 0, hline do
-		local t = grid:CreateTexture(nil, 'BACKGROUND')
-		if i == hline / 2 then
-			t:SetTexture(1, 0, 0, 0.5)
-		else
-			t:SetTexture(0, 0, 0, 0.5)
-		end
-		t:SetPoint('TOPLEFT', grid, 'TOPLEFT', 0, -i * h / hline + 1)
-		t:SetPoint('BOTTOMRIGHT', grid, 'TOPRIGHT', 0, -i * h / hline - 1)
-	end
-	
-	return grid
 end
 
 -- Включение режима редактирования
@@ -202,14 +163,7 @@ function ArenaDragMode:Enable(frame, settings, showDragFrame, showGrid, onPositi
 	end
 	
 	-- Показываем/скрываем сетку
-	if showGrid then
-		local grid = CreateAlignmentGrid()
-		grid:Show()
-	else
-		if dragData.alignmentGrid then
-			dragData.alignmentGrid:Hide()
-		end
-	end
+	ShowSharedGrid(showGrid)
 end
 
 -- Проверка, происходит ли сейчас drag или только что был drag
@@ -247,23 +201,13 @@ function ArenaDragMode:Disable(frame)
 	end
 	
 	-- Скрываем сетку
-	if dragData.alignmentGrid then
-		dragData.alignmentGrid:Hide()
-	end
+	ShowSharedGrid(false)
 end
 
 
 -- Показать/скрыть сетку
 function ArenaDragMode:ShowGrid(show)
-	if not dragData.alignmentGrid then
-		CreateAlignmentGrid()
-	end
-	
-	if show then
-		dragData.alignmentGrid:Show()
-	else
-		dragData.alignmentGrid:Hide()
-	end
+	ShowSharedGrid(show)
 end
 
 -- Экспортируем модуль

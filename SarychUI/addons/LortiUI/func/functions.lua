@@ -337,30 +337,6 @@ function L.StylePetButtons()
 	end
 end
 
--- rActionButtonStyler_AB_styleshapeshift
-function L.StyleShapeshiftButtons()
-	if not L.enabled then
-		return
-	end
-	local i, slots
-	slots = NUM_SHAPESHIFT_SLOTS or 10
-	for i = 1, slots do
-		local name = "ShapeshiftButton" .. i
-		local bu = _G[name]
-		if bu then
-			SaveButton(bu, name)
-			ApplyLortiTextures(bu, name, false)
-			bu.suiLortiStyled = true
-			if not bu.bg then
-				applyBackground(bu)
-			else
-				bu.bg:Show()
-			end
-			L.paintedButtons[name] = true
-		end
-	end
-end
-
 -- Only item-style buttons that live on the main menu bar panel are skinned.
 -- Everything else (professions, talents/inspect, LFD rewards, loot, quests,
 -- bags, bank, merchant, trade, mail...) must keep Blizzard's default look:
@@ -498,7 +474,6 @@ function L:ApplyButtons()
 		self.StyleActionButton(_G["MultiBarRightButton" .. i])
 		self.StyleActionButton(_G["MultiBarLeftButton" .. i])
 	end
-	self.StyleShapeshiftButtons()
 	self.StylePetButtons()
 	for i = 1, 2 do
 		self.StyleActionButton(_G["PossessButton" .. i])
@@ -543,12 +518,6 @@ function L:InstallButtonHooks()
 			local name = button.GetName and button:GetName()
 			PaintActionOverlays(button, name and _G[name .. "Flash"])
 		end)
-	end
-	if ShapeshiftBar_Update then
-		hooksecurefunc("ShapeshiftBar_Update", L.StyleShapeshiftButtons)
-	end
-	if ShapeshiftBar_UpdateState then
-		hooksecurefunc("ShapeshiftBar_UpdateState", L.StyleShapeshiftButtons)
 	end
 	if PetActionBar_Update then
 		hooksecurefunc("PetActionBar_Update", L.StylePetButtons)

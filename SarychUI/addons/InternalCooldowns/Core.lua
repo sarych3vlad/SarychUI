@@ -62,6 +62,45 @@ function mod:OnInitialize()
 	end
 end;
 
+local BLIZZARD_ACTION_PREFIXES = {
+	{ "ActionButton", 12 },
+	{ "MultiBarBottomLeftButton", 12 },
+	{ "MultiBarBottomRightButton", 12 },
+	{ "MultiBarLeftButton", 12 },
+	{ "MultiBarRightButton", 12 },
+	{ "BonusActionButton", 12 },
+	{ "PetActionButton", 10 },
+	{ "ShapeshiftButton", 10 },
+}
+
+-- Classic bars plus FrostAtomUI SarychUIActionButtonN replacements.
+function mod:ForEachVisibleActionButton(fn)
+	if not fn then return end
+	local seen = {}
+	local function visit(button)
+		if not button or seen[button] then return end
+		if button.IsVisible and not button:IsVisible() then return end
+		local slot = button.action
+		if not slot or slot <= 0 then return end
+		seen[button] = true
+		fn(button)
+	end
+
+	local FA = SarychUI and SarychUI.FrostAtomBars
+	if FA and FA.IsActive and FA.IsActive() and FA.ForEachStyledButton then
+		FA.ForEachStyledButton(visit)
+	end
+	for i = 1, 120 do
+		visit(_G["SarychUIActionButton" .. i])
+	end
+	for p = 1, #BLIZZARD_ACTION_PREFIXES do
+		local prefix, count = BLIZZARD_ACTION_PREFIXES[p][1], BLIZZARD_ACTION_PREFIXES[p][2]
+		for i = 1, count do
+			visit(_G[prefix .. i])
+		end
+	end
+end
+
 function mod:RegisterModuleOptions(name, optionTbl, displayName)
 	do return end
 	options.args[name] = (type(optionTbl) == "function") and optionTbl() or optionTbl

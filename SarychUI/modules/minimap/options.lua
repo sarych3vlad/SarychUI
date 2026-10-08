@@ -637,6 +637,19 @@ function module:GetOptions()
 								set = function(_, value)
 									self.addon.db.profile.modules[moduleName].wheelEnabled = value and 1 or 0
 									if self.ApplySettings then self:ApplySettings() end
+									RefreshConfig()
+								end,
+							},
+							wheelZoomSound = {
+								type = "toggle",
+								name = "Звук при приближении и отдалении",
+								desc = "Проигрывает стандартный звук кнопок зума миникарты при прокрутке колеса мыши.",
+								order = 5, width = "full",
+								disabled = function() return self.addon.db.profile.modules[moduleName].wheelEnabled ~= 1 end,
+								get = function() return self.addon.db.profile.modules[moduleName].wheelZoomSound ~= 0 end,
+								set = function(_, value)
+									self.addon.db.profile.modules[moduleName].wheelZoomSound = value and 1 or 0
+									if self.ApplySettings then self:ApplySettings() end
 								end,
 							},
 						},

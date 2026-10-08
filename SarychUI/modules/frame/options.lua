@@ -1278,53 +1278,29 @@ function module:GetOptions()
                             },
                             portraitsBox = {
                                 type = "group",
-                                name = "Портреты",
+                                name = "Изменение портретов",
+                                desc = "Иконка класса / специализации вместо портрета, либо иконка класса у кружка уровня. Только для игроков, мобы и NPC не затрагиваются.\n\nИконка у кружка уровня добавлена по просьбе: Elamaunt",
                                 order = 6,
-                                inline = true,
-                                args = {
-                                    classIconPortraits = {
-                                        type = "toggle",
-                                        name = "Использовать иконки класса вместо портретов",
-                                        desc = "Для игроков показывает круглую иконку класса вместо портрета. На мобах и NPC не действует (как цвет полосы HP по классу).",
-                                        order = 1,
-                                        width = "full",
-                                        suiPreviewKey = "classIconPortraits",
-                                        get = function() return SarychUI.db.profile.modules.frame.classIconPortraits == 1 end,
-                                        set = function(_, v)
-                                            SarychUI.db.profile.modules.frame.classIconPortraits = v and 1 or 0
-                                            ApplyFrameSettings()
-                                            -- Rebuild so the player sub-toggle picks up disabled state.
-                                            RefreshConfig()
-                                        end,
-                                    },
-                                    classIconPortraitsPlayer = {
-                                        type = "toggle",
-                                        name = "Иконка класса на фрейме |cFFFFD700игрока|r",
-                                        desc = "Заменять портрет на фрейме игрока иконкой класса. Доступно только при включённых иконках класса вместо портретов.",
-                                        order = 2,
-                                        width = "full",
-                                        suiPreviewKey = "classIconPortraitsPlayer",
-                                        disabled = function() return SarychUI.db.profile.modules.frame.classIconPortraits ~= 1 end,
-                                        get = function() return SarychUI.db.profile.modules.frame.classIconPortraitsPlayer == 1 end,
-                                        set = function(_, v)
-                                            SarychUI.db.profile.modules.frame.classIconPortraitsPlayer = v and 1 or 0
-                                            ApplyFrameSettings()
-                                        end,
-                                    },
-                                },
-                            },
-                            classIconBox = {
-                                type = "group",
-                                name = "Иконка класса",
-                                desc = "Добавлено по просьбе: Elamaunt",
-                                order = 7,
                                 inline = true,
                                 suiHelpIcon = true,
                                 args = {
+                                    portrait3D = {
+                                        type = "toggle",
+                                        name = "3D портреты",
+                                        desc = "Анимированные 3D модели вместо портретов на всех фреймах: игрок, цель, фокус, питомец и группа. Работает для всех, включая мобов и NPC. Вне зоны видимости показывается обычный портрет (или иконка класса, если она включена ниже).",
+                                        order = 0,
+                                        width = "full",
+                                        suiPreviewKey = "portrait3D",
+                                        get = function() return SarychUI.db.profile.modules.frame.portrait3D == 1 end,
+                                        set = function(_, v)
+                                            SarychUI.db.profile.modules.frame.portrait3D = v and 1 or 0
+                                            ApplyFrameSettings()
+                                        end,
+                                    },
                                     classIconEnabled = {
                                         type = "toggle",
                                         name = "Включить",
-                                        desc = "Показывает круглую иконку класса на фреймах игрока, цели и фокуса. На мобов и NPC не действует.",
+                                        desc = "Меняет портрет на иконку класса / специализации (или показывает иконку класса у уровня) на фреймах игрока, цели и фокуса. Вид выбирается ниже.",
                                         order = 1,
                                         width = "full",
                                         suiPreviewKey = "classIconEnabled",
@@ -1335,34 +1311,60 @@ function module:GetOptions()
                                             RefreshConfig()
                                         end,
                                     },
-                                    classIconMode = {
+                                    classIconStyle = {
                                         type = "select",
                                         name = "",
-                                        desc = "Вместо уровня прячет цифру и ставит иконку в кружок уровня. Отдельно оставляет уровень и ставит такой же кружок рядом с ним.",
+                                        desc = "|cFFFFD700Иконка класса|r - круглая иконка класса вместо портрета.\n|cFFFFD700Иконка специализации|r - иконка таланта; пока специализация неизвестна, показывается иконка класса.\n|cFFFFD700Класс со значком специализации|r - иконка класса и маленький значок специализации в углу портрета.\n|cFFFFD700Показывать отдельно иконку класса|r - портрет не меняется, иконка класса ставится рядом с уровнем.\n|cFFFFD700Показывать иконку класса вместо уровня|r - иконка класса вместо цифры уровня.",
                                         order = 2,
                                         width = "full",
                                         values = {
-                                            replace = "Показывать иконку класса вместо уровня",
+                                            class = "Иконка класса",
+                                            spec = "Иконка специализации",
+                                            badge = "Класс со значком специализации",
                                             separate = "Показывать отдельно иконку класса",
-                                            __order = { "replace", "separate" },
+                                            replace = "Показывать иконку класса вместо уровня",
+                                            __order = { "class", "spec", "badge", "separate", "replace" },
                                         },
                                         hidden = function() return SarychUI.db.profile.modules.frame.classIconEnabled ~= 1 end,
-                                        suiPreviewKey = "classIconMode",
-                                        get = function() return SarychUI.db.profile.modules.frame.classIconMode or "replace" end,
+                                        suiPreviewKey = "classIconStyle",
+                                        get = function() return SarychUI.db.profile.modules.frame.classIconStyle or "class" end,
                                         set = function(_, v)
-                                            SarychUI.db.profile.modules.frame.classIconMode = v
+                                            SarychUI.db.profile.modules.frame.classIconStyle = v
                                             ApplyFrameSettings()
+                                            -- Rebuild so the options of the chosen style appear.
                                             RefreshConfig()
+                                        end,
+                                    },
+                                    classIconPortraitsPlayer = {
+                                        type = "toggle",
+                                        name = "Иконка класса на фрейме |cFFFFD700игрока|r",
+                                        desc = "Менять портрет на фрейме игрока. Если выключено, настройка действует только на цель и фокус.",
+                                        order = 3,
+                                        width = "full",
+                                        suiPreviewKey = "classIconPortraitsPlayer",
+                                        hidden = function()
+                                            local db = SarychUI.db.profile.modules.frame
+                                            local style = db.classIconStyle or "class"
+                                            return db.classIconEnabled ~= 1 or style == "separate" or style == "replace"
+                                        end,
+                                        get = function() return SarychUI.db.profile.modules.frame.classIconPortraitsPlayer == 1 end,
+                                        set = function(_, v)
+                                            SarychUI.db.profile.modules.frame.classIconPortraitsPlayer = v and 1 or 0
+                                            ApplyFrameSettings()
                                         end,
                                     },
                                     classIconPlayer = {
                                         type = "toggle",
                                         name = "Иконка класса на фрейме |cFFFFD700игрока|r",
                                         desc = "Показывать иконку класса на фрейме игрока. Если выключено, настройка действует только на цель и фокус.",
-                                        order = 3,
+                                        order = 4,
                                         width = "full",
                                         suiPreviewKey = "classIconPlayer",
-                                        disabled = function() return SarychUI.db.profile.modules.frame.classIconEnabled ~= 1 end,
+                                        hidden = function()
+                                            local db = SarychUI.db.profile.modules.frame
+                                            local style = db.classIconStyle or "class"
+                                            return db.classIconEnabled ~= 1 or (style ~= "separate" and style ~= "replace")
+                                        end,
                                         get = function() return SarychUI.db.profile.modules.frame.classIconPlayer ~= 0 end,
                                         set = function(_, v)
                                             SarychUI.db.profile.modules.frame.classIconPlayer = v and 1 or 0
@@ -1374,12 +1376,12 @@ function module:GetOptions()
                                         name = "Смещение по X",
                                         desc = "Сдвиг иконки класса по горизонтали от кружка уровня. Вправо — плюс, влево — минус.",
                                         min = -80, max = 80, step = 1,
-                                        order = 4,
+                                        order = 5,
                                         width = "full",
                                         suiPreviewKey = "classIconX",
                                         hidden = function()
                                             local db = SarychUI.db.profile.modules.frame
-                                            return db.classIconEnabled ~= 1 or (db.classIconMode or "replace") ~= "separate"
+                                            return db.classIconEnabled ~= 1 or db.classIconStyle ~= "separate"
                                         end,
                                         get = function()
                                             local v = SarychUI.db.profile.modules.frame.classIconX
@@ -1396,12 +1398,12 @@ function module:GetOptions()
                                         name = "Смещение по Y",
                                         desc = "Сдвиг иконки класса по вертикали от кружка уровня. Вверх — плюс, вниз — минус.",
                                         min = -80, max = 80, step = 1,
-                                        order = 5,
+                                        order = 6,
                                         width = "full",
                                         suiPreviewKey = "classIconY",
                                         hidden = function()
                                             local db = SarychUI.db.profile.modules.frame
-                                            return db.classIconEnabled ~= 1 or (db.classIconMode or "replace") ~= "separate"
+                                            return db.classIconEnabled ~= 1 or db.classIconStyle ~= "separate"
                                         end,
                                         get = function()
                                             local v = SarychUI.db.profile.modules.frame.classIconY
@@ -1417,12 +1419,12 @@ function module:GetOptions()
                                         type = "toggle",
                                         name = "Только если максимальный уровень",
                                         desc = "Заменять уровень иконкой класса только у персонажей максимального уровня.",
-                                        order = 6,
+                                        order = 7,
                                         width = "full",
                                         suiPreviewKey = "classIconMaxLevelOnly",
                                         hidden = function()
                                             local db = SarychUI.db.profile.modules.frame
-                                            return db.classIconEnabled ~= 1 or (db.classIconMode or "replace") == "separate"
+                                            return db.classIconEnabled ~= 1 or db.classIconStyle ~= "replace"
                                         end,
                                         get = function() return SarychUI.db.profile.modules.frame.classIconMaxLevelOnly == 1 end,
                                         set = function(_, v)

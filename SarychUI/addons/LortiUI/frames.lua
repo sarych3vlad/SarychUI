@@ -36,9 +36,110 @@ L.unitFrameNames = {
 	"FocusFrameSpellBarBorderShield",
 	"MinimapBorderTop",
 	"MiniMapTrackingButtonBorder",
+	"MiniMapWorldBorder",
+	"MiniMapMeetingStoneBorder",
+	"MiniMapRecordingBorder",
 	"CharacterFrameTitleBg",
 	"CharacterFrameBg",
 }
+
+-- Unnamed textures found by file path (lower-case, backslashes):
+--  * Interface\CharacterFrame\TotemBorder   - ring around Blizzard TotemFrame buttons
+--  * Interface\Minimap\MiniMap-TrackingBorder - ring on minimap addon buttons (LibDBIcon etc.)
+L.pathTextureTargets = {
+	["interface\\characterframe\\totemborder"] = true,
+	["interface\\minimap\\minimap-trackingborder"] = true,
+}
+L.paintedPathTextures = L.paintedPathTextures or {}
+
+local function NormalizeTexturePath(path)
+	if type(path) ~= "string" then return nil end
+	path = string.lower(path)
+	path = string.gsub(path, "/", "\\")
+	path = string.gsub(path, "%.blp$", "")
+	path = string.gsub(path, "%.tga$", "")
+	return path
+end
+
+local function PaintPathTexturesIn(frame, restore, depth)
+	if not frame or not frame.GetRegions then return end
+	depth = depth or 0
+	local regions = { frame:GetRegions() }
+	local i, region, path
+	for i = 1, #regions do
+		region = regions[i]
+		if region and region.GetObjectType and region:GetObjectType() == "Texture" and region.GetTexture then
+			path = NormalizeTexturePath(region:GetTexture())
+			if path and L.pathTextureTargets[path] then
+				if restore then
+					L:RestoreTexture(region)
+					L.paintedPathTextures[region] = nil
+				else
+					L:DarkenTexture(region)
+					L.paintedPathTextures[region] = true
+				end
+			end
+		end
+	end
+	if depth < 2 and frame.GetChildren then
+		local children = { frame:GetChildren() }
+		for i = 1, #children do
+			PaintPathTexturesIn(children[i], restore, depth + 1)
+		end
+	end
+end
+
+local function ForEachMinimapButton(fn)
+	if Minimap and Minimap.GetChildren then
+		local children = { Minimap:GetChildren() }
+		local i
+		for i = 1, #children do
+			fn(children[i])
+		end
+	end
+	local lib = LibStub and LibStub("LibDBIcon-1.0", true)
+	if lib and lib.objects then
+		local _, button
+		for _, button in pairs(lib.objects) do
+			fn(button)
+		end
+	end
+end
+
+function L:ApplyTotemRings()
+	local i
+	for i = 1, 4 do
+		PaintPathTexturesIn(_G["TotemFrameTotem" .. i], false)
+	end
+end
+
+-- LibDBIcon may be loaded by another addon after LortiUI; try until it exists.
+function L:InstallLibDBIconRingHook()
+	if self.libDBIconRingHookInstalled or not hooksecurefunc then return end
+	local lib = LibStub and LibStub("LibDBIcon-1.0", true)
+	if not (lib and lib.Register) then return end
+	self.libDBIconRingHookInstalled = true
+	hooksecurefunc(lib, "Register", function()
+		if L.enabled then
+			L:ApplyMinimapButtonRings()
+		end
+	end)
+end
+
+function L:ApplyMinimapButtonRings()
+	self:InstallLibDBIconRingHook()
+	ForEachMinimapButton(function(button)
+		PaintPathTexturesIn(button, false)
+	end)
+end
+
+function L:RestorePathTextures()
+	local region
+	for region in pairs(self.paintedPathTextures) do
+		self:RestoreTexture(region)
+	end
+	wipe(self.paintedPathTextures)
+end
 
 -- Action / XP / reputation bars (Lorti UI.lua)
 L.barFrameNames = {
@@ -133,6 +234,8 @@ function L:ApplyFrames()
 	PaintList(self.arenaFrameNames, false)
 	self:DarkenFirstRegion(TimeManagerClockButton)
 	self:DarkenFirstRegion(GameTimeFrame)
+	self:ApplyTotemRings()
+	self:ApplyMinimapButtonRings()
 	if self.ApplyCompactRaid then
 		self:ApplyCompactRaid()
 	end
@@ -148,6 +251,7 @@ function L:RestoreFrames()
 	PaintList(self.arenaFrameNames, true)
 	self:RestoreFirstRegion(TimeManagerClockButton)
 	self:RestoreFirstRegion(GameTimeFrame)
+	self:RestorePathTextures()
 	if self.RestoreCompactRaid then
 		self:RestoreCompactRaid()
 	end
@@ -169,9 +273,27 @@ function L:InstallFrameHooks()
 		elseif event == "ADDON_LOADED" then
 			if addonName == "Blizzard_TimeManager" or addonName == "Blizzard_ArenaUI" then
 				L:ApplyFrames()
+			else
+				-- Addon minimap buttons are usually created on load; tint their rings.
+				L:ApplyMinimapButtonRings()
 			end
 		end
 	end)
+
+	-- Buttons registered through LibDBIcon after login (or re-scanned by the
+	-- SarychUI minimap module) get their ring tinted as they appear.
+	self:InstallLibDBIconRingHook()
+	if not self.minimapRingHooksInstalled and hooksecurefunc then
+		self.minimapRingHooksInstalled = true
+		local mmMod = SarychUI and SarychUI.modules and SarychUI.modules.minimap
+		if mmMod and mmMod.ScanAddonMinimapButtons then
+			hooksecurefunc(mmMod, "ScanAddonMinimapButtons", function()
+				if L.enabled then
+					L:ApplyMinimapButtonRings()
+				end
+			end)
+		end
+	end
 
 	if not self.castBarIconHooksInstalled and hooksecurefunc then
 		self.castBarIconHooksInstalled = true

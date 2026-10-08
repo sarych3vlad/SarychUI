@@ -204,12 +204,17 @@ function OC:BuildSectionsFromAce()
 				})
 				for _, child in ipairs(children) do
 					local childId = topId .. "/" .. child.key
+					local navTip = child.opt and child.opt.suiNavTip
+					if type(navTip) ~= "string" or navTip == "" then
+						navTip = nil
+					end
 					self:RegisterSection(childId, {
 						id = childId,
 						label = ResolveName(child.opt),
 						depth = 1,
 						opt = child.opt,
 						path = { top.key, child.key },
+						navTip = navTip,
 					})
 				end
 			else
@@ -247,7 +252,7 @@ function OC:RebuildNav()
 		if sec then
 			OW:AddNavItem(id, sec.label, sec.depth or 0, function(clickedId)
 				OC:SelectSection(clickedId)
-			end)
+			end, sec.navTip)
 		end
 	end
 	self._navBuilt = true

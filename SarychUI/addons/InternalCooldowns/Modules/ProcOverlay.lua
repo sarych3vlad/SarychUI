@@ -186,9 +186,11 @@ function mod:PositionProcOverlay(itemID)
     -- Ищем кнопку действия с этим предметом
     local actionButton = self:FindActionButtonWithItem(itemID);
     if actionButton then
-        -- Позиционируем оверлей поверх кнопки действия
+        local size = actionButton.GetWidth and actionButton:GetWidth() or 36;
+        if not size or size <= 0 then size = 36; end
+        overlay.frame:ClearAllPoints();
         overlay.frame:SetPoint("CENTER", actionButton, "CENTER", 0, 0);
-        overlay.frame:SetSize(36, 36); -- Размер как у кнопки действия
+        overlay.frame:SetSize(size, size);
         return
     end
 
@@ -227,59 +229,20 @@ function mod:UpdateProcOverlays()
 end;
 
 function mod:FindActionButtonWithItem(itemID)
-    -- Список всех стандартных панелей Blizzard
-    local actionBarFrames = {
-        -- Основные панели
-        "ActionButton1", "ActionButton2", "ActionButton3", "ActionButton4", "ActionButton5", "ActionButton6",
-        "ActionButton7", "ActionButton8", "ActionButton9", "ActionButton10", "ActionButton11", "ActionButton12",
-        
-        -- Нижние панели
-        "MultiBarBottomLeftButton1", "MultiBarBottomLeftButton2", "MultiBarBottomLeftButton3", "MultiBarBottomLeftButton4",
-        "MultiBarBottomLeftButton5", "MultiBarBottomLeftButton6", "MultiBarBottomLeftButton7", "MultiBarBottomLeftButton8",
-        "MultiBarBottomLeftButton9", "MultiBarBottomLeftButton10", "MultiBarBottomLeftButton11", "MultiBarBottomLeftButton12",
-        
-        "MultiBarBottomRightButton1", "MultiBarBottomRightButton2", "MultiBarBottomRightButton3", "MultiBarBottomRightButton4",
-        "MultiBarBottomRightButton5", "MultiBarBottomRightButton6", "MultiBarBottomRightButton7", "MultiBarBottomRightButton8",
-        "MultiBarBottomRightButton9", "MultiBarBottomRightButton10", "MultiBarBottomRightButton11", "MultiBarBottomRightButton12",
-        
-        -- Боковые панели
-        "MultiBarLeftButton1", "MultiBarLeftButton2", "MultiBarLeftButton3", "MultiBarLeftButton4",
-        "MultiBarLeftButton5", "MultiBarLeftButton6", "MultiBarLeftButton7", "MultiBarLeftButton8",
-        "MultiBarLeftButton9", "MultiBarLeftButton10", "MultiBarLeftButton11", "MultiBarLeftButton12",
-        
-        "MultiBarRightButton1", "MultiBarRightButton2", "MultiBarRightButton3", "MultiBarRightButton4",
-        "MultiBarRightButton5", "MultiBarRightButton6", "MultiBarRightButton7", "MultiBarRightButton8",
-        "MultiBarRightButton9", "MultiBarRightButton10", "MultiBarRightButton11", "MultiBarRightButton12",
-        
-        -- Дополнительные панели
-        "BonusActionButton1", "BonusActionButton2", "BonusActionButton3", "BonusActionButton4",
-        "BonusActionButton5", "BonusActionButton6", "BonusActionButton7", "BonusActionButton8",
-        "BonusActionButton9", "BonusActionButton10", "BonusActionButton11", "BonusActionButton12",
-        
-        -- Pet панель
-        "PetActionButton1", "PetActionButton2", "PetActionButton3", "PetActionButton4",
-        "PetActionButton5", "PetActionButton6", "PetActionButton7", "PetActionButton8", "PetActionButton9", "PetActionButton10",
-        
-        -- Shapeshift панель
-        "ShapeshiftButton1", "ShapeshiftButton2", "ShapeshiftButton3", "ShapeshiftButton4",
-        "ShapeshiftButton5", "ShapeshiftButton6", "ShapeshiftButton7", "ShapeshiftButton8", "ShapeshiftButton9", "ShapeshiftButton10"
-    };
-    
-    -- Ищем кнопку действия с этим предметом
-    for _, buttonName in ipairs(actionBarFrames) do
-        local button = _G[buttonName];
-        if button and button:IsVisible() then
-            local slot = button.action;
-            if slot and slot > 0 then
-                local actionType, id = GetActionInfo(slot);
-                if actionType == "item" and id == itemID then
-                    return button;
-                end
-            end
-        end
+    local found;
+    local addon = LibStub("AceAddon-3.0"):GetAddon("InternalCooldowns", true);
+    if not addon or not addon.ForEachVisibleActionButton then
+        return nil;
     end
-    
-    return nil;
+    addon:ForEachVisibleActionButton(function(button)
+        if found then return end
+        local slot = button.action;
+        local actionType, id = GetActionInfo(slot);
+        if actionType == "item" and id == itemID then
+            found = button;
+        end
+    end);
+    return found;
 end;
 
 function mod:ShowItemCooldown(itemID, startTime, duration)

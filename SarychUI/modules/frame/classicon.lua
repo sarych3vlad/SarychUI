@@ -1,5 +1,6 @@
--- Class icon on player / target / focus.
--- classIconEnabled, classIconMode (replace|separate), classIconMaxLevelOnly
+-- Class icon at the level badge of player / target / focus.
+-- Active while classIconEnabled and classIconStyle is "replace" or "separate"
+-- (see portraits.lua, module.GetLevelIconStyle); also classIconMaxLevelOnly, classIconPlayer, classIconX/Y.
 
 local moduleName = "frame"
 local module = SarychUI and SarychUI.modules and SarychUI.modules[moduleName]
@@ -110,11 +111,13 @@ local function ShowClassIcon(levelText, unit, x, y, withRing)
 end
 
 function module:ApplyClassIcons()
-	local db = SarychUI.GetModuleProfile and SarychUI:GetModuleProfile(moduleName)
-		or (SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules and SarychUI.db.profile.modules[moduleName])
-	local enabled = db and db.enabled ~= false and SettingOn("classIconEnabled", 0)
-	local mode = GetSetting("classIconMode", "replace")
-	local replace = mode ~= "separate"
+	if self.UpdateSpecActivity then
+		self:UpdateSpecActivity()
+	end
+	-- "separate" / "replace" while that style is selected in "Изменение портретов", nil otherwise.
+	local levelStyle = module.GetLevelIconStyle and module.GetLevelIconStyle() or nil
+	local enabled = levelStyle ~= nil
+	local replace = levelStyle ~= "separate"
 	local onlyMax = replace and SettingOn("classIconMaxLevelOnly", 0)
 	local applyPlayer = SettingOn("classIconPlayer", 1)
 	local hideFrameLevel = SettingOn("hideFrameLevel", 0)

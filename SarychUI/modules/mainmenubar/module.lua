@@ -14,13 +14,6 @@ local function SafeForLimit(value, fallback)
     return fallback or 0
 end
 
-local function GetNumShapeshiftFormsSafe()
-    if type(GetNumShapeshiftForms) == "function" then
-        return SafeForLimit(GetNumShapeshiftForms(), 0)
-    end
-    return 0
-end
-
 local function GetNumRegionsSafe(frame)
     if frame and frame.GetNumRegions then
         return SafeForLimit(frame:GetNumRegions(), 0)
@@ -41,6 +34,39 @@ function module:Enable()
     local currentDb = SarychUI.db.profile.modules.mainmenubar
     if not currentDb or not currentDb.enabled then 
         return 
+    end
+
+    -- Bar mode is fixed for the session: FrostAtomUI bars destroy the Blizzard
+    -- bars, classic mode hooks them. Switching requires /reload.
+    local FA = SarychUI.FrostAtomBars
+    if FA then
+        FA.bootMode = FA.bootMode or currentDb.barMode or "classic"
+        if FA.bootMode == "frostatom" then
+            FA.Enable()
+            if SarychUI.AltMode then
+                SarychUI.AltMode:RegisterCallback("mainmenubar", function()
+                    if module.UpdateAllHotkeys then
+                        module:UpdateAllHotkeys(0, nil, "Frost:AltMode")
+                    end
+                end)
+            end
+            if self.InitializeTextSystem then self:InitializeTextSystem() end
+            if self.InitializeColorSystem then self:InitializeColorSystem() end
+            if self.ApplyMicroMenuStyle then self:ApplyMicroMenuStyle() end
+            if self.ApplyButtonBorderAlpha then self:ApplyButtonBorderAlpha() end
+            if self.ApplyMicroMenuAlpha then self:ApplyMicroMenuAlpha() end
+            if not module._faHotkeyEvents then
+                local f = CreateFrame("Frame")
+                module._faHotkeyEvents = f
+                f:RegisterEvent("PLAYER_TARGET_CHANGED")
+                f:SetScript("OnEvent", function()
+                    if module.UpdateAllHotkeys then
+                        module:UpdateAllHotkeys(0, nil, "Frost:PLAYER_TARGET_CHANGED")
+                    end
+                end)
+            end
+            return
+        end
     end
     
     -- Register Alt mode callback for all elements
@@ -91,7 +117,7 @@ function module:Enable()
             elseif event == "PLAYER_TARGET_CHANGED" then
                 local db = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules and SarychUI.db.profile.modules.mainmenubar
                 if db and db.enabled and db.showHotkeysWithTarget then
-                    if module.UpdateAllHotkeys then module:UpdateAllHotkeys() end
+                    if module.UpdateAllHotkeys then module:UpdateAllHotkeys(0, nil, "Classic:PLAYER_TARGET_CHANGED") end
                 end
             elseif event == "CHAT_MSG_COMBAT_FACTION_CHANGE" then
                 if module.OnCombatFactionChangeEvent then
@@ -113,6 +139,16 @@ end
 
 -- Disable module - COORDINATOR FUNCTION
 function module:Disable()
+    local FA = SarychUI.FrostAtomBars
+    if FA and FA.bootMode == "frostatom" then
+        local db = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules
+            and SarychUI.db.profile.modules.mainmenubar
+        if not db or not db.enabled then
+            FA.Disable()
+        end
+        return
+    end
+
     -- Unregister Alt mode callback
     if SarychUI.AltMode then
         SarychUI.AltMode:UnregisterCallback("mainmenubar")
@@ -260,19 +296,6 @@ function module:Disable()
             end
         end
 
-        for i = 1, GetNumShapeshiftFormsSafe() do
-            local button = _G["ShapeshiftButton" .. i]
-            if button then
-                local normalTexture = button:GetNormalTexture()
-                if normalTexture then
-                    normalTexture:SetTexture("Interface\\Buttons\\UI-Quickslot2")
-                end
-                local border = _G["ShapeshiftButton" .. i .. "Border"]
-                if border then
-                    border:SetTexture("Interface\\Buttons\\UI-Quickslot-Depress")
-                end
-            end
-        end
     end
     
     -- Reset PET BAR BACKGROUNDS
@@ -300,19 +323,6 @@ function module:Disable()
             end
         end
 
-        for i = 1, POSSESS_SLOTS do
-            local button = _G["PossessButton" .. i]
-            if button then
-                local normalTexture = button:GetNormalTexture()
-                if normalTexture then
-                    normalTexture:SetTexture("Interface\\Buttons\\UI-Quickslot2")
-                end
-                local border = _G["PossessButton" .. i .. "Border"]
-                if border then
-                    border:SetTexture("Interface\\Buttons\\UI-Quickslot-Depress")
-                end
-            end
-        end
     end
     
     -- Reset BONUS BAR TEXTURES
@@ -332,7 +342,7 @@ function module:Disable()
     -- Reset BUTTON BORDER ALPHA
     local buttonTypes = {
         "ActionButton", "MultiBarBottomLeftButton", "MultiBarBottomRightButton",
-        "MultiBarRightButton", "MultiBarLeftButton", "BonusActionButton", "ShapeshiftButton",
+        "MultiBarRightButton", "MultiBarLeftButton", "BonusActionButton",
         "MainMenuBarBackpackButton", "CharacterBag0Slot", "CharacterBag1Slot", "CharacterBag2Slot", "CharacterBag3Slot"
     }
 
@@ -398,6 +408,15 @@ end
 
 function module:RefreshConfig()
     local modDb = SarychUI.GetModuleProfile and SarychUI:GetModuleProfile(moduleName)
+    local FA = SarychUI.FrostAtomBars
+    if FA and FA.bootMode == "frostatom" then
+        if modDb and modDb.enabled then
+            FA.Enable()
+        else
+            FA.Disable()
+        end
+        return
+    end
     if not modDb or not modDb.enabled then
         if self.ForceResetAllElements then
             self:ForceResetAllElements()
@@ -532,8 +551,7 @@ function module:ForceResetAllElements()
     end
 end
 
--- Get options table for this module
+-- Get options table for this module (overwritten by options.lua when it loads).
 function module:GetOptions()
-    -- This will be populated with options from options.lua
     return {}
 end

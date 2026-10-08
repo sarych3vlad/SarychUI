@@ -454,6 +454,10 @@ function module:GetOptions()
 									end
 								end,
 							},
+							gridStep = SarychUI.DragMode and SarychUI.DragMode:GridStepOption(2.5, function()
+								local db = GetDB()
+								return not (db and db.showDragFrame == 1 and db.showGrid == 1)
+							end) or nil,
 							test2 = {
 								type = "toggle",
 								name = "Показать 2 арена фрейма",

@@ -1366,7 +1366,7 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 
 			-- Select + settings button inside the bordered panel (same level as other controls).
 			if opt.suiSelectWithButton and W.SelectWithButton then
-				local selectOpt = opt.args and (opt.args.indicatorType or opt.args.mode or opt.args.mapType or opt.args.frameType or opt.args.select or opt.args.choose)
+				local selectOpt = opt.args and (opt.args.indicatorType or opt.args.mode or opt.args.mapType or opt.args.frameType or opt.args.barMode or opt.args.select or opt.args.choose)
 				local buttonOpt = opt.args and (opt.args.openSettings or opt.args.openElvUISettings or opt.args.button or opt.args.applyProfile)
 				if selectOpt and buttonOpt then
 					local selectPath, buttonPath = {}, {}

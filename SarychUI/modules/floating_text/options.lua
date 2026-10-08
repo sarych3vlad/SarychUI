@@ -837,6 +837,10 @@ function module:GetOptions()
 											end
 										end,
 									},
+									gridStep = SarychUI.DragMode and SarychUI.DragMode:GridStepOption(2.5, function()
+										return not isOn("enableHealCombatTextAdjust")
+											or not (SarychUI.DragMode and SarychUI.DragMode:IsGridVisible())
+									end) or nil,
 								},
 							},
 							combatPreview = {

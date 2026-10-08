@@ -891,6 +891,11 @@ function module:GetOptions()
 						inline = true,
 						suiTwoCol = true,
 						suiHelpIcon = SarychUI.DOTA_ALT_HELP_ICON,
+						hidden = function()
+							local mm = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules
+								and SarychUI.db.profile.modules.mainmenubar
+							return mm ~= nil and mm.barMode == "frostatom"
+						end,
 						args = {
 							enableAltFPS = {
 								type = "toggle",

@@ -913,6 +913,37 @@ local function CloseAllEditModes()
 		end
 	end
 
+	-- 3a. Ресурсы игрока (свободное перемещение)
+	do
+		local prModule = SarychUI and SarychUI.modules and SarychUI.modules.player_resources
+		local db = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules and SarychUI.db.profile.modules.player_resources
+		if db and prModule then
+			local panel = SarychUI.PositionDragPanel or SarychUI.CombatTextDragPanel
+			local subs = { "plate", "shield", "runes", "totems" }
+			local dragIds = {
+				plate = "playerPlate",
+				shield = "playerShield",
+				runes = "playerRunes",
+				totems = "playerTotems",
+			}
+			for i = 1, #subs do
+				local sub = db[subs[i]]
+				if sub and sub.showDragFrame == 1 then
+					sub.showDragFrame = 0
+					sub.showGrid = 0
+					shouldClose = true
+					local frameId = dragIds[subs[i]]
+					if panel and panel.IsOpen and panel:IsOpen() and panel.GetFrameId and panel:GetFrameId() == frameId then
+						panel:Close(false)
+					end
+				end
+			end
+			if shouldClose and prModule.Refresh then
+				prModule:Refresh()
+			end
+		end
+	end
+
 	-- 3b. Трекер заданий (Инструменты > Dragonflight layout)
 	do
 		local db = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules and SarychUI.db.profile.modules.tools
@@ -2065,6 +2096,7 @@ function SarychUI:_AddModuleOptionsImpl()
 		minimap = 20,
 		map = 22,
 		mainmenubar = 30,
+		player_resources = 30.5,
 		cc = 31,
 		floating_text = 32,
 		arena = 35,

@@ -376,7 +376,7 @@ local function PreviewNameForKey(key)
 	then
 		return "PlatesAurasLayoutPreview"
 	end
-	if key:find("PVP") or key:find("^pvp") or key:find("^classIcon")
+	if key:find("PVP") or key:find("^pvp") or key:find("^classIcon") or key == "portrait3D"
 		or key == "hideFrameLevel" or key:find("^nameBackground") or key:find("^classColored") then
 		return "FramePvpPreview"
 	end
@@ -771,6 +771,10 @@ end
 
 W.HideCooltip = function()
 	HideCooltip()
+end
+
+W.ShowCooltip = function(anchor, lines)
+	ShowCooltip(anchor, lines)
 end
 
 function W:Header(parent, text, tooltipFn, iconPath, helpIcon)

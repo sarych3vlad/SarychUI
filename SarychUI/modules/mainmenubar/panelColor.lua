@@ -105,7 +105,7 @@ function module:UpdateButtonColorIndication(button, force)
     local icon = iconByButton[button]
     if icon == nil then
         local name = button.GetName and button:GetName()
-        icon = name and _G[name .. "Icon"] or false
+        icon = (name and _G[name .. "Icon"]) or button.icon or false
         iconByButton[button] = icon
     end
     if not icon then
@@ -199,6 +199,15 @@ function module:UpdateColorIndication()
                 self:UpdateButtonColorIndication(button, true)
             end
         end
+    end
+
+    local FA = SarychUI.FrostAtomBars
+    if FA and FA.IsActive and FA.IsActive() and FA.ForEachStyledButton then
+        FA.ForEachStyledButton(function(button)
+            if button and button:IsVisible() and button.action then
+                self:UpdateButtonColorIndication(button, true)
+            end
+        end)
     end
 end
 

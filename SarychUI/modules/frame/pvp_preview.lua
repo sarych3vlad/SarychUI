@@ -32,9 +32,11 @@ local KEY_TO_SLOT = {
 	pvpTimerOnAlt = "timer",
 	classIconPortraits = "portrait",
 	classIconPortraitsPlayer = "playerPortrait",
+	classIconStyle = "style",
+	portrait3D = "portrait3D",
 	hideFrameLevel = "level",
 	hidePlayerRestState = "restState",
-	classIconEnabled = "classIcon",
+	classIconEnabled = "style",
 	classIconMode = "classIcon",
 	classIconMaxLevelOnly = "classIcon",
 	classIconPlayer = "playerClassIcon",
@@ -267,15 +269,137 @@ local function MakePvpIcon(parent, point, x, y)
 	return pvpWrap
 end
 
-local function ApplyPortrait(tex, useClass, classToken, highlight)
-	if not tex then return end
-	if useClass then
-		local coords = classToken and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[classToken]
-		tex:SetTexture(CLASS_CIRCLES)
-		if coords then
-			tex:SetTexCoord(unpack(coords))
+local SPEC_TRIM = 0.08
+-- Same icon / ring size as the class icon beside the level badge.
+local BADGE_SIZE = 20
+local MODEL_BACK = "Interface\\AddOns\\SarychUI\\media\\portraits\\adapt_back"
+local MODEL_MASK = "Interface\\AddOns\\SarychUI\\media\\portraits\\adapt_mask"
+
+-- Spec icon of a preview unit: the real one for the player, a fixed sample for the target.
+local function PreviewSpecIcon(classToken, spec)
+	local specs = SarychUI.FrameSpecs
+	if not specs or not classToken then return nil end
+	return specs:GetIcon(classToken, spec)
+end
+
+-- Square icon -> round (same call the live frames use).
+local function SetRoundIcon(tex, path)
+	if type(SetPortraitToTexture) == "function" then
+		SetPortraitToTexture(tex, path)
+		tex:SetTexCoord(0, 1, 0, 1)
+	else
+		tex:SetTexture(path)
+		tex:SetTexCoord(SPEC_TRIM, 1 - SPEC_TRIM, SPEC_TRIM, 1 - SPEC_TRIM)
+	end
+end
+
+local function SetClassCircle(tex, classToken)
+	local coords = classToken and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[classToken]
+	tex:SetTexture(CLASS_CIRCLES)
+	if coords then
+		tex:SetTexCoord(unpack(coords))
+	else
+		tex:SetTexCoord(0, 1, 0, 1)
+	end
+end
+
+-- Corner spec badge of the "badge" style (parented to the preview frame, above its border art).
+local function PaintBadge(f, point, specIcon, highlight)
+	local badge = f._badge
+	if not badge then
+		badge = CreateFrame("Frame", nil, f)
+		badge:SetSize(S(BADGE_SIZE), S(BADGE_SIZE))
+		badge:SetFrameLevel(f:GetFrameLevel() + 6)
+		badge.icon = badge:CreateTexture(nil, "ARTWORK")
+		badge.icon:SetAllPoints()
+		local k = S(BADGE_SIZE) / S(20)
+		badge.ring = badge:CreateTexture(nil, "OVERLAY")
+		badge.ring:SetTexture(MINIMAP_RING)
+		badge.ring:SetSize(S(52) * k, S(52) * k)
+		badge.ring:SetPoint("TOPLEFT", badge.icon, "CENTER", -S(15) * k, S(16) * k)
+		f._badge = badge
+	end
+	if not specIcon then
+		badge:Hide()
+		return
+	end
+	badge:ClearAllPoints()
+	badge:SetPoint(point, f.portrait, point, 0, 0)
+	SetRoundIcon(badge.icon, specIcon)
+	if highlight then
+		badge.icon:SetVertexColor(1, 0.92, 0.35)
+		badge.ring:SetVertexColor(1, 0.92, 0.35)
+	else
+		badge.icon:SetVertexColor(1, 1, 1)
+		local L = SarychUI_LortiUI
+		if L and L.IsSettingOn and L.IsSettingOn() and L.GetColor then
+			local r, g, b, a = L.GetColor()
+			badge.ring:SetVertexColor(r, g, b, a or 1)
 		else
-			tex:SetTexCoord(0, 1, 0, 1)
+			badge.ring:SetVertexColor(1, 1, 1)
+		end
+	end
+	badge:Show()
+end
+
+-- 3D portrait of the "model" style: dark back (the portrait texture itself), PlayerModel above it,
+-- ring mask above the model, all under the preview border.
+local function PaintModel(f, unit, show)
+	local model = f._model
+	if not show then
+		if model then
+			model:Hide()
+			f._modelMask:Hide()
+		end
+		return
+	end
+	if not model then
+		local size = S(64)
+		model = CreateFrame("PlayerModel", nil, f)
+		model:EnableMouse(false)
+		model:SetFrameLevel(f:GetFrameLevel() + 1)
+		model:SetSize(size * 0.75, size * 0.75)
+		model:SetPoint("CENTER", f.portrait, "CENTER", 0, -S(2))
+		model:SetScript("OnShow", function(self) self:SetCamera(0) end)
+		local maskHost = CreateFrame("Frame", nil, f)
+		maskHost:EnableMouse(false)
+		maskHost:SetFrameLevel(f:GetFrameLevel() + 2)
+		maskHost:SetSize(size, size)
+		maskHost:SetPoint("CENTER", f.portrait, "CENTER", 0, 0)
+		local mask = maskHost:CreateTexture(nil, "ARTWORK")
+		mask:SetSize(size - 2.5, size)
+		mask:SetPoint("CENTER", maskHost, "CENTER", -0.5, -1.5)
+		mask:SetTexture(MODEL_MASK)
+		mask:SetVertexColor(0, 0, 0, 1)
+		f._model = model
+		f._modelMask = maskHost
+	end
+	model:Show()
+	f._modelMask:Show()
+	if model._unit ~= unit then
+		model._unit = unit
+		model:SetUnit(unit)
+	end
+	model:SetCamera(0)
+end
+
+local function ApplyPortrait(tex, useClass, classToken, highlight, style, specIcon)
+	if not tex then return end
+	if useClass and style == "model" then
+		tex:SetTexture(MODEL_BACK)
+		tex:SetTexCoord(0, 1, 0, 1)
+		if highlight then
+			tex:SetVertexColor(1, 0.92, 0.35)
+		else
+			tex:SetVertexColor(0.1, 0.1, 0.1)
+		end
+		return
+	end
+	if useClass then
+		if style == "spec" and specIcon then
+			SetRoundIcon(tex, specIcon)
+		else
+			SetClassCircle(tex, classToken)
 		end
 	else
 		tex:SetTexture(tex._defaultPortrait)
@@ -660,18 +784,56 @@ function Preview:Create(parent)
 		local hideTimer = LiveFlag("hidePVPTimer", true)
 		local hideLevel = LiveFlag("hideFrameLevel", false)
 		local hideRestState = LiveFlag("hidePlayerRestState", false)
-		local classPortrait = LiveFlag("classIconPortraits", false)
+		-- One toggle + one style: class | spec | badge | model replace the portrait,
+		-- separate | replace put the class icon at the level badge.
+		local enabled = LiveFlag("classIconEnabled", false)
+		local iconStyle = LiveOr("classIconStyle", "class")
+		local portraitStyle = iconStyle == "class" or iconStyle == "spec" or iconStyle == "badge"
+		local levelStyle = iconStyle == "separate" or iconStyle == "replace"
+		if not portraitStyle and not levelStyle then
+			iconStyle, portraitStyle = "class", true
+		end
+		local classPortrait = enabled and portraitStyle
 		local classPortraitPlayer = LiveFlag("classIconPortraitsPlayer", true)
+		local styleActive = IsActive("style")
 
-		local classIconOn = LiveFlag("classIconEnabled", false)
+		local classIconOn = enabled and levelStyle
 		local classIconPlayer = LiveFlag("classIconPlayer", true)
-		local classIconSeparate = LiveOr("classIconMode", "replace") == "separate"
+		local classIconSeparate = iconStyle == "separate"
 		local classIconX = tonumber(LiveOr("classIconX", -73)) or -73
 		local classIconY = tonumber(LiveOr("classIconY", 43)) or 43
 
 		local _, playerClass = UnitClass("player")
-		ApplyPortrait(player.portrait, classPortrait and classPortraitPlayer, playerClass, IsActive("portrait") or IsActive("playerPortrait"))
-		ApplyPortrait(target.portrait, classPortrait, "PALADIN", IsActive("portrait"))
+		local playerSpec = SarychUI.FrameSpecs and SarychUI.FrameSpecs:Get("player") or 1
+		local playerSpecIcon = PreviewSpecIcon(playerClass, playerSpec)
+		-- Sample target: Protection Paladin.
+		local targetSpecIcon = PreviewSpecIcon("PALADIN", 2)
+
+		local playerClassPortrait = classPortrait and classPortraitPlayer
+		-- Class / spec icons sit above 3D: when an icon style is on, the model is put away.
+		local model3D = LiveFlag("portrait3D", false)
+		local model3DActive = IsActive("portrait3D")
+		local portraitHighlight = IsActive("portrait") or (styleActive and classPortrait)
+		local playerHighlight = IsActive("playerPortrait") or portraitHighlight
+		local playerUseIcon = playerClassPortrait
+		local targetUseIcon = classPortrait
+		local playerUseModel = model3D and not playerUseIcon
+		local targetUseModel = model3D and not targetUseIcon
+		if playerUseModel then
+			ApplyPortrait(player.portrait, true, playerClass, model3DActive, "model")
+		else
+			ApplyPortrait(player.portrait, playerUseIcon, playerClass, playerHighlight, iconStyle, playerSpecIcon)
+		end
+		if targetUseModel then
+			ApplyPortrait(target.portrait, true, "PALADIN", model3DActive, "model")
+		else
+			ApplyPortrait(target.portrait, targetUseIcon, "PALADIN", portraitHighlight, iconStyle, targetSpecIcon)
+		end
+		PaintBadge(player, "BOTTOMRIGHT", playerUseIcon and iconStyle == "badge" and playerSpecIcon or nil, playerHighlight)
+		PaintBadge(target, "BOTTOMLEFT", targetUseIcon and iconStyle == "badge" and targetSpecIcon or nil, portraitHighlight)
+		PaintModel(player, "player", playerUseModel)
+		local targetModelUnit = (UnitExists("target") and UnitIsVisible("target")) and "target" or "player"
+		PaintModel(target, targetModelUnit, targetUseModel)
 
 		ApplyBorder(player.border, hideLevel, true)
 		ApplyBorder(target.border, hideLevel, false)
@@ -755,8 +917,9 @@ function Preview:Create(parent)
 			target.levelWrap.fs:Show()
 			ApplyLevelHighlight(player.levelWrap, IsActive("level"))
 			ApplyLevelHighlight(target.levelWrap, IsActive("level"))
-			PaintClassIcon(player.levelWrap, classIconPlayer and playerClass or nil, IsActive("classIcon") or IsActive("playerClassIcon"), -S(22))
-			PaintClassIcon(target.levelWrap, "PALADIN", IsActive("classIcon") and not IsActive("playerClassIcon"), S(22))
+			local levelHighlight = IsActive("classIcon") or (styleActive and classIconOn)
+			PaintClassIcon(player.levelWrap, classIconPlayer and playerClass or nil, IsActive("playerClassIcon") or levelHighlight, -S(22))
+			PaintClassIcon(target.levelWrap, "PALADIN", levelHighlight and not IsActive("playerClassIcon"), S(22))
 		end
 
 		if hidePlayerIcon then

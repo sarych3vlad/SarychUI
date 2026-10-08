@@ -93,7 +93,10 @@ function AnimatedHealthLossMixin:UpdateHealth(currentHealth, previousHealth)
 end
 
 function AnimatedHealthLossMixin:UpdateLossAnimation(currentHealth)
-	local totalAbsorb = UnitGetTotalAbsorbs(self.unit) or 0;
+	local totalAbsorb = 0;
+	if UnitGetTotalAbsorbs then
+		totalAbsorb = UnitGetTotalAbsorbs(self.unit) or 0;
+	end
 	if totalAbsorb > 0 then
 		self:CancelAnimation();
 	end

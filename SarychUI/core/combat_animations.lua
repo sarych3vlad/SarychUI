@@ -45,6 +45,13 @@ local function GetModuleSettings(moduleName)
     if not currentDb or not currentDb.enabled then 
         return nil 
     end
+    -- FrostAtomUI bars: Blizzard hotkeys / page numbers no longer exist.
+    if moduleName == "mainmenubar" then
+        local FA = SarychUI.FrostAtomBars
+        if FA and FA.bootMode == "frostatom" then
+            return nil
+        end
+    end
     
     return currentDb
 end
@@ -73,98 +80,27 @@ local function AnimateMultipleElements(elements, duration, fromA, toA, animation
     end
 end
 
--- Функция для хоткеев
-function CombatAnimations:FadeOutHotkeys(fadeTime)
-    local settings = GetModuleSettings("mainmenubar")
-    if not settings then return end
-    
-    -- Проверяем иерархию настроек для хоткеев
-    local hideHotkeysEnabled = settings.hideHotkeysEnabled
-    local showInCombat = settings.showHotkeysInCombat
-    
-    -- Если "Скрыть хоткеи" отключено - не скрываем
-    if not hideHotkeysEnabled then return end
-    
-    -- С целью хоткеи должны оставаться видимыми (согласованно с panelText)
-    if settings.showHotkeysWithTarget and UnitExists("target") then return end
-    
-    local fadeEnabled = settings.hotkeysFadeAfterCombat
-    local fadeTime = fadeTime or settings.hotkeysFadeTime or 0.4
-    
-    -- Собираем все хоткеи в один массив
-    local hotkeysToUpdate = {}
-    
-    for i = 1, 12 do
-        for _, btn in ipairs({"ActionButton","MultiBarBottomRightButton","MultiBarBottomLeftButton",
-                              "MultiBarRightButton","MultiBarLeftButton","BonusActionButton"}) do
-            local hotkey = _G[btn .. i .. "HotKey"]
-            if hotkey and hotkey:IsVisible() then
-                tinsert(hotkeysToUpdate, hotkey)
-            end
-        end
-    end
-    
-    -- Обрабатываем все хоткеи за один проход (как в оригинале)
-    for _, hotkey in ipairs(hotkeysToUpdate) do
-        if UIFrameFadeRemoveFrame then UIFrameFadeRemoveFrame(hotkey) end
-        if fadeEnabled and showInCombat then
-            UIFrameFadeOut(hotkey, fadeTime, 1, 0)
-        else
-            hotkey:SetAlpha(0)
-        end
+-- Hotkey alpha has one owner: modules/mainmenubar/panelText.lua.  This combat
+-- coordinator only tells it that the combat state changed; it never writes a
+-- FontString alpha itself.
+local function UpdateMainMenuBarHotkeys(fadeTime, inCombat, source)
+    local mainmenubar = SarychUI.modules and SarychUI.modules.mainmenubar
+    if mainmenubar and mainmenubar.SetHotkeyCombatState then
+        mainmenubar:SetHotkeyCombatState(inCombat, fadeTime, source)
+    elseif mainmenubar and mainmenubar.UpdateAllHotkeys then
+        mainmenubar:UpdateAllHotkeys(fadeTime, nil, source)
     end
 end
 
-function CombatAnimations:FadeInHotkeys()
-    local settings = GetModuleSettings("mainmenubar")
-    if not settings then return end
-    
-    -- Проверяем иерархию настроек для хоткеев
-    local hideHotkeysEnabled = settings.hideHotkeysEnabled
-    local showInCombat = settings.showHotkeysInCombat
-    
-    -- Если "Скрыть хоткеи" отключено ИЛИ "Показывать во время боя" отключено - не показываем
-    if not hideHotkeysEnabled or not showInCombat then 
-        return 
-    end
+function CombatAnimations:FadeOutHotkeys(fadeTime, source)
+    UpdateMainMenuBarHotkeys(fadeTime, false, source or "CombatAnimations:FadeOut")
+end
 
-    local fadeEnabled = settings.hotkeysFadeAfterCombat
-    local fadeTime = settings.hotkeysFadeTime or 0.4
-    
-    -- Собираем все хоткеи
-    local hotkeysToUpdate = {}
-    for i = 1, 12 do
-        for _, btn in ipairs({"ActionButton","MultiBarBottomRightButton","MultiBarBottomLeftButton",
-                              "MultiBarRightButton","MultiBarLeftButton","BonusActionButton"}) do
-            local hotkey = _G[btn .. i .. "HotKey"]
-            if hotkey then
-                tinsert(hotkeysToUpdate, hotkey)
-            end
-        end
-    end
-    
-    -- Обрабатываем все хоткеи
-    for _, hotkey in ipairs(hotkeysToUpdate) do
-        -- Убираем активные анимации перед началом новой
-        if UIFrameFadeRemoveFrame then UIFrameFadeRemoveFrame(hotkey) end
-        
-        if fadeEnabled then
-            -- Устанавливаем флаг анимации только если включена анимация
-            animationFlags.hotkeys = true
-            
-            -- жёстко анимируем вручную: никто не перебьёт
-            AnimateAlpha(hotkey, fadeTime, 0, 1)
-            
-            -- Сбрасываем флаг анимации
-            C_Timer.After(fadeTime, function()
-                animationFlags.hotkeys = false
-            end)
-        else
-            -- Резкое появление без анимации - сбрасываем флаг сразу
-            animationFlags.hotkeys = false
-            hotkey:SetAlpha(1)
-        end
-    end
+function CombatAnimations:FadeInHotkeys(source)
+    local settings = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules
+        and SarychUI.db.profile.modules.mainmenubar
+    local fadeTime = settings and settings.hotkeysFadeAfterCombat and settings.hotkeysFadeTime or 0
+    UpdateMainMenuBarHotkeys(fadeTime, true, source or "CombatAnimations:FadeIn")
 end
 
 -- Функция для номеров страниц
@@ -367,40 +303,40 @@ function CombatAnimations:ResetAnimationFlag(animationType)
     animationFlags[animationType] = false
 end
 
--- Регистрация событий боя
+-- Регистрация событий боя.  Keep the same ordering used by the classic bars:
+-- check UnitAffectingCombat immediately on entry (CircleL can emit a false
+-- PLAYER_REGEN_DISABLED for a residual DoT), but defer the exit check by one
+-- frame because the live unit flag can clear just after PLAYER_REGEN_ENABLED.
 local combatFrame = CreateFrame("Frame")
 combatFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 combatFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 combatFrame:SetScript("OnEvent", function(self, event)
     if event == "PLAYER_REGEN_DISABLED" then
-        -- Вход в бой - показываем элементы
-        CombatAnimations:FadeInHotkeys()
+        -- Classic and Frost share this path.  CircleL may fire the event
+        -- before lockdown; SetHotkeyCombatState still latches from the live
+        -- unit flag so in-combat hotkeys stay visible without a target.
+        CombatAnimations:FadeInHotkeys("PLAYER_REGEN_DISABLED")
         CombatAnimations:FadeInPageNumbers()
         -- Текстовые индикаторы управляются через module.lua
     elseif event == "PLAYER_REGEN_ENABLED" then
         -- Выход из боя - скрываем элементы
+        local rawSettings = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules
+            and SarychUI.db.profile.modules.mainmenubar
+        if rawSettings and rawSettings.enabled then
+            local hotkeysFadeTime = rawSettings.hotkeysFadeAfterCombat and (rawSettings.hotkeysFadeTime or 0.4) or 0
+            local delayFrame = CreateFrame("Frame")
+            local delayElapsed = 0
+            delayFrame:SetScript("OnUpdate", function(self, elapsed)
+                delayElapsed = delayElapsed + elapsed
+                if delayElapsed >= 0.01 then
+                    CombatAnimations:FadeOutHotkeys(hotkeysFadeTime, "PLAYER_REGEN_ENABLED+0.01")
+                    self:SetScript("OnUpdate", nil)
+                end
+            end)
+        end
+
         local mainmenubarSettings = GetModuleSettings("mainmenubar")
         if mainmenubarSettings and mainmenubarSettings.enabled then
-            -- Хоткеи
-            local hotkeysFadeEnabled = mainmenubarSettings.hotkeysFadeAfterCombat
-            local hotkeysFadeTime = mainmenubarSettings.hotkeysFadeTime or 0.4
-            
-            -- Используем OnUpdate фрейма для задержки (как в оригинале)
-            if hotkeysFadeEnabled then
-                -- Создаем временный фрейм для задержки через OnUpdate
-                local delayFrame = CreateFrame("Frame")
-                local delayElapsed = 0
-                delayFrame:SetScript("OnUpdate", function(self, elapsed)
-                    delayElapsed = delayElapsed + elapsed
-                    if delayElapsed >= 0.01 then
-                        CombatAnimations:FadeOutHotkeys(hotkeysFadeTime)
-                        self:SetScript("OnUpdate", nil)
-                    end
-                end)
-            else
-                CombatAnimations:FadeOutHotkeys(0)
-            end
-            
             -- Номера страниц
             local pageNumbersFadeEnabled = mainmenubarSettings.pageNumbersFadeAfterCombat
             local pageNumbersFadeTime = mainmenubarSettings.pageNumbersFadeTime or 0.4

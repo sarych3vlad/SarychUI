@@ -179,6 +179,10 @@ function L:Apply()
 	if frameMod and frameMod.ApplyClassIcons then
 		frameMod:ApplyClassIcons()
 	end
+	local prMod = SarychUI and SarychUI.modules and SarychUI.modules.player_resources
+	if prMod and prMod.ApplyTotemsDarkMode then
+		prMod:ApplyTotemsDarkMode()
+	end
 end
 
 function L:Enable()
@@ -207,5 +211,9 @@ function L:Disable()
 	local frameMod = SarychUI and SarychUI.modules and SarychUI.modules.frame
 	if frameMod and frameMod.ApplyClassIcons then
 		frameMod:ApplyClassIcons()
+	end
+	local prMod = SarychUI and SarychUI.modules and SarychUI.modules.player_resources
+	if prMod and prMod.ApplyTotemsDarkMode then
+		prMod:ApplyTotemsDarkMode()
 	end
 end

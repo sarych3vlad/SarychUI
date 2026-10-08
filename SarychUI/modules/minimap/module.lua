@@ -1393,15 +1393,29 @@ local function SetupMinimap()
 	-- Hide calendar
 	ApplyCalendarSettings()
 	
-	-- Mouse wheel zoom
+	-- Mouse wheel zoom (FrostAtomUI: click the Blizzard zoom buttons so they play their sound)
 	if GetSetting('wheelEnabled', 1) == 1 then
+		local playSound = GetSetting('wheelZoomSound', 1) == 1
 		Minimap:EnableMouseWheel(true)
-		Minimap:SetScript("OnMouseWheel", function(self, z)
-			local currentZoom = Minimap:GetZoom()
-			if z > 0 and currentZoom < 5 then
-				Minimap:SetZoom(currentZoom + 1)
-			elseif z < 0 and currentZoom > 0 then
-				Minimap:SetZoom(currentZoom - 1)
+		Minimap:SetScript("OnMouseWheel", function(_, z)
+			if z > 0 then
+				if playSound and MinimapZoomIn then
+					MinimapZoomIn:Click()
+				else
+					local zoom = Minimap:GetZoom()
+					if zoom < 5 then
+						Minimap:SetZoom(zoom + 1)
+					end
+				end
+			elseif z < 0 then
+				if playSound and MinimapZoomOut then
+					MinimapZoomOut:Click()
+				else
+					local zoom = Minimap:GetZoom()
+					if zoom > 0 then
+						Minimap:SetZoom(zoom - 1)
+					end
+				end
 			end
 		end)
 	else

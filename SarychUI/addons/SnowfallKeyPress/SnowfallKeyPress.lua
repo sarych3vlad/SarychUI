@@ -121,17 +121,29 @@ end
 local function I(e)return not not(type(e)=="table"and type(e.IsObjectType)=="function"and issecurevariable(e,"IsObjectType")and e:IsObjectType("Button")and select(2,e:IsProtected()));end
 if(SnowfallKeyPress.animation.savedDefaultHandler)then
 SnowfallKeyPress.animation.defaultHandler=SnowfallKeyPress.animation.savedDefaultHandler;SnowfallKeyPress.animation.savedDefaultHandler=nil;end
+-- Public dispatcher used by embedded action bars.  Standalone Snowfall reaches
+-- this through its secure proxy; SarychUI Frost buttons may call it from their
+-- own PostClick because their priority binding can legitimately bypass that
+-- proxy.
+function SnowfallKeyPress_PlayButtonAnimation(button)
+if(not IsEnabled()or not SnowfallKeyPressSV or not SnowfallKeyPressSV.enable or not SnowfallKeyPressSV.animation or not button)then
+return;end
+local handled=false;for index,handler in n(SnowfallKeyPress.animation.handlers)do
+handled=handler(button)or handled;end
+if(not handled and SnowfallKeyPress.animation.defaultHandler)then
+SnowfallKeyPress.animation.defaultHandler(button);end
+end
 local function A(e)if(not SnowfallKeyPressSV.animation)then
 return;end
-local e=e.clickButtonName;if(not e)then
+local name=e.clickButtonName;if(not name)then
 return;end
-local e=m[e];if(not e)then
+local button=m[name];if(not button)then
 return;end
-local t=false;for o,n in n(SnowfallKeyPress.animation.handlers)do
-t=n(e)or t;end
-if(not t and SnowfallKeyPress.animation.defaultHandler)then
-SnowfallKeyPress.animation.defaultHandler(e);end
-end
+-- Frost already dispatches from the clicked button itself. Avoid playing the
+-- same flash twice when Snowfall successfully wrapped its binding as well.
+if(button.sarychSnowfallPostClick)then
+return;end
+SnowfallKeyPress_PlayButtonAnimation(button);end
 local function S(L,p,f,d,a)local e;local i,t;local l,h,O;local B,S,u;local c,r;a.override=nil;SetOverrideBinding(o,false,f,nil);for F,o in n(F)do
 if(s(d,o.command))then
 if(o.attributes)then

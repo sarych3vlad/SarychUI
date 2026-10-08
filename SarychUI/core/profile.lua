@@ -1296,10 +1296,24 @@ function SarychUI:CustomizeProfileOptions(profileOpts)
 				if type(value) ~= "string" or value == "" then
 					return
 				end
-				ApplySelectedProfile(pendingProfileInfo or info, value)
+				-- The OnProfileChanged popup is signature-based (only when bags /
+				-- nameplates / embedded addons differ) and never fires when the
+				-- selected profile is already active. An explicit "Apply" click
+				-- must always end with the reload prompt, so suppress the
+				-- callback popup and show one here unconditionally.
+				SarychUI._suppressProfileReloadPopup = true
+				local ok, err = pcall(ApplySelectedProfile, pendingProfileInfo or info, value)
+				SarychUI._suppressProfileReloadPopup = nil
 				pendingProfile = nil
 				pendingProfileInfo = nil
 				RefreshProfileUI()
+				if not ok then
+					geterrorhandler()(err)
+					return
+				end
+				if SarychUI.ShowReloadPopup then
+					SarychUI:ShowReloadPopup("Профиль «" .. tostring(value) .. "» применён.\n\nДля полного применения настроек рекомендуется перезагрузить интерфейс (/reload).")
+				end
 			end,
 		}
 	end
@@ -1565,7 +1579,7 @@ function SarychUI:OnProfileChanged(event, db, newProfileKey)
 		linkedProfileKey = newProfileKey,
 	})
 
-	if applied and oldSignature ~= newSignature and self.ShowReloadPopup then
+	if applied and oldSignature ~= newSignature and self.ShowReloadPopup and not self._suppressProfileReloadPopup then
 		self:ShowReloadPopup("Профиль переключён.\n\nДля полного применения части встроенных аддонов может потребоваться /reload.")
 	end
 end

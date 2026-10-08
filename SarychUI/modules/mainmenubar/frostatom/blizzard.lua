@@ -1,0 +1,278 @@
+-- Ported from FrostAtomUI Modules/Misc/HideBlizzard.lua (actionBars hider):
+-- removes the Blizzard action bars, then re-homes the micro menu and the
+-- backpack button into movable SarychUI holders.
+local FA = SarychUI.FrostAtomBars
+
+local DestroyFrame = FA.DestroyFrame
+local noop = FA.noop
+local floor, max = math.floor, math.max
+local tremove = table.remove
+local InCombatLockdown = InCombatLockdown
+
+local Blizzard = FA:NewModule("Blizzard")
+FA.Blizzard = Blizzard
+
+local config = FA.config
+
+local BUTTON_PREFIXES = {
+	"ActionButton",
+	"MultiBarBottomLeftButton",
+	"MultiBarBottomRightButton",
+	"MultiBarRightButton",
+	"MultiBarLeftButton",
+	"BonusActionButton",
+}
+
+local MANAGED_POSITIONS = {
+	"MultiBarBottomLeft",
+	"MultiBarRight",
+	"ShapeshiftBarFrame",
+	"PossessBarFrame",
+	"MultiCastActionBarFrame",
+	"PETACTIONBAR_YPOS",
+	"MULTICASTACTIONBAR_YPOS",
+}
+
+local MICRO_BUTTONS = {
+	"CharacterMicroButton",
+	"SpellbookMicroButton",
+	"TalentMicroButton",
+	"AchievementMicroButton",
+	"QuestLogMicroButton",
+	"SocialsMicroButton",
+	"PVPMicroButton",
+	"LFDMicroButton",
+	"MainMenuMicroButton",
+	"HelpMicroButton",
+}
+
+local BACKPACK_SIZE = 32
+local BACKPACK_BORDER_SIZE = BACKPACK_SIZE * 64 / 36
+local MICRO_BUTTON_WIDTH = 28
+local MICRO_BUTTON_HEIGHT = 58
+local MICRO_BUTTON_SPACING = -3
+local MICRO_MENU_HEIGHT = 40
+
+local function detachTalentFrame()
+	if PlayerTalentFrame then
+		PlayerTalentFrame:UnregisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
+	end
+end
+
+local microMenu
+local microButtons = {}
+local microButtonIndex = {}
+local microMenuFader, bagFader
+
+local function microMenuWidth()
+	local count = max(#microButtons, 1)
+	return count * MICRO_BUTTON_WIDTH + (count - 1) * MICRO_BUTTON_SPACING
+end
+Blizzard.MicroMenuWidth = microMenuWidth
+
+local function isMicroButton(frame)
+	if microButtonIndex[frame] or frame == microMenu or not frame:IsObjectType("Button") then
+		return false
+	end
+	local name = frame:GetName()
+	if name and name:find("MicroButton$") then
+		return true
+	end
+	return floor(frame:GetWidth() + 0.5) == MICRO_BUTTON_WIDTH and floor(frame:GetHeight() + 0.5) == MICRO_BUTTON_HEIGHT
+end
+
+local function addMicroButton(button)
+	local _, relativeTo = button:GetPoint(1)
+	local position = #microButtons + 1
+	for i, known in ipairs(microButtons) do
+		if known == relativeTo then
+			position = i + 1
+			break
+		end
+	end
+	table.insert(microButtons, position, button)
+	microButtonIndex[button] = true
+end
+
+local function collectMicroButtons(parent, found)
+	if not parent then
+		return
+	end
+	for _, child in ipairs({ parent:GetChildren() }) do
+		if isMicroButton(child) then
+			found[#found + 1] = child
+		end
+	end
+end
+
+local function layoutMicroMenu()
+	if InCombatLockdown() then
+		Blizzard:RegisterEvent("PLAYER_REGEN_ENABLED", layoutMicroMenu)
+		return
+	end
+	Blizzard:UnregisterEvent("PLAYER_REGEN_ENABLED", layoutMicroMenu)
+
+	local found = {}
+	collectMicroButtons(MainMenuBarArtFrame, found)
+	collectMicroButtons(VehicleMenuBarArtFrame, found)
+	collectMicroButtons(MainMenuBar, found)
+	collectMicroButtons(microMenu, found)
+	while #found > 0 do
+		local index = 1
+		for i, button in ipairs(found) do
+			local _, relativeTo = button:GetPoint(1)
+			if relativeTo and microButtonIndex[relativeTo] then
+				index = i
+				break
+			end
+		end
+		addMicroButton(tremove(found, index))
+	end
+
+	for i, button in ipairs(microButtons) do
+		if button:GetParent() ~= microMenu then
+			button:SetParent(microMenu)
+			button:Show()
+		end
+		button:ClearAllPoints()
+		button:SetPoint("BOTTOMLEFT", microMenu, "BOTTOMLEFT", (i - 1) * (MICRO_BUTTON_WIDTH + MICRO_BUTTON_SPACING), 0)
+	end
+
+	microMenu:SetSize(microMenuWidth(), MICRO_MENU_HEIGHT)
+end
+
+-- Scale change keeps the visual position: stored offsets are in the frame's
+-- own scale, so rescale them by old/new.
+function Blizzard:ApplyMicroMenuScale(keepPosition)
+	if not microMenu then
+		return
+	end
+	local scale = tonumber(config.microMenuScale) or 1
+	if scale <= 0 then
+		scale = 1
+	end
+	local old = microMenu:GetScale()
+	if keepPosition and math.abs(old - scale) > 0.0001 then
+		local t = config.microMenu
+		if t then
+			t.x = floor((t.x or 0) * old / scale + 0.5)
+			t.y = floor((t.y or 0) * old / scale + 0.5)
+		end
+	end
+	microMenu:SetScale(scale)
+	FA.ApplyPoint(microMenu, config.microMenu)
+end
+
+function Blizzard:LayoutMenus()
+	if not microMenu then
+		return
+	end
+	self:ApplyMicroMenuScale(false)
+	FA.ApplyPoint(MainMenuBarBackpackButton, config.bagButton)
+	-- Key ring hangs off the backpack button's left edge.
+	KeyRingButton:ClearAllPoints()
+	KeyRingButton:SetPoint("RIGHT", MainMenuBarBackpackButton, "LEFT", -2, 0)
+	FA.SetShown(KeyRingButton, config.showKeyRing and true or false)
+	microMenuFader:Configure(config.microMenuMouseover, config.menuFadeAlpha, config.microMenuCombat)
+	bagFader:Configure(config.bagButtonMouseover, config.menuFadeAlpha, config.bagButtonCombat)
+end
+
+local function createMenus()
+	microMenu = CreateFrame("Frame", "SarychUIMicroMenu", UIParent)
+	for _, name in ipairs(MICRO_BUTTONS) do
+		local button = _G[name]
+		if button then
+			microButtons[#microButtons + 1] = button
+			microButtonIndex[button] = true
+		end
+	end
+	layoutMicroMenu()
+	hooksecurefunc("UpdateMicroButtons", layoutMicroMenu)
+
+	MainMenuBarBackpackButton:SetParent(UIParent)
+	MainMenuBarBackpackButton:SetSize(BACKPACK_SIZE, BACKPACK_SIZE)
+	if MainMenuBarBackpackButtonNormalTexture then
+		MainMenuBarBackpackButtonNormalTexture:SetSize(BACKPACK_BORDER_SIZE, BACKPACK_BORDER_SIZE)
+	end
+
+	microMenuFader = FA.CreateFader({ microMenu })
+	bagFader = FA.CreateFader({ MainMenuBarBackpackButton, KeyRingButton }, { MainMenuBarBackpackButton, KeyRingButton })
+
+	Blizzard:LayoutMenus()
+	FA.RegisterMover("microMenu", microMenu, FA.Label("microMenu"))
+	FA.RegisterMover("bagButton", MainMenuBarBackpackButton, FA.Label("bagButton"))
+end
+
+function Blizzard:Initialize()
+	if self.initialized then
+		return
+	end
+	self.initialized = true
+
+	if InterfaceOptionsActionBarsPanelAlwaysShowActionBars then
+		InterfaceOptionsActionBarsPanelAlwaysShowActionBars:EnableMouse(false)
+		InterfaceOptionsActionBarsPanelAlwaysShowActionBars:SetAlpha(0)
+	end
+	if InterfaceOptionsActionBarsPanelLockActionBars then
+		InterfaceOptionsActionBarsPanelLockActionBars:EnableMouse(false)
+		InterfaceOptionsActionBarsPanelLockActionBars:SetAlpha(0)
+	end
+	if InterfaceOptionsStatusTextPanelXP then
+		InterfaceOptionsStatusTextPanelXP:SetAlpha(0)
+		InterfaceOptionsStatusTextPanelXP:SetScale(0.0001)
+	end
+
+	MainMenuBarVehicleLeaveButton_Update = noop
+
+	for _, bar in ipairs({ MultiBarBottomLeft, MultiBarBottomRight, MultiBarLeft, MultiBarRight }) do
+		bar.Show = noop
+		bar.Hide = noop
+	end
+
+	for _, frame in ipairs({
+		MainMenuBar,
+		MainMenuExpBar,
+		ReputationWatchBar,
+		BonusActionBarFrame,
+		PossessBarFrame,
+		PetActionBarFrame,
+		VehicleMenuBar,
+		MainMenuBarArtFrame,
+	}) do
+		DestroyFrame(frame)
+	end
+	-- Currency tokens still need these on the (hidden) art frame.
+	MainMenuBarArtFrame:RegisterEvent("KNOWN_CURRENCY_TYPES_UPDATE")
+	MainMenuBarArtFrame:RegisterEvent("CURRENCY_DISPLAY_UPDATE")
+
+	for i = 1, NUM_ACTIONBAR_BUTTONS do
+		for _, prefix in ipairs(BUTTON_PREFIXES) do
+			DestroyFrame(_G[prefix .. i])
+		end
+	end
+
+	for i = 1, VEHICLE_MAX_ACTIONBUTTONS do
+		DestroyFrame(_G["VehicleMenuBarActionButton" .. i])
+	end
+
+	if FA.PLAYER_CLASS ~= "SHAMAN" then
+		DestroyFrame(MultiCastActionBarFrame)
+		for i = 1, NUM_ACTIONBAR_BUTTONS do
+			DestroyFrame(_G["MultiCastActionButton" .. i])
+		end
+	end
+
+	FA:OnAddonLoaded("Blizzard_TalentUI", detachTalentFrame)
+
+	for _, key in ipairs(MANAGED_POSITIONS) do
+		UIPARENT_MANAGED_FRAME_POSITIONS[key] = nil
+	end
+
+	KeyRingButton:SetParent(UIParent)
+
+	for i = 0, NUM_BAG_SLOTS - 1 do
+		DestroyFrame(_G["CharacterBag" .. i .. "Slot"])
+	end
+
+	createMenus()
+end

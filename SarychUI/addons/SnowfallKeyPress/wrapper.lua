@@ -40,18 +40,26 @@ end
 local function ApplySnowfallKeyPressRuntime(enable)
 	if SnowfallKeyPress_ApplyEmbeddedRuntime then
 		SnowfallKeyPress_ApplyEmbeddedRuntime(enable)
-		return
+	else
+		SnowfallKeyPressEnabled = enable and true or false
+		if enable then
+			if SnowfallKeyPressSV then
+				SnowfallKeyPressSV.enable = true
+			end
+			if SnowfallKeyPress_RegisterInterfaceOptions then
+				SnowfallKeyPress_RegisterInterfaceOptions()
+			end
+		elseif SnowfallKeyPressSV then
+			SnowfallKeyPressSV.enable = false
+		end
 	end
-	SnowfallKeyPressEnabled = enable and true or false
+
 	if enable then
-		if SnowfallKeyPressSV then
-			SnowfallKeyPressSV.enable = true
+		local FA = SarychUI and SarychUI.FrostAtomBars
+		local actionBar = FA and FA.ActionBar
+		if actionBar and actionBar.initialized and actionBar.RefreshOverrideBindings then
+			actionBar:RefreshOverrideBindings()
 		end
-		if SnowfallKeyPress_RegisterInterfaceOptions then
-			SnowfallKeyPress_RegisterInterfaceOptions()
-		end
-	elseif SnowfallKeyPressSV then
-		SnowfallKeyPressSV.enable = false
 	end
 end
 

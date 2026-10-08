@@ -121,6 +121,8 @@ SarychUI.defaults = {
 			minimap = {
 				hide = false,
 			},
+			-- Шаг сетки выравнивания в режимах перемещения (как FrostAtomUI).
+			gridSize = 32,
 		},
 
 		-- Optional client capability detection (no runtime ownership).
@@ -520,6 +522,58 @@ SarychUI.defaults = {
 			-- Main Menu Bar module
 			mainmenubar = {
 				enabled = true,
+
+				-- "classic" = Blizzard bars + SarychUI tweaks; "frostatom" = FrostAtomUI bars (ported).
+				barMode = "classic",
+
+				-- FrostAtomUI action bars (used when barMode == "frostatom").
+				-- Layout copied from a live profile; first-run still boots classic bars.
+				frostatom = {
+					experienceBar = {
+						enabled = true,
+						point = "TOP",
+						relativePoint = "TOP",
+						x = 0,
+						y = 0,
+						width = 456,
+						height = 5,
+						showReputation = true,
+						xpColor = { 0.58, 0, 0.55, 1 },
+						restedColor = { 0, 0.39, 0.88, 0.6 },
+						backgroundAlpha = 0.6,
+					},
+					bar1 = { enabled = true, point = "BOTTOM", relativePoint = "BOTTOM", x = 0, y = 32, buttons = 12, columns = 12, buttonSize = 38, spacing = 6, mouseover = false, combat = "any", fadeAlpha = 0.1 },
+					bar2 = { enabled = false, point = "BOTTOM", relativePoint = "BOTTOM", x = 0, y = 216, buttons = 12, columns = 12, buttonSize = 38, spacing = 6, mouseover = false, combat = "any", fadeAlpha = 0.1 },
+					bar3 = { enabled = false, point = "BOTTOM", relativePoint = "BOTTOM", x = 0, y = 260, buttons = 12, columns = 12, buttonSize = 38, spacing = 6, mouseover = false, combat = "any", fadeAlpha = 0.1 },
+					bar4 = { enabled = false, point = "BOTTOM", relativePoint = "BOTTOM", x = 0, y = 304, buttons = 12, columns = 12, buttonSize = 38, spacing = 6, mouseover = false, combat = "any", fadeAlpha = 0.1 },
+					bar5 = { enabled = true, point = "BOTTOM", relativePoint = "BOTTOM", x = 0, y = 120, buttons = 12, columns = 12, buttonSize = 38, spacing = 6, mouseover = false, combat = "any", fadeAlpha = 0.1 },
+					bar6 = { enabled = true, point = "RIGHT", relativePoint = "RIGHT", x = -662, y = -424, buttons = 12, columns = 12, buttonSize = 38, spacing = 6, mouseover = false, combat = "any", fadeAlpha = 0.1 },
+					extraBars = {},
+					stance = { point = "BOTTOMLEFT", relativePoint = "BOTTOM", x = -230, y = 166, columns = 10, buttonSize = 30, spacing = 2, mouseover = false, combat = "any", fadeAlpha = 0.1 },
+					pet = { point = "BOTTOM", relativePoint = "BOTTOM", x = 68, y = 116, columns = 10, buttonSize = 30, spacing = 2, mouseover = false, combat = "any", fadeAlpha = 0.1 },
+					vehicleExit = { point = "BOTTOM", relativePoint = "BOTTOM", x = 250, y = 116, buttonSize = 32 },
+					totemBar = { enabled = true, point = "BOTTOM", relativePoint = "BOTTOM", x = -150, y = 154, columns = 6, buttonSize = 30, spacing = 2, mouseover = false, combat = "any", fadeAlpha = 0.1, flyoutButtonSize = 24, flyoutSpacing = 2, flyoutRows = 10 },
+					microMenu = { point = "BOTTOMRIGHT", relativePoint = "BOTTOMRIGHT", x = -45, y = 3 },
+					microMenuScale = 1,
+					microMenuMouseover = false,
+					microMenuCombat = "any",
+					bagButton = { point = "BOTTOMRIGHT", relativePoint = "BOTTOMRIGHT", x = -10, y = 5 },
+					-- Extras vs live Blizzard CastingBarFrame (menuBarTop + 40).
+					playerCastbar = { point = "BOTTOM", relativePoint = "BOTTOM", x = 0, y = 0 },
+					bagButtonMouseover = false,
+					bagButtonCombat = "any",
+					showKeyRing = false,
+					menuFadeAlpha = 0.1,
+					hideEmptyButtons = true,
+					dragButton = "LeftButton",
+					dragModifier = "shift",
+					rangeColor = { 1, 0, 0 },
+					manaColor = { 0.5, 0.5, 1 },
+					unusableColor = { 0.4, 0.4, 0.4 },
+					rangeIconTint = true,
+					rangeHotkey = true,
+					desaturateOnCooldown = false,
+				},
 				
 				-- Hotkey settings
 				hideHotkeysEnabled = true,
@@ -580,6 +634,85 @@ SarychUI.defaults = {
 				hideSidePanels = false,
 				showSidePanelsOnAlt = true,
 			},
+
+			-- Player resources (FrostAtomUI: Player plate / runes / totems / shield)
+			player_resources = {
+				enabled = true,
+				plate = {
+					enabled = 1,
+					alwaysShow = 0,
+					fadeTime = 0.5,
+					width = 180,
+					healthHeight = 7,
+					powerHeight = 6,
+					gap = 2,
+					showPower = 1,
+					showText = 0,
+					healthText = "percent",
+					fontSize = 10,
+					textAlign = "right",
+					healthColorMode = "health",
+					healthColor = { 0, 0.8, 0 },
+					unitFrameLayers = 1,
+					druidMana = 1,
+					point = "CENTER",
+					relativePoint = "CENTER",
+					x = 0,
+					y = -133,
+					positioningEnabled = 0,
+					showDragFrame = 0,
+					showGrid = 0,
+				},
+				shield = {
+					enabled = 0,
+					size = 34,
+					point = "CENTER",
+					relativePoint = "CENTER",
+					x = -114,
+					y = -133,
+					positioningEnabled = 0,
+					showDragFrame = 0,
+					showGrid = 0,
+				},
+				runes = {
+					enabled = 0,
+					width = 48,
+					height = 16,
+					gap = 4,
+					showIcons = 1,
+					readyFlash = 1,
+					showTimer = 1,
+					timerFontSize = 14,
+					bloodColor = { 0.9, 0.1, 0.1 },
+					unholyColor = { 0.4, 0.85, 0.15 },
+					frostColor = { 0.1, 0.7, 0.95 },
+					deathColor = { 0.8, 0.2, 0.95 },
+					emptyColor = { 0.2, 0.2, 0.2 },
+					point = "CENTER",
+					relativePoint = "CENTER",
+					x = 0,
+					y = -294,
+					positioningEnabled = 0,
+					showDragFrame = 0,
+					showGrid = 0,
+				},
+				totems = {
+					enabled = 0,
+					size = 30,
+					gap = 2,
+					clickThrough = 0,
+					pulse = 1,
+					pulseHeight = 4,
+					pulseColor = { 0.3, 0.75, 1 },
+					point = "CENTER",
+					relativePoint = "CENTER",
+					x = 0,
+					y = -294,
+					positioningEnabled = 0,
+					showDragFrame = 0,
+					showGrid = 0,
+				},
+			},
 			
 			-- Minimap module
 			minimap = {
@@ -621,6 +754,8 @@ SarychUI.defaults = {
 				rightClickEnabled = 1,
 				middleClickEnabled = 1,
 				wheelEnabled = 1,
+				-- Play Blizzard minimap zoom button sound on mouse wheel (FrostAtomUI)
+				wheelZoomSound = 1,
 			},
 			
 			-- Frame module
@@ -695,6 +830,12 @@ SarychUI.defaults = {
 				classIconPortraits = 0,
 				-- When classIconPortraits is on: also replace PlayerFrame portrait (1) or keep face (0)
 				classIconPortraitsPlayer = 1,
+				-- Animated 3D portraits on every unit frame (player, target, focus, pet, party)
+				portrait3D = 0,
+				-- "Изменение портретов" style: class | spec | badge (portrait) / separate | replace (level badge)
+				classIconStyle = "class",
+				-- classIconUnified (no default, set by the migration in MigrateProfileDefaults):
+				-- 1 once classIconPortraits + classIconEnabled/Mode were merged into classIconEnabled + classIconStyle
 				-- Class icon on the level badge: replace the number, or sit beside it
 				classIconEnabled = 0,
 				classIconMode = "replace",
@@ -1144,7 +1285,7 @@ SarychUI.defaults = {
 	
 	-- Global settings (not per character)
 	global = {
-        version = "1.1.1a",
+        version = "1.2.0",
 		general = {
 			-- Saved size of the config window (matches ElvUI / ElvUI_NamePlates_Standalone defaults).
 			AceGUI = {
@@ -1487,6 +1628,17 @@ local function MigrateProfileDefaults(profile)
 		if mmbDb.microMenuHideGreenLatency == nil then
 			mmbDb.microMenuHideGreenLatency = mmbDefaults.microMenuHideGreenLatency
 		end
+		if mmbDb.frostatom then
+			local faDef = mmbDefaults.frostatom and mmbDefaults.frostatom.playerCastbar
+			if type(mmbDb.frostatom.playerCastbar) ~= "table" and faDef then
+				mmbDb.frostatom.playerCastbar = {
+					point = faDef.point or "BOTTOM",
+					relativePoint = faDef.relativePoint or "BOTTOM",
+					x = faDef.x or 0,
+					y = faDef.y or 0,
+				}
+			end
+		end
 	end
 	
 	if not profile.addons then
@@ -1607,6 +1759,9 @@ local function MigrateProfileDefaults(profile)
 		if frameDb.classIconPortraitsPlayer == nil then
 			frameDb.classIconPortraitsPlayer = frameDef.classIconPortraitsPlayer
 		end
+		if frameDb.classIconStyle == nil then
+			frameDb.classIconStyle = frameDef.classIconStyle
+		end
 		if frameDb.classIconEnabled == nil then
 			frameDb.classIconEnabled = frameDef.classIconEnabled
 		end
@@ -1624,6 +1779,33 @@ local function MigrateProfileDefaults(profile)
 		end
 		if frameDb.classIconY == nil then
 			frameDb.classIconY = frameDef.classIconY
+		end
+		-- "Изменение портретов": portrait icons (classIconPortraits) and the level badge icon
+		-- (classIconEnabled + classIconMode) became one toggle (classIconEnabled) + one style select (classIconStyle).
+		if frameDb.portrait3D == nil then
+			frameDb.portrait3D = frameDef.portrait3D
+		end
+		-- "3D портрет" used to be a style of the select; it is its own toggle now.
+		if frameDb.classIconStyle == "model" then
+			frameDb.portrait3D = 1
+			frameDb.classIconStyle = "class"
+			frameDb.classIconEnabled = 0
+		end
+		if frameDb.classIconUnified ~= 1 then
+			frameDb.classIconUnified = 1
+			local style = frameDb.classIconStyle
+			if style ~= "class" and style ~= "spec" and style ~= "badge" then
+				style = "class"
+			end
+			if frameDb.classIconPortraits == 1 then
+				frameDb.classIconEnabled = 1
+				frameDb.classIconStyle = style
+			elseif frameDb.classIconEnabled == 1 then
+				frameDb.classIconStyle = (frameDb.classIconMode == "separate") and "separate" or "replace"
+			else
+				frameDb.classIconEnabled = 0
+				frameDb.classIconStyle = style
+			end
 		end
 		if frameDb.hideFrameLevel == nil then
 			frameDb.hideFrameLevel = frameDef.hideFrameLevel

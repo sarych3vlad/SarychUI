@@ -17,6 +17,30 @@ local function IsEnabled()
 	return UnitFrameLayersEnabled;
 end
 
+--------------------------------------------------------------------
+-- WeakAuras / external scripts check IsAddOnLoaded("UnitFrameLayers").
+-- UFL is embedded in SarychUI, so report as loaded while enabled.
+--------------------------------------------------------------------
+do
+	local _IsAddOnLoaded = IsAddOnLoaded
+	function IsAddOnLoaded(name)
+		if name == "UnitFrameLayers" and IsEnabled() then
+			return true
+		end
+		return _IsAddOnLoaded(name)
+	end
+
+	if type(GetAddOnInfo) == "function" then
+		local _GetAddOnInfo = GetAddOnInfo
+		function GetAddOnInfo(name)
+			if name == "UnitFrameLayers" and IsEnabled() then
+				return "UnitFrameLayers", "UnitFrameLayers (SarychUI)", "1.0.1", true, "INSECURE", false
+			end
+			return _GetAddOnInfo(name)
+		end
+	end
+end
+
 -- Сделаем функцию глобальной, чтобы её можно было вызывать из wrapper.lua
 function UpdateHealthBarColor(frame)
 	if not IsEnabled() then
@@ -192,6 +216,10 @@ local function UnitFrameHealPredictionBars_Update(frame)
 	if ( not frame.myHealPredictionBar ) then
 		return;
 	end
+	-- Custom frames (SarychUI plate) can be switched off at runtime.
+	if ( frame.uflDisabled ) then
+		return;
+	end
 	local _, maxHealth = frame.healthbar:GetMinMaxValues();
 	local health = frame.healthbar:GetValue();
 	if ( maxHealth <= 0 ) then
@@ -300,7 +328,8 @@ local function UnitFrameHealPredictionBars_Update(frame)
 		classColorHPEnabled = val ~= false
 	end
 	-- Вызываем UpdateHealthBarColor только если настройка включена или это игрок
-	if classColorHPEnabled or UnitIsPlayer(frame.unit) then
+	-- (custom frames keep their own colors: frame.uflSkipColor)
+	if not frame.uflSkipColor and (classColorHPEnabled or UnitIsPlayer(frame.unit)) then
 		UpdateHealthBarColor(frame)
 	end
 end
@@ -448,6 +477,124 @@ local function UnitFrameLayer_Initialize(self, myHealPredictionBar, otherHealPre
 	end
 
 	UnitFrame_Update(self);
+end
+
+--------------------------------------------------------------------
+-- Public API for custom (non-Blizzard) unit frames, e.g. SarychUI player plate.
+-- Requirements: frame has a global name, frame.unit and frame.healthbar (StatusBar).
+-- Draw order: loss bar = healthbar level-1, prediction textures = level+1,
+-- over-absorb glow = level+2. The healthbar must not own its own opaque
+-- background (put it on the parent) or the loss bar will be hidden by it.
+--------------------------------------------------------------------
+function UnitFrameLayers_AttachHealPrediction(frame)
+	if ( not frame or not frame.unit or not frame.healthbar ) then
+		return nil;
+	end
+	if ( frame.myHealPredictionBar ) then
+		return frame.uflPredictionFrame;
+	end
+	local name = frame:GetName();
+	if ( not name ) then
+		return nil;
+	end
+
+	local healthbar = frame.healthbar;
+	local pred = CreateFrame("Frame", nil, frame, "StatusBarHealPredictionTemplate");
+	pred:ClearAllPoints();
+	pred:SetAllPoints(healthbar);
+	pred:SetFrameLevel(healthbar:GetFrameLevel() + 1);
+	frame.uflPredictionFrame = pred;
+	frame.uflSkipColor = true;
+
+	local glowFrame = _G[name.."FrameOverAbsorb"];
+	if ( glowFrame ) then
+		glowFrame:SetFrameLevel(healthbar:GetFrameLevel() + 2);
+	end
+
+	frame.myHealPredictionBar = _G[name.."FrameMyHealPredictionBar"];
+	frame.otherHealPredictionBar = _G[name.."FrameOtherHealPredictionBar"];
+	frame.totalAbsorbBar = _G[name.."TotalAbsorbBar"];
+	frame.totalAbsorbBarOverlay = _G[name.."TotalAbsorbBarOverlay"];
+	frame.overAbsorbGlow = _G[name.."FrameOverAbsorbGlow"];
+	frame.overHealAbsorbGlow = _G[name.."OverHealAbsorbGlow"];
+	frame.healAbsorbBar = _G[name.."HealAbsorbBar"];
+	frame.healAbsorbBarLeftShadow = _G[name.."HealAbsorbBarLeftShadow"];
+	frame.healAbsorbBarRightShadow = _G[name.."HealAbsorbBarRightShadow"];
+	frame.myManaCostPredictionBar = _G[name.."FrameManaCostPredictionBar"];
+
+	if ( frame.myManaCostPredictionBar ) then
+		frame.myManaCostPredictionBar:ClearAllPoints();
+		frame.myManaCostPredictionBar:Hide();
+	end
+
+	frame.myHealPredictionBar:ClearAllPoints();
+	frame.myHealPredictionBar:Hide();
+	frame.otherHealPredictionBar:ClearAllPoints();
+	frame.otherHealPredictionBar:Hide();
+
+	frame.totalAbsorbBar:ClearAllPoints();
+	frame.totalAbsorbBar:Hide();
+	frame.totalAbsorbBar.overlay = frame.totalAbsorbBarOverlay;
+	frame.totalAbsorbBarOverlay:SetAllPoints(frame.totalAbsorbBar);
+	frame.totalAbsorbBarOverlay.tileSize = 32;
+	frame.totalAbsorbBarOverlay:Hide();
+
+	frame.overAbsorbGlow:ClearAllPoints();
+	frame.overAbsorbGlow:SetWidth(16);
+	frame.overAbsorbGlow:SetPoint("TOPLEFT", healthbar, "TOPRIGHT", -7, 0);
+	frame.overAbsorbGlow:SetPoint("BOTTOMLEFT", healthbar, "BOTTOMRIGHT", -7, 0);
+	frame.overAbsorbGlow:Hide();
+
+	frame.healAbsorbBar:ClearAllPoints();
+	frame.healAbsorbBar:SetTexture("Interface\\RaidFrame\\Absorb-Fill", true, true);
+	frame.healAbsorbBar:Hide();
+	frame.overHealAbsorbGlow:ClearAllPoints();
+	frame.overHealAbsorbGlow:SetPoint("BOTTOMRIGHT", healthbar, "BOTTOMLEFT", 7, 0);
+	frame.overHealAbsorbGlow:SetPoint("TOPRIGHT", healthbar, "TOPLEFT", 7, 0);
+	frame.overHealAbsorbGlow:Hide();
+	frame.healAbsorbBarLeftShadow:ClearAllPoints();
+	frame.healAbsorbBarLeftShadow:Hide();
+	frame.healAbsorbBarRightShadow:ClearAllPoints();
+	frame.healAbsorbBarRightShadow:Hide();
+
+	UnitFrame_RegisterCallback(frame);
+
+	if ( frame.unit == "player" and not frame.PlayerFrameHealthBarAnimatedLoss ) then
+		local loss = CreateFrame("StatusBar", nil, frame, "PlayerFrameHealthBarAnimatedLossTemplate");
+		loss:SetUnitHealthBar("player", healthbar);
+		loss:SetFrameLevel(math.max(healthbar:GetFrameLevel() - 1, 0));
+		frame.PlayerFrameHealthBarAnimatedLoss = loss;
+	end
+
+	UnitFrameHealPredictionBars_Update(frame);
+	return pred;
+end
+
+function UnitFrameLayers_UpdateHealPrediction(frame)
+	if ( frame and frame.myHealPredictionBar ) then
+		UnitFrameHealPredictionBars_Update(frame);
+	end
+end
+
+function UnitFrameLayers_SetHealPredictionEnabled(frame, enabled)
+	if ( not frame or not frame.myHealPredictionBar ) then
+		return;
+	end
+	frame.uflDisabled = not enabled;
+	if ( enabled ) then
+		UnitFrameHealPredictionBars_Update(frame);
+		return;
+	end
+	for _, key in ipairs({ "myHealPredictionBar", "otherHealPredictionBar", "totalAbsorbBar",
+		"totalAbsorbBarOverlay", "overAbsorbGlow", "overHealAbsorbGlow", "healAbsorbBar",
+		"healAbsorbBarLeftShadow", "healAbsorbBarRightShadow", "myManaCostPredictionBar" }) do
+		if ( frame[key] ) then
+			frame[key]:Hide();
+		end
+	end
+	if ( frame.PlayerFrameHealthBarAnimatedLoss ) then
+		frame.PlayerFrameHealthBarAnimatedLoss:CancelAnimation();
+	end
 end
 
 function UnitFrameHealthBar_OnUpdate(self)

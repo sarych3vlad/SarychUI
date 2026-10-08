@@ -3,6 +3,7 @@
 -- Предоставляет функциональность drag frame, сетку выравнивания и управление позицией
 
 local DragMode = {}
+local floor = math.floor
 
 -- Хранилище зарегистрированных фреймов
 local registeredFrames = {} -- [frameId] = {frame, settings, callbacks, ...}
@@ -49,63 +50,151 @@ local function FrameCenterOffsets(frame)
 	return FramePointOffsets(frame, "CENTER")
 end
 
--- Глобальная сетка для выравнивания (создается один раз)
-local alignmentGrid = nil
--- Кэш текстур сетки для быстрого доступа (избегаем GetNumRegions/GetRegions)
-local alignmentGridTextures = {}
+--------------------------------------------------------------------
+-- Сетка выравнивания (портирована из FrostAtomUI Core/Movers.lua):
+-- линии шагом gridSize от центра экрана, 1 физический пиксель толщиной,
+-- центральные линии рисуются всегда, остальные - по настройке.
+--------------------------------------------------------------------
+local GRID_COLOR = { 1, 1, 1, 0.12 }
+local GRID_CENTER_COLOR = { 1, 0.4, 0.4, 0.4 }
+local GRID_SIZE_MIN, GRID_SIZE_MAX, GRID_SIZE_STEP, GRID_SIZE_DEFAULT = 8, 128, 4, 32
 
--- Создание сетки выравнивания (создается один раз для всех фреймов)
+local alignmentGrid = nil
+local gridVisible = false
+
+local function GridDB()
+    local p = SarychUI and SarychUI.db and SarychUI.db.profile
+    return p and p.general
+end
+
+-- Толщина одного физического пикселя в координатах UIParent.
+local function PixelSize()
+    local _, physH = (GetCVar("gxResolution") or ""):match("^(%d+)x(%d+)")
+    physH = tonumber(physH)
+    local scale = UIParent:GetEffectiveScale()
+    if not physH or physH <= 0 or not scale or scale <= 0 then
+        return 1
+    end
+    return 768 / physH / scale
+end
+
 local function CreateAlignmentGrid()
     if alignmentGrid then return alignmentGrid end
-    
-    local grid = CreateFrame('FRAME')
+    local grid = CreateFrame("Frame", nil, UIParent)
     alignmentGrid = grid
     grid:Hide()
     grid:SetAllPoints(UIParent)
     grid:SetFrameStrata("BACKGROUND")
     grid:SetFrameLevel(0)
     grid:SetToplevel(false)
-    -- Отключаем интерактивность сетки - она только для визуального выравнивания
     grid:EnableMouse(false)
-    
-    local w, h = GetScreenWidth() * UIParent:GetEffectiveScale(), GetScreenHeight() * UIParent:GetEffectiveScale()
-    local ratio = w / h
-    local sqsize = w / 20
-    local wline = floor(sqsize - (sqsize % 2))
-    local hline = floor(sqsize / ratio - ((sqsize / ratio) % 2))
-    
-    -- Очищаем кэш текстур
-    wipe(alignmentGridTextures)
-    
-    -- Вертикальные линии
-    for i = 0, wline do
-        local t = grid:CreateTexture(nil, 'BACKGROUND')
-        if i == wline / 2 then
-            t:SetTexture(1, 0, 0, 0.5)  -- Красная центральная линия
-        else
-            t:SetTexture(0, 0, 0, 0.5)  -- Черные линии
+    grid.lines = {}
+    -- Перерисовать при смене масштаба / разрешения.
+    grid:RegisterEvent("UI_SCALE_CHANGED")
+    grid:RegisterEvent("DISPLAY_SIZE_CHANGED")
+    grid:SetScript("OnEvent", function()
+        if gridVisible then
+            DragMode:UpdateGrid()
         end
-        t:SetPoint('TOPLEFT', grid, 'TOPLEFT', i * w / wline - 1, 0)
-        t:SetPoint('BOTTOMRIGHT', grid, 'BOTTOMLEFT', i * w / wline + 1, 0)
-        -- Сохраняем текстуру в кэш для быстрого доступа
-        alignmentGridTextures[#alignmentGridTextures + 1] = t
-    end
-    
-    -- Горизонтальные линии
-    for i = 0, hline do
-        local t = grid:CreateTexture(nil, 'BACKGROUND')
-        if i == hline / 2 then
-            t:SetTexture(1, 0, 0, 0.5)  -- Красная центральная линия
-        else
-            t:SetTexture(0, 0, 0, 0.5)  -- Черные линии
-        end
-        t:SetPoint('TOPLEFT', grid, 'TOPLEFT', 0, -i * h / hline + 1)
-        t:SetPoint('BOTTOMRIGHT', grid, 'TOPRIGHT', 0, -i * h / hline - 1)
-        -- Сохраняем текстуру в кэш для быстрого доступа
-        alignmentGridTextures[#alignmentGridTextures + 1] = t
-    end
-    
+    end)
     return grid
+end
+
+local function GridLine(index)
+    local line = alignmentGrid.lines[index]
+    if not line then
+        line = alignmentGrid:CreateTexture(nil, "BACKGROUND")
+        alignmentGrid.lines[index] = line
+    end
+    line:Show()
+    return line
+end
+
+local function DrawGridLine(index, color, vertical, offset)
+    local line = GridLine(index)
+    line:SetTexture(unpack(color))
+    line:ClearAllPoints()
+    local px = PixelSize()
+    if vertical then
+        line:SetWidth(px)
+        line:SetPoint("TOPLEFT", alignmentGrid, "TOP", offset, 0)
+        line:SetPoint("BOTTOMLEFT", alignmentGrid, "BOTTOM", offset, 0)
+    else
+        line:SetHeight(px)
+        line:SetPoint("BOTTOMLEFT", alignmentGrid, "LEFT", 0, offset)
+        line:SetPoint("BOTTOMRIGHT", alignmentGrid, "RIGHT", 0, offset)
+    end
+end
+
+-- Шаг сетки (общий для всех drag-режимов), хранится в profile.general.gridSize.
+function DragMode:GetGridSize()
+    local db = GridDB()
+    local size = tonumber(db and db.gridSize) or GRID_SIZE_DEFAULT
+    if size < GRID_SIZE_MIN then size = GRID_SIZE_MIN end
+    if size > GRID_SIZE_MAX then size = GRID_SIZE_MAX end
+    return size
+end
+
+function DragMode:GetGridSizeRange()
+    return GRID_SIZE_MIN, GRID_SIZE_MAX, GRID_SIZE_STEP
+end
+
+function DragMode:SetGridSize(size)
+    size = tonumber(size) or GRID_SIZE_DEFAULT
+    size = floor(size / GRID_SIZE_STEP + 0.5) * GRID_SIZE_STEP
+    if size < GRID_SIZE_MIN then size = GRID_SIZE_MIN end
+    if size > GRID_SIZE_MAX then size = GRID_SIZE_MAX end
+    local db = GridDB()
+    if db then
+        db.gridSize = size
+    end
+    if gridVisible then
+        self:UpdateGrid()
+    end
+    return size
+end
+
+-- Готовый Ace-контрол "Шаг сетки" для вкладок настроек, где есть переключатель сетки.
+function DragMode:GridStepOption(order, hiddenFn)
+    return {
+        type = "range",
+        name = "Шаг сетки",
+        desc = "Расстояние между линиями сетки выравнивания (общее для всех режимов перемещения).",
+        order = order or 99,
+        width = "full",
+        min = GRID_SIZE_MIN, max = GRID_SIZE_MAX, step = GRID_SIZE_STEP,
+        hidden = hiddenFn,
+        get = function() return DragMode:GetGridSize() end,
+        set = function(_, v) DragMode:SetGridSize(v) end,
+    }
+end
+
+-- Перерисовать линии под текущий шаг и размер экрана.
+function DragMode:UpdateGrid()
+    if not alignmentGrid then
+        CreateAlignmentGrid()
+    end
+    local size = self:GetGridSize()
+    local width, height = UIParent:GetWidth(), UIParent:GetHeight()
+    local centerX, centerY = width / 2, height / 2
+    local index = 0
+
+    for offset = -floor(centerX / size) * size, centerX, size do
+        index = index + 1
+        DrawGridLine(index, GRID_COLOR, true, offset)
+    end
+    for offset = -floor(centerY / size) * size, centerY, size do
+        index = index + 1
+        DrawGridLine(index, GRID_COLOR, false, offset)
+    end
+
+    DrawGridLine(index + 1, GRID_CENTER_COLOR, true, 0)
+    DrawGridLine(index + 2, GRID_CENTER_COLOR, false, 0)
+    index = index + 2
+
+    for i = index + 1, #alignmentGrid.lines do
+        alignmentGrid.lines[i]:Hide()
+    end
 end
 
 -- Сохранение дефолтной позиции фрейма
@@ -670,39 +759,21 @@ end
 -- Показать/скрыть сетку выравнивания
 function DragMode:ShowGrid(show)
     if show then
-        -- При показе создаем сетку, если еще не создана
-        if not alignmentGrid then
-            CreateAlignmentGrid()
-        end
-        
+        gridVisible = true
+        self:UpdateGrid()
         alignmentGrid:Show()
-        -- Показываем все текстуры сетки из кэша и восстанавливаем alpha
-        for i = 1, #alignmentGridTextures do
-            local texture = alignmentGridTextures[i]
-            if texture then
-                texture:Show()
-                texture:SetAlpha(0.5)
-            end
-        end
     else
-        -- При скрытии не создаем сетку, если она еще не создана (оптимизация для загрузки)
+        gridVisible = false
+        -- Не создаем сетку только ради скрытия.
         if alignmentGrid then
             alignmentGrid:Hide()
-            -- Скрываем все текстуры сетки из кэша
-            for i = 1, #alignmentGridTextures do
-                local texture = alignmentGridTextures[i]
-                if texture then
-                    texture:Hide()
-                    texture:SetAlpha(0)
-                end
-            end
         end
     end
 end
 
 -- Получить состояние сетки
 function DragMode:IsGridVisible()
-    return alignmentGrid and alignmentGrid:IsVisible() or false
+    return gridVisible and alignmentGrid and alignmentGrid:IsShown() or false
 end
 
 -- Сброс позиции фрейма на дефолт

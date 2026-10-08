@@ -3,7 +3,7 @@
 ## Notes: Complete UI for WotLK 3.3.5
 ## Notes-ruRU: Комплексный интерфейс для WotLK 3.3.5
 ## Author: Сарыч
-## Version: 1.1.1a
+## Version: 1.2.0
 ## SavedVariables: SarychUIDB, CompactRaidFrameDB, EnhancedRaidFramesDB, OmniCDDB, InternalCooldownsDB, BagnonForeverDB, BigDebuffsDB, OmniBarDB, LootClickerDB, LootHistoryDB, MapsterDB, SarychUIElvNamePlatesDB, SarychUIElvNamePlatesPrivateDB, SarychUIElvBagsDB, SarychUIElvBagsPrivateDB, GladiusExDB, EquipenceDB, TrufiGCDGlSave, Postal3DB, AUCTIONATOR_SAVEDVARS, AUCTIONATOR_PRICING_HISTORY, AUCTIONATOR_SHOPPING_LISTS, AUCTIONATOR_PRICE_DATABASE, AUCTIONATOR_MEAN_PRICE_DATABASE, AUCTIONATOR_LAST_SCAN_TIME, AUCTIONATOR_TOONS, AUCTIONATOR_STACKING_PREFS, AUCTIONATOR_SCAN_MINLEVEL, _CursorOptions, InspectEquipConfig, RaidRoll_DB, RaidRoll_DBPC, TalentedDB
 ## SavedVariablesPerCharacter: TrufiGCDChSave, AUCTIONATOR_SHOW_ST_PRICE, AUCTIONATOR_ENABLE_ALT, AUCTIONATOR_OPEN_FIRST, AUCTIONATOR_OPEN_BUY, AUCTIONATOR_OPEN_ALL_BAGS, AUCTIONATOR_DEF_DURATION, AUCTIONATOR_SHOW_TIPS, AUCTIONATOR_V_TIPS, AUCTIONATOR_A_TIPS, AUCTIONATOR_D_TIPS, AUCTIONATOR_SHIFT_TIPS, AUCTIONATOR_DE_DETAILS_TIPS, AUCTIONATOR_DEFTAB, AUCTIONATOR_CHARACTER_RECENTS, _CursorOptionsCharacter, BASpammerDB, BaudBag_Cfg, BaudBag_Cache, RR_Accept_All_Rolls, RR_Track_Unannounced_Rolls, RR_Roll_Tracking_Enabled, RR_AllowExtraRolls, RR_Show_Ranks, RR_RankPriority, RR_ExtraWidth, RR_ShowGroupNumber, RR_RollFrameHeight
 
@@ -70,6 +70,7 @@ modules\map\groupicons.lua
 modules\map\scalehandle.lua
 modules\map\button.lua
 modules\frame\module.lua
+modules\frame\specs.lua
 modules\frame\portraits.lua
 modules\frame\classicon.lua
 modules\frame\focus_combo.lua
@@ -89,6 +90,13 @@ modules\chat\tooltip_preview.lua
 modules\chat\spam_filter.lua
 modules\chat\chatwheel.lua
 modules\chat\ChatBar.xml
+modules\player_resources\module.lua
+modules\player_resources\plate.lua
+modules\player_resources\plate_prediction.lua
+modules\player_resources\runes.lua
+modules\player_resources\totem_data.lua
+modules\player_resources\totems.lua
+modules\player_resources\shield.lua
 modules\cc\module.lua
 modules\cc\previews.lua
 modules\bags\module.lua
@@ -129,6 +137,20 @@ modules\mainmenubar\panelVisual.lua
 modules\mainmenubar\panelColor.lua
 modules\mainmenubar\preview.lua
 
+# MainMenuBar: FrostAtomUI action bars (ported; barMode = "frostatom")
+modules\mainmenubar\frostatom\core.lua
+modules\mainmenubar\frostatom\experiencebar.lua
+modules\mainmenubar\frostatom\actionbar.lua
+modules\mainmenubar\frostatom\actionbutton.lua
+modules\mainmenubar\frostatom\petbar.lua
+modules\mainmenubar\frostatom\shapeshiftbar.lua
+modules\mainmenubar\frostatom\totembar.lua
+modules\mainmenubar\frostatom\vehicle_exit.lua
+modules\mainmenubar\frostatom\binder.lua
+modules\mainmenubar\frostatom\blizzard.lua
+modules\mainmenubar\frostatom\bridge.lua
+modules\mainmenubar\frostatom\player_castbar.lua
+
 # Module Options
 modules\mainmenubar\options.lua
 modules\minimap\options.lua
@@ -136,6 +158,7 @@ modules\map\options.lua
 modules\frame\options.lua
 modules\auras\options.lua
 modules\chat\options.lua
+modules\player_resources\options.lua
 modules\cc\options.lua
 modules\bags\options.lua
 modules\automation\options.lua
