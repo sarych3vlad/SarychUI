@@ -1,0 +1,9 @@
+## Interface: 30300
+## Title: AddOn List
+## Notes: In-game addon management.
+## Author: Blizzard, Tsoukie
+## Notes: Legacy manifest; integrated extension is loaded by SarychUI.toc
+## Version: 1.2
+
+Localization.lua
+AddonList.xml

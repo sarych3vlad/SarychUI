@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Selected window art used by the integrated modification-management extension. -->
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <Texture name="SarychUIAM_UI_Frame_Portrait" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\UI-Frame" virtual="true">
+        <Size x="78" y="78" />
+        <TexCoords left="0.00781250" right="0.61718750" top="0.00781250" bottom="0.61718750" />
+    </Texture>
+    <Texture name="SarychUIAM_UI_Frame_TopCornerRight" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\UI-Frame" virtual="true">
+        <Size x="33" y="33" />
+        <TexCoords left="0.63281250" right="0.89062500" top="0.00781250" bottom="0.26562500" />
+    </Texture>
+    <Texture name="SarychUIAM_UI_Frame_TopLeftCorner" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\UI-Frame" virtual="true">
+        <Size x="32" y="32" />
+        <TexCoords left="0.63281250" right="0.88281250" top="0.28125000" bottom="0.53125000" />
+    </Texture>
+    <Texture name="SarychUIAM__UI_Frame_TitleTile" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\_UI-Frame" virtual="true">
+        <Size x="256" y="28" />
+        <TexCoords left="0.00000000" right="1.00000000" top="0.43750000" bottom="0.65625000" />
+    </Texture>
+    <Texture name="SarychUIAM__UI_Frame_TopTileStreaks" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\_UI-Frame" virtual="true">
+        <Size x="256" y="37" />
+        <TexCoords left="0.00000000" right="1.00000000" top="0.67187500" bottom="0.96093750" />
+    </Texture>
+    <Texture name="SarychUIAM_UI_Frame_BotCornerLeft" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\UI-Frame" virtual="true">
+        <Size x="14" y="14" />
+        <TexCoords left="0.00781250" right="0.11718750" top="0.63281250" bottom="0.74218750" />
+    </Texture>
+    <Texture name="SarychUIAM_UI_Frame_BotCornerRight" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\UI-Frame" virtual="true">
+        <Size x="11" y="11" />
+        <TexCoords left="0.13281250" right="0.21875000" top="0.89843750" bottom="0.98437500" />
+    </Texture>
+    <Texture name="SarychUIAM__UI_Frame_Bot" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\_UI-Frame" virtual="true">
+        <Size x="256" y="9" />
+        <TexCoords left="0.00000000" right="1.00000000" top="0.20312500" bottom="0.27343750" />
+    </Texture>
+    <Texture name="SarychUIAM__UI_Frame_LeftTile" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\!UI-Frame" virtual="true">
+        <Size x="16" y="256" />
+        <TexCoords left="0.35937500" right="0.60937500" top="0.00000000" bottom="1.00000000" />
+    </Texture>
+    <Texture name="SarychUIAM__UI_Frame_RightTile" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\!UI-Frame" virtual="true">
+        <Size x="10" y="256" />
+        <TexCoords left="0.17187500" right="0.32812500" top="0.00000000" bottom="1.00000000" />
+    </Texture>
+    <Texture name="SarychUIAM_TitleTileBg" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\_UI-Frame" virtual="true">
+        <Size x="256" y="17" />
+        <TexCoords left="0.00000000" right="1.00000000" top="0.28906250" bottom="0.42187500" />
+    </Texture>
+    <Frame name="SarychUIAM_PortraitFrameTemplate" virtual="true">
+        <Size x="338" y="424" />
+        <Layers>
+            <Layer level="BACKGROUND" textureSubLevel="-6">
+                <Texture name="$parentBg" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\UI-Background-Rock" horizTile="true" vertTile="true">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" x="2" y="-21" />
+                        <Anchor point="BOTTOMRIGHT" x="-2" y="2" />
+                    </Anchors>
+                </Texture>
+                <Texture name="$parentTitleBg" inherits="SarychUIAM_TitleTileBg">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" x="2" y="-3" />
+                        <Anchor point="TOPRIGHT" x="-25" y="-3" />
+                    </Anchors>
+                </Texture>
+            </Layer>
+            <Layer level="OVERLAY" textureSubLevel="-1">
+                <Texture name="$parentPortrait" parentKey="portrait">
+                    <Size x="60" y="60" />
+                    <Anchors>
+                        <Anchor point="TOPLEFT" x="-6" y="7" />
+                    </Anchors>
+                </Texture>
+            </Layer>
+            <Layer level="OVERLAY">
+                <Texture name="$parentPortraitFrame" inherits="SarychUIAM_UI_Frame_Portrait" parentKey="portraitFrame">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" x="-14" y="11" />
+                    </Anchors>
+                </Texture>
+                <Texture name="$parentTopRightCorner" inherits="SarychUIAM_UI_Frame_TopCornerRight">
+                    <Anchors>
+                        <Anchor point="TOPRIGHT" x="0" y="1" />
+                    </Anchors>
+                </Texture>
+                <Texture name="$parentTopLeftCorner" inherits="SarychUIAM_UI_Frame_TopLeftCorner" hidden="true" parentKey="topLeftCorner">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" x="-6" y="1" />
+                    </Anchors>
+                </Texture>
+                <Texture name="$parentTopBorder" inherits="SarychUIAM__UI_Frame_TitleTile" parentKey="topBorderBar">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" relativeTo="$parentPortraitFrame" relativePoint="TOPRIGHT" x="0" y="-10" />
+                        <Anchor point="TOPRIGHT" relativeTo="$parentTopRightCorner" relativePoint="TOPLEFT" />
+                    </Anchors>
+                </Texture>
+                <FontString name="$parentTitleText" inherits="GameFontNormal" text="" parentKey="TitleText">
+                    <Anchors>
+                        <Anchor point="TOP" x="0" y="-4" />
+                        <Anchor point="LEFT" x="60" />
+                        <Anchor point="RIGHT" x="-60" />
+                    </Anchors>
+                </FontString>
+            </Layer>
+            <Layer level="BORDER">
+                <Texture name="$parentTopTileStreaks" inherits="SarychUIAM__UI_Frame_TopTileStreaks" parentKey="TopTileStreaks">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" x="0" y="-21" />
+                        <Anchor point="TOPRIGHT" x="-2" y="-21" />
+                    </Anchors>
+                </Texture>
+                <Texture name="$parentBotLeftCorner" inherits="SarychUIAM_UI_Frame_BotCornerLeft">
+                    <Anchors>
+                        <Anchor point="BOTTOMLEFT" x="-6" y="-5" />
+                    </Anchors>
+                </Texture>
+                <Texture name="$parentBotRightCorner" inherits="SarychUIAM_UI_Frame_BotCornerRight">
+                    <Anchors>
+                        <Anchor point="BOTTOMRIGHT" x="0" y="-5" />
+                    </Anchors>
+                </Texture>
+                <Texture name="$parentBottomBorder" inherits="SarychUIAM__UI_Frame_Bot">
+                    <Anchors>
+                        <Anchor point="BOTTOMLEFT" relativeTo="$parentBotLeftCorner" relativePoint="BOTTOMRIGHT" y="0" />
+                        <Anchor point="BOTTOMRIGHT" relativeTo="$parentBotRightCorner" relativePoint="BOTTOMLEFT" y="0" />
+                    </Anchors>
+                </Texture>
+                <Texture name="$parentLeftBorder" inherits="SarychUIAM__UI_Frame_LeftTile" parentKey="leftBorderBar">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" relativeTo="$parentPortraitFrame" relativePoint="BOTTOMLEFT" x="8" y="0" />
+                        <Anchor point="BOTTOMLEFT" relativeTo="$parentBotLeftCorner" relativePoint="TOPLEFT" />
+                    </Anchors>
+                </Texture>
+                <Texture name="$parentRightBorder" inherits="SarychUIAM__UI_Frame_RightTile">
+                    <Anchors>
+                        <Anchor point="TOPRIGHT" relativeTo="$parentTopRightCorner" relativePoint="BOTTOMRIGHT" x="1" />
+                        <Anchor point="BOTTOMRIGHT" relativeTo="$parentBotRightCorner" relativePoint="TOPRIGHT" />
+                    </Anchors>
+                </Texture>
+            </Layer>
+        </Layers>
+        <Frames>
+            <Button name="$parentCloseButton" inherits="UIPanelCloseButton">
+                <Anchors>
+                    <Anchor point="TOPRIGHT" relativePoint="TOPRIGHT">
+                        <Offset x="4" y="5" />
+                    </Anchor>
+                </Anchors>
+            </Button>
+        </Frames>
+    </Frame>
+    <Texture name="SarychUIAM_UI_Frame_InnerTopLeft" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\UI-Frame" virtual="true">
+        <Size x="6" y="6" />
+        <TexCoords left="0.63281250" right="0.67968750" top="0.54687500" bottom="0.59375000" />
+    </Texture>
+    <Texture name="SarychUIAM_UI_Frame_InnerTopRight" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\UI-Frame" virtual="true">
+        <Size x="6" y="6" />
+        <TexCoords left="0.90625000" right="0.95312500" top="0.21875000" bottom="0.26562500" />
+    </Texture>
+    <Texture name="SarychUIAM_UI_Frame_InnerBotLeftCorner" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\UI-Frame" virtual="true">
+        <Size x="6" y="6" />
+        <TexCoords left="0.69531250" right="0.74218750" top="0.54687500" bottom="0.59375000" />
+    </Texture>
+    <Texture name="SarychUIAM_UI_Frame_InnerBotRight" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\UI-Frame" virtual="true">
+        <Size x="6" y="6" />
+        <TexCoords left="0.75781250" right="0.80468750" top="0.54687500" bottom="0.59375000" />
+    </Texture>
+    <Texture name="SarychUIAM__UI_Frame_InnerTopTile" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\_UI-Frame" virtual="true">
+        <Size x="256" y="3" />
+        <TexCoords left="0.00000000" right="1.00000000" top="0.08593750" bottom="0.10937500" />
+    </Texture>
+    <Texture name="SarychUIAM__UI_Frame_InnerBotTile" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\_UI-Frame" virtual="true">
+        <Size x="256" y="3" />
+        <TexCoords left="0.00000000" right="1.00000000" top="0.00781250" bottom="0.03125000" />
+    </Texture>
+    <Texture name="SarychUIAM__UI_Frame_InnerLeftTile" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\!UI-Frame" virtual="true">
+        <Size x="3" y="256" />
+        <TexCoords left="0.09375000" right="0.14062500" top="0.00000000" bottom="1.00000000" />
+    </Texture>
+    <Texture name="SarychUIAM__UI_Frame_InnerRightTile" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\!UI-Frame" virtual="true">
+        <Size x="3" y="256" />
+        <TexCoords left="0.01562500" right="0.06250000" top="0.00000000" bottom="1.00000000" />
+    </Texture>
+    <Frame name="SarychUIAM_InsetFrameTemplate" virtual="true">
+        <Size x="64" y="64" />
+        <Layers>
+            <Layer level="BACKGROUND" textureSubLevel="-5">
+                <Texture name="$parentBg" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\UI-Background-Marble" horizTile="true" vertTile="true" parentKey="Bg">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" />
+                        <Anchor point="BOTTOMRIGHT" />
+                    </Anchors>
+                </Texture>
+            </Layer>
+            <Layer level="BORDER" textureSubLevel="-5">
+                <Texture name="$parentInsetTopLeftCorner" inherits="SarychUIAM_UI_Frame_InnerTopLeft" parentKey="InsetBorderTopLeft">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" relativeTo="$parentBg" />
+                    </Anchors>
+                </Texture>
+                <Texture name="$parentInsetTopRightCorner" inherits="SarychUIAM_UI_Frame_InnerTopRight" parentKey="InsetBorderTopRight">
+                    <Anchors>
+                        <Anchor point="TOPRIGHT" relativeTo="$parentBg" />
+                    </Anchors>
+                </Texture>
+                <Texture name="$parentInsetBotLeftCorner" inherits="SarychUIAM_UI_Frame_InnerBotLeftCorner" parentKey="InsetBorderBottomLeft">
+                    <Anchors>
+                        <Anchor point="BOTTOMLEFT" relativeTo="$parentBg" y="-1" />
+                    </Anchors>
+                </Texture>
+                <Texture name="$parentInsetBotRightCorner" inherits="SarychUIAM_UI_Frame_InnerBotRight" parentKey="InsetBorderBottomRight">
+                    <Anchors>
+                        <Anchor point="BOTTOMRIGHT" relativeTo="$parentBg" y="-1" />
+                    </Anchors>
+                </Texture>
+                <Texture name="$parentInsetTopBorder" inherits="SarychUIAM__UI_Frame_InnerTopTile" parentKey="InsetBorderTop">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" relativeTo="$parentInsetTopLeftCorner" relativePoint="TOPRIGHT" />
+                        <Anchor point="TOPRIGHT" relativeTo="$parentInsetTopRightCorner" relativePoint="TOPLEFT" />
+                    </Anchors>
+                </Texture>
+                <Texture name="$parentInsetBottomBorder" inherits="SarychUIAM__UI_Frame_InnerBotTile" parentKey="InsetBorderBottom">
+                    <Anchors>
+                        <Anchor point="BOTTOMLEFT" relativeTo="$parentInsetBotLeftCorner" relativePoint="BOTTOMRIGHT" />
+                        <Anchor point="BOTTOMRIGHT" relativeTo="$parentInsetBotRightCorner" relativePoint="BOTTOMLEFT" />
+                    </Anchors>
+                </Texture>
+                <Texture name="$parentInsetLeftBorder" inherits="SarychUIAM__UI_Frame_InnerLeftTile" parentKey="InsetBorderLeft">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" relativeTo="$parentInsetTopLeftCorner" relativePoint="BOTTOMLEFT" x="0" y="0" />
+                        <Anchor point="BOTTOMLEFT" relativeTo="$parentInsetBotLeftCorner" relativePoint="TOPLEFT" />
+                    </Anchors>
+                </Texture>
+                <Texture name="$parentInsetRightBorder" inherits="SarychUIAM__UI_Frame_InnerRightTile" parentKey="InsetBorderRight">
+                    <Anchors>
+                        <Anchor point="TOPRIGHT" relativeTo="$parentInsetTopRightCorner" relativePoint="BOTTOMRIGHT" />
+                        <Anchor point="BOTTOMRIGHT" relativeTo="$parentInsetBotRightCorner" relativePoint="TOPRIGHT" />
+                    </Anchors>
+                </Texture>
+            </Layer>
+        </Layers>
+    </Frame>
+    <Button name="SarychUIAM_MagicButtonTemplate" inherits="UIPanelButtonTemplate2" virtual="true">
+        <Size x="80" y="22" />
+        <Scripts>
+            <OnLoad>SarychUI.Compat.AddonManagement.ButtonOnLoad(self)</OnLoad>
+        </Scripts>
+    </Button>
+    <Texture name="SarychUIAM_UI_Frame_BtnCornerLeft" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\UI-Frame" virtual="true">
+        <Size x="12" y="32" />
+        <TexCoords left="0.89843750" right="0.99218750" top="0.28125000" bottom="0.53125000" />
+    </Texture>
+    <Texture name="SarychUIAM_UI_Frame_BtnCornerRight" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\UI-Frame" virtual="true">
+        <Size x="12" y="32" />
+        <TexCoords left="0.13281250" right="0.22656250" top="0.63281250" bottom="0.88281250" />
+    </Texture>
+    <Texture name="SarychUIAM__UI_Frame_BtnBotTile" file="Interface\AddOns\SarychUI\media\addon_management\FrameGeneral\_UI-Frame" virtual="true">
+        <Size x="256" y="3" />
+        <TexCoords left="0.00000000" right="1.00000000" top="0.04687500" bottom="0.07031250" />
+    </Texture>
+    <Frame name="SarychUIAM_CharacterSelectorTemplate" virtual="true">
+        <Size>
+            <AbsDimension x="40" y="32" />
+        </Size>
+        <Layers>
+            <Layer level="ARTWORK">
+                <Texture name="$parentLeft" file="Interface\Glues\CharacterCreate\CharacterCreate-LabelFrame">
+                    <Size>
+                        <AbsDimension x="25" y="64" />
+                    </Size>
+                    <Anchors>
+                        <Anchor point="TOPLEFT">
+                            <Offset>
+                                <AbsDimension x="0" y="17" />
+                            </Offset>
+                        </Anchor>
+                    </Anchors>
+                    <TexCoords left="0" right="0.1953125" top="0" bottom="1" />
+                </Texture>
+                <Texture name="$parentMiddle" file="Interface\Glues\CharacterCreate\CharacterCreate-LabelFrame">
+                    <Size>
+                        <AbsDimension x="115" y="64" />
+                    </Size>
+                    <Anchors>
+                        <Anchor point="LEFT" relativeTo="$parentLeft" relativePoint="RIGHT" />
+                    </Anchors>
+                    <TexCoords left="0.1953125" right="0.8046875" top="0" bottom="1" />
+                </Texture>
+                <Texture name="$parentRight" file="Interface\Glues\CharacterCreate\CharacterCreate-LabelFrame">
+                    <Size>
+                        <AbsDimension x="25" y="64" />
+                    </Size>
+                    <Anchors>
+                        <Anchor point="LEFT" relativeTo="$parentMiddle" relativePoint="RIGHT" />
+                    </Anchors>
+                    <TexCoords left="0.8046875" right="1" top="0" bottom="1" />
+                </Texture>
+                <FontString name="$parentText" inherits="GameFontHighlightSmall" justifyH="RIGHT">
+                    <Size>
+                        <AbsDimension x="0" y="10" />
+                    </Size>
+                    <Anchors>
+                        <Anchor point="RIGHT" relativeTo="$parentRight">
+                            <Offset>
+                                <AbsDimension x="-43" y="2" />
+                            </Offset>
+                        </Anchor>
+                    </Anchors>
+                </FontString>
+            </Layer>
+        </Layers>
+        <Frames>
+            <Button name="$parentButton">
+                <Size>
+                    <AbsDimension x="24" y="24" />
+                </Size>
+                <Anchors>
+                    <Anchor point="TOPRIGHT" relativeTo="$parentRight">
+                        <Offset>
+                            <AbsDimension x="-16" y="-18" />
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnClick>SarychUI.Compat.AddonManagement.ToggleMenu(self:GetParent()); PlaySound("igMainMenuOptionCheckBoxOn");</OnClick>
+                </Scripts>
+                <NormalTexture name="$parentNormalTexture" file="Interface\ChatFrame\UI-ChatIcon-ScrollDown-Up">
+                    <Size>
+                        <AbsDimension x="24" y="24" />
+                    </Size>
+                    <Anchors>
+                        <Anchor point="RIGHT" />
+                    </Anchors>
+                </NormalTexture>
+                <PushedTexture name="$parentPushedTexture" file="Interface\ChatFrame\UI-ChatIcon-ScrollDown-Down">
+                    <Size>
+                        <AbsDimension x="24" y="24" />
+                    </Size>
+                    <Anchors>
+                        <Anchor point="RIGHT" />
+                    </Anchors>
+                </PushedTexture>
+                <DisabledTexture name="$parentDisabledTexture" file="Interface\ChatFrame\UI-ChatIcon-ScrollDown-Disabled">
+                    <Size>
+                        <AbsDimension x="24" y="24" />
+                    </Size>
+                    <Anchors>
+                        <Anchor point="RIGHT" />
+                    </Anchors>
+                </DisabledTexture>
+                <HighlightTexture name="$parentHighlightTexture" file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD">
+                    <Size>
+                        <AbsDimension x="24" y="24" />
+                    </Size>
+                    <Anchors>
+                        <Anchor point="RIGHT" />
+                    </Anchors>
+                </HighlightTexture>
+            </Button>
+        </Frames>
+        <Scripts>
+            <OnHide>SarychUI.Compat.AddonManagement.CloseMenu(self)</OnHide>
+        </Scripts>
+    </Frame>
+</Ui>

@@ -1,0 +1,789 @@
+local SuiTimer = select(2, ...).Compat.Timer
+-- SarychUI Bags Module - стандартные / ElvUI
+
+
+
+local moduleName = "bags"
+
+local module = {}
+
+
+
+SarychUI:RegisterModule(moduleName, module)
+
+
+
+local DEBUG_ELVUI_BAGS = false
+
+
+
+local function bagDebug(...)
+
+	if not DEBUG_ELVUI_BAGS and not _G.SarychUI_DebugBagsPosition then return end
+
+	local text = "Bags: " .. table.concat({ ... }, " ")
+
+	if SarychUI and SarychUI.Print then
+
+		SarychUI:Print(text)
+
+	else
+
+		print(text)
+
+	end
+
+end
+
+
+
+local function DB()
+
+	if not SarychUI or not SarychUI.db or not SarychUI.db.profile or not SarychUI.db.profile.modules then
+
+		return nil
+
+	end
+
+	return SarychUI.db.profile.modules[moduleName]
+
+end
+
+
+
+function module:IsEnabled()
+
+	local db = DB()
+
+	return db and db.enabled == true
+
+end
+
+
+
+function module:GetMode()
+
+	local db = DB()
+
+	return (db and db.mode) or "elvui"
+
+end
+
+
+
+function module:IsDefaultMode()
+
+	local mode = self:GetMode()
+
+	return mode ~= "elvui"
+
+end
+
+
+
+function module:IsElvUIMode()
+
+	return self:GetMode() == "elvui"
+
+end
+
+
+
+function module:GetElvUIEngine()
+
+	return _G.SarychUI_Bags and _G.SarychUI_Bags[1]
+
+end
+
+
+
+function module:IsElvUIBagsLoaded()
+
+	return self:GetElvUIEngine() ~= nil
+
+end
+
+
+
+function module:GetElvUISettings()
+	local db = DB()
+	if not db then return nil end
+	db.elvui = db.elvui or {}
+	return db.elvui
+end
+
+function module:EnsureElvUIDefaultPosition()
+	local elv = self:GetElvUISettings()
+	if not elv then return nil end
+	if type(elv.defaultPosition) ~= "table" then
+		local defaults = SarychUI.defaults
+			and SarychUI.defaults.profile.modules.bags
+			and SarychUI.defaults.profile.modules.bags.elvui
+			and SarychUI.defaults.profile.modules.bags.elvui.defaultPosition
+		if type(defaults) == "table" then
+			elv.defaultPosition = CopyTable(defaults)
+		else
+			elv.defaultPosition = {
+				point = "BOTTOMRIGHT",
+				relativePoint = "BOTTOMRIGHT",
+				relativeTo = "UIParent",
+				x = -20,
+				y = 130,
+			}
+		end
+	end
+	return elv.defaultPosition
+end
+
+function module:EnsureElvUIDefaultBankPosition()
+	local elv = self:GetElvUISettings()
+	if not elv then return nil end
+	if type(elv.defaultBankPosition) ~= "table" then
+		local defaults = SarychUI.defaults
+			and SarychUI.defaults.profile.modules.bags
+			and SarychUI.defaults.profile.modules.bags.elvui
+			and SarychUI.defaults.profile.modules.bags.elvui.defaultBankPosition
+		if type(defaults) == "table" then
+			elv.defaultBankPosition = CopyTable(defaults)
+		else
+			elv.defaultBankPosition = {
+				point = "BOTTOMRIGHT",
+				relativePoint = "BOTTOMLEFT",
+				relativeTo = "ElvUI_ContainerFrame",
+				x = -10,
+				y = 0,
+			}
+		end
+	end
+	return elv.defaultBankPosition
+end
+
+function module:ApplyElvUIBagLayoutSettings()
+	self:SyncElvUIEngineFromDB()
+	local E = self:GetElvUIEngine()
+	local B = E and E.GetModule and E:GetModule("Bags", true)
+	if not (B and B.Layout) then return end
+	if B.BagFrame then
+		B:Layout()
+	end
+	if B.BankFrame then
+		B:Layout(true)
+	end
+	if B.ApplySarychUIBagChrome then
+		B:ApplySarychUIBagChrome()
+	end
+end
+
+function module:ApplyElvUIBagScaleSettings()
+	local E = self:GetElvUIEngine()
+	local B = E and E.GetModule and E:GetModule("Bags", true)
+	if not (B and B.ApplySarychUIBagFrameScale) then return end
+	if B.BagFrame then
+		B:ApplySarychUIBagFrameScale(B.BagFrame)
+	end
+	if B.BankFrame then
+		B:ApplySarychUIBagFrameScale(B.BankFrame)
+	end
+end
+
+function module:ApplyElvUIBagChromeSettings()
+	local E = self:GetElvUIEngine()
+	local B = E and E.GetModule and E:GetModule("Bags", true)
+	if B and B.ApplySarychUIBagChrome then
+		B:ApplySarychUIBagChrome()
+	end
+end
+
+function module:ApplyElvUIBagFontSettings()
+	self:SyncElvUIEngineFromDB()
+	local E = self:GetElvUIEngine()
+	local B = E and E.GetModule and E:GetModule("Bags", true)
+	if B and B.ApplyBagFont then
+		B:ApplyBagFont()
+	end
+	if B and B.ApplyCurrencyLayout then
+		B:ApplyCurrencyLayout()
+	end
+	if B and B.UpdateGoldText then
+		B:UpdateGoldText()
+	end
+end
+
+-- Fast path for footer (money/currency) sliders while dragging.
+function module:ApplyElvUIBagFooterSettings()
+	local E = self:GetElvUIEngine()
+	local B = E and E.GetModule and E:GetModule("Bags", true)
+	if B and B.ApplyFooterSettings then
+		B:ApplyFooterSettings()
+	end
+end
+
+function module:ClearElvUIBagSavedWindowPosition()
+	local elv = self:GetElvUISettings()
+	if elv then
+		elv.savedWindowPosition = nil
+	end
+	local E = self:GetElvUIEngine()
+	local B = E and E.GetModule and E:GetModule("Bags", true)
+	if B and B.ClearElvUIBagSavedWindowPosition then
+		B:ClearElvUIBagSavedWindowPosition()
+	end
+	self:ApplyElvUIBagWindowPosition()
+end
+
+function module:ApplyElvUIBagWindowPosition()
+	local E = self:GetElvUIEngine()
+	local B = E and E.GetModule and E:GetModule("Bags", true)
+	if B and B.ApplyElvUIBagWindowPosition and B.BagFrame then
+		B:ApplyElvUIBagWindowPosition(B.BagFrame)
+	end
+end
+
+function module:ApplyElvUIBagWindowPositionIfDefault()
+	local elv = self:GetElvUISettings()
+	if elv and elv.savedWindowPosition then return end
+	self:ApplyElvUIBagWindowPosition()
+end
+
+function module:ClearElvUIBankSavedWindowPosition()
+	local elv = self:GetElvUISettings()
+	if elv then
+		elv.savedBankWindowPosition = nil
+	end
+	local E = self:GetElvUIEngine()
+	local B = E and E.GetModule and E:GetModule("Bags", true)
+	if B and B.ClearElvUIBankSavedWindowPosition then
+		B:ClearElvUIBankSavedWindowPosition()
+	end
+	self:ApplyElvUIBankWindowPosition()
+end
+
+function module:ApplyElvUIBankWindowPosition()
+	local E = self:GetElvUIEngine()
+	local B = E and E.GetModule and E:GetModule("Bags", true)
+	if B and B.ApplyElvUIBankWindowPosition then
+		if B.BankFrame then
+			B:ApplyElvUIBankWindowPosition(B.BankFrame)
+		end
+		bagDebug("ApplyElvUIBankWindowPosition", B.BankFrame and "frame ok" or "frame pending")
+	end
+end
+
+function module:ApplyElvUIBankWindowPositionIfDefault()
+	local elv = self:GetElvUISettings()
+	if elv and elv.savedBankWindowPosition then return end
+	self:ApplyElvUIBankWindowPosition()
+end
+
+
+
+function module:SyncElvUIEngineFromDB()
+
+	local E = self:GetElvUIEngine()
+
+	if E and E.SyncBagsRuntimeFromSarychUI then
+
+		E:SyncBagsRuntimeFromSarychUI()
+
+	end
+
+end
+
+
+
+function module:StartElvUIBagsRuntime()
+
+	bagDebug("mode =", self:GetMode())
+	bagDebug("SarychUI Bags loaded")
+
+
+
+	if not self:IsElvUIBagsLoaded() then
+
+		bagDebug("SarychUI Bags engine NOT loaded (check SarychUI.toc embeds)")
+
+		return false
+
+	end
+
+
+
+	local E = self:GetElvUIEngine()
+
+	if E and E.CheckElvUIConflict and E:CheckElvUIConflict() then
+
+		bagDebug("ElvUI full addon conflict - embedded bags disabled")
+
+		return false
+
+	end
+
+
+
+	self:SyncElvUIEngineFromDB()
+
+
+
+	if E and E.StartBagsRuntime then
+
+		bagDebug("Start owned bags engine")
+
+		if not E.loginReady then
+
+			E.loginReady = true
+
+		end
+
+		E:StartBagsRuntime()
+
+		self:ApplyElvUIBagWindowPosition()
+
+		return true
+
+	end
+
+
+
+	bagDebug("Failed to start ElvUI bags - no engine API")
+
+	return false
+
+end
+
+
+
+function module:StopElvUIBagsRuntime()
+
+	bagDebug("Stop ElvUI bags runtime")
+
+
+
+	local E = self:GetElvUIEngine()
+
+	if E and E.ShutdownBagsRuntime then
+
+		E:ShutdownBagsRuntime()
+
+	end
+
+end
+
+
+
+function module:ApplyMode()
+
+	local mode = self:GetMode()
+
+	bagDebug("ApplyMode:", mode, "enabled =", tostring(self:IsEnabled()), "engine loaded =", tostring(self:IsElvUIBagsLoaded()))
+
+
+
+	if not self:IsEnabled() then
+
+		self:DisableDefaultHandlers()
+
+		self:StopElvUIBagsRuntime()
+
+
+		return
+
+	end
+
+
+
+	if self:IsElvUIMode() then
+
+
+		self:DisableDefaultHandlers()
+
+		local E = self:GetElvUIEngine()
+		local B = E and E.GetModule and E:GetModule("Bags", true)
+		if B and B.RestoreActionBarBagButtons then
+			B:RestoreActionBarBagButtons()
+		end
+
+		self:StartElvUIBagsRuntime()
+
+	else
+
+		self:StopElvUIBagsRuntime()
+
+
+		self:EnableDefaultHandlers()
+
+		bagDebug("Fallback to Blizzard bags")
+
+	end
+
+end
+
+
+
+function module:EnableDefaultHandlers()
+
+	if SarychUI_BagSort_RegisterEvents then
+
+		SarychUI_BagSort_RegisterEvents()
+
+	end
+
+	if self.ApplyBagSortSettings then
+
+		self:ApplyBagSortSettings()
+
+	end
+
+end
+
+
+
+function module:DisableDefaultHandlers()
+
+	if SarychUI_BagSort_UnregisterEvents then
+
+		SarychUI_BagSort_UnregisterEvents()
+
+	end
+
+	if self.DisableBagSortButton then
+
+		self:DisableBagSortButton()
+
+	end
+
+end
+
+
+
+function module:CanUseDefaultAutoSellGrey()
+
+	if not self:IsEnabled() then
+
+		return false
+
+	end
+
+	-- SarychUI Bags: своя автопродажа; классика и Baud Bag - модуль Автоматизация.
+	if self:IsElvUIMode() then
+
+		return false
+
+	end
+
+	local automation = SarychUI.db.profile.modules.automation
+
+	return automation and automation.enableAutoSellGrey == 1
+
+end
+
+
+local CUSTOM_CATEGORY_RESERVED_NAMES = {
+	["новое"] = true,
+	["Новое"] = true,
+	["новые"] = true,
+	["Новые"] = true,
+	["задания"] = true,
+	["Задания"] = true,
+	["экипировка"] = true,
+	["Экипировка"] = true,
+	["неперсональная экипировка"] = true,
+	["Неперсональная экипировка"] = true,
+	["расходные материалы"] = true,
+	["Расходные материалы"] = true,
+	["хозяйственные товары"] = true,
+	["Хозяйственные товары"] = true,
+	["рецепты"] = true,
+	["Рецепты"] = true,
+	["боеприпасы"] = true,
+	["Боеприпасы"] = true,
+	["разное"] = true,
+	["Разное"] = true,
+	["хлам"] = true,
+	["Хлам"] = true,
+	["свободно"] = true,
+	["Свободно"] = true,
+}
+
+local function NormalizeCustomCategoryName(name)
+	name = tostring(name or "")
+	name = name:gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
+	return name
+end
+
+function module:GetCustomBagCategories()
+	local elvui = self:GetElvUISettings()
+	if not elvui then return {} end
+	if type(elvui.customCategories) ~= "table" then
+		elvui.customCategories = {}
+	end
+
+	local seenIDs = {}
+	local nextID = 1
+	for _, category in ipairs(elvui.customCategories) do
+		if type(category) == "table" then
+			local id = tonumber(category.id)
+			if id and id >= nextID then nextID = id + 1 end
+		end
+	end
+	for index, category in ipairs(elvui.customCategories) do
+		if type(category) ~= "table" then
+			category = { name = tostring(category or ("Категория " .. index)) }
+			elvui.customCategories[index] = category
+		end
+		local id = tonumber(category.id)
+		if not id or seenIDs[id] then
+			id = nextID
+			nextID = nextID + 1
+		end
+		seenIDs[id] = true
+		category.id = id
+		category.name = NormalizeCustomCategoryName(category.name)
+		if category.name == "" then category.name = "Категория " .. id end
+		if type(category.items) ~= "table" then category.items = {} end
+	end
+	return elvui.customCategories
+end
+
+function module:FindCustomBagCategory(categoryID)
+	categoryID = tonumber(categoryID)
+	if not categoryID then return nil end
+	for index, category in ipairs(self:GetCustomBagCategories()) do
+		if tonumber(category.id) == categoryID then
+			return category, index
+		end
+	end
+	return nil
+end
+
+function module:AddCustomBagCategory(name)
+	name = NormalizeCustomCategoryName(name)
+	if name == "" then return false, "invalid" end
+	local lowered = string.lower(name)
+	if CUSTOM_CATEGORY_RESERVED_NAMES[name] or CUSTOM_CATEGORY_RESERVED_NAMES[lowered] then return false, "reserved" end
+
+	local categories = self:GetCustomBagCategories()
+	local nextID = 1
+	for _, category in ipairs(categories) do
+		if string.lower(category.name or "") == lowered then
+			return false, "duplicate"
+		end
+		local id = tonumber(category.id) or 0
+		if id >= nextID then nextID = id + 1 end
+	end
+	categories[#categories + 1] = { id = nextID, name = name, items = {} }
+	return true, nextID
+end
+
+function module:RemoveCustomBagCategory(categoryID)
+	local _, index = self:FindCustomBagCategory(categoryID)
+	if not index then return false end
+	table.remove(self:GetCustomBagCategories(), index)
+	return true
+end
+
+function module:RenameCustomBagCategory(categoryID, name)
+	local category = self:FindCustomBagCategory(categoryID)
+	if not category then return false, "missing" end
+	name = NormalizeCustomCategoryName(name)
+	if name == "" then return false, "invalid" end
+	local lowered = string.lower(name)
+	if CUSTOM_CATEGORY_RESERVED_NAMES[name] or CUSTOM_CATEGORY_RESERVED_NAMES[lowered] then
+		return false, "reserved"
+	end
+	for _, other in ipairs(self:GetCustomBagCategories()) do
+		if other ~= category and string.lower(other.name or "") == lowered then
+			return false, "duplicate"
+		end
+	end
+	category.name = name
+	return true
+end
+
+function module:MoveCustomBagCategory(categoryID, direction)
+	local categories = self:GetCustomBagCategories()
+	local _, index = self:FindCustomBagCategory(categoryID)
+	if not index then return false end
+	local target = index + (direction == "up" and -1 or 1)
+	if target < 1 or target > #categories then return false end
+	categories[index], categories[target] = categories[target], categories[index]
+	return true
+end
+
+function module:AddItemToCustomBagCategory(categoryID, itemID)
+	itemID = tonumber(itemID)
+	if not itemID or itemID <= 0 then return false, "invalid" end
+	local target = self:FindCustomBagCategory(categoryID)
+	if not target then return false, "missing" end
+	if target.items[itemID] == true or target.items[tostring(itemID)] == true then
+		return false, "duplicate"
+	end
+
+	-- Manual filtering is a one-to-one override: moving an item to another
+	-- custom category automatically removes its previous association.
+	for _, category in ipairs(self:GetCustomBagCategories()) do
+		category.items[itemID] = nil
+		category.items[tostring(itemID)] = nil
+	end
+	target.items[itemID] = true
+	return true
+end
+
+function module:RemoveItemFromCustomBagCategory(categoryID, itemID)
+	local category = self:FindCustomBagCategory(categoryID)
+	itemID = tonumber(itemID)
+	if not category or not itemID then return false end
+	category.items[itemID] = nil
+	category.items[tostring(itemID)] = nil
+	return true
+end
+
+function module:ApplyCustomBagCategories()
+	local E = self:GetElvUIEngine()
+	local bags = E and E.GetModule and E:GetModule("Bags", true)
+	if bags and bags.BagFrame and bags.Layout then
+		bags:Layout()
+	end
+end
+
+
+
+function module:GetBagSortPinnedItemIDs()
+
+	if not SarychUIDB then
+
+		SarychUIDB = {}
+
+	end
+
+	if type(SarychUIDB.bagSortPinnedItemIDs) ~= "table" then
+
+		SarychUIDB.bagSortPinnedItemIDs = { 43231, 43233 }
+
+	end
+
+	return SarychUIDB.bagSortPinnedItemIDs
+
+end
+
+
+
+function module:AddBagSortPinnedItemID(itemID)
+
+	itemID = tonumber(itemID)
+
+	if not itemID or itemID <= 0 then
+
+		return false, "invalid"
+
+	end
+
+	-- Hearthstone is always first slot in bag sort; never store it in the editable list.
+	if itemID == 6948 then
+
+		return false, "hearthstone"
+
+	end
+
+	local list = self:GetBagSortPinnedItemIDs()
+
+	for i = 1, #list do
+
+		if tonumber(list[i]) == itemID then
+
+			return false, "duplicate"
+
+		end
+
+	end
+
+	list[#list + 1] = itemID
+
+	return true
+
+end
+
+
+
+function module:RemoveBagSortPinnedItemID(itemID)
+
+	itemID = tonumber(itemID)
+
+	if not itemID then return false end
+
+	local list = self:GetBagSortPinnedItemIDs()
+
+	for i = #list, 1, -1 do
+
+		if tonumber(list[i]) == itemID then
+
+			table.remove(list, i)
+
+			return true
+
+		end
+
+	end
+
+	return false
+
+end
+
+
+
+function module:Initialize()
+
+	-- Runtime включается на PLAYER_LOGIN (Enable), не на ADDON_LOADED
+
+end
+
+
+
+function module:Enable()
+    self:SetLoginRefreshEnabled(true)
+
+	self:ApplyMode()
+
+end
+
+
+
+function module:Disable()
+    self:SetLoginRefreshEnabled(false)
+
+	self:DisableDefaultHandlers()
+
+	self:StopElvUIBagsRuntime()
+
+
+end
+
+
+
+function module:RefreshConfig()
+
+	self:ApplyMode()
+
+end
+
+
+
+-- Повторное применение после полной загрузки UI (на случай гонки с ElvUI engine)
+
+local loginFrame = CreateFrame("Frame")
+local loginTimer
+function module:SetLoginRefreshEnabled(enabled)
+    loginFrame:UnregisterAllEvents()
+    if loginTimer then loginTimer:Cancel(); loginTimer = nil end
+    if enabled then
+        loginFrame:RegisterEvent("PLAYER_LOGIN")
+        loginFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+    end
+end
+loginFrame:SetScript("OnEvent", function(_, event)
+    if not module:IsEnabled() then return end
+    if loginTimer then loginTimer:Cancel() end
+    loginTimer = SuiTimer.NewTimer(event == "PLAYER_LOGIN" and 0.2 or 0.5, function()
+        loginTimer = nil
+        if module:IsEnabled() then module:ApplyMode() end
+    end)
+end)

@@ -1,9 +1,0 @@
-## Interface: 30300
-## Title: Compact Raid Frames: Heal Extension
-## Author: Tsoukie
-## Notes: Add incoming healing, HoT and absorb visual indicators to Compact Raid Frame.
-## Version: 1.8
-## RequiredDeps: !!!ClassicAPI, CompactRaidFrame
-
-Libs\Load.xml
-Extension.lua

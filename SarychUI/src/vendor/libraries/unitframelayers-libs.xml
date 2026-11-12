@@ -1,0 +1,4 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+  <Include file="LibHealComm-4.0\LibHealComm-4.0.xml" />
+  <Include file="AbsorbsMonitor-1.0\AbsorbsMonitor-1.0.xml" />
+</Ui>

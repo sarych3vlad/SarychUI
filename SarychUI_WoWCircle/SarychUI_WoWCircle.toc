@@ -1,0 +1,23 @@
+## Interface: 30300
+## Title: SarychUI |cffff0000WoWCircle|r
+## Notes: WoWCircle companion for SarychUI: chat filters, server utilities and Quick Start.
+## Notes-ruRU: Дополнение WoWCircle: фильтры чата, серверные функции и быстрый старт.
+## Author: Сарыч
+## Version: 1.0.0
+## Dependencies: SarychUI
+
+bootstrap.lua
+localization\ruRU.lua
+localization\enUS.lua
+localization\enUS_extra.lua
+localization\esES.lua
+localization\esES_extra.lua
+filter_defaults.lua
+chat_menu.lua
+system_filter.lua
+runtime.lua
+options.lua
+quickstart\quickstart.lua
+quickstart\quickstart_catalog.lua
+quickstart\quickstart_profiles.lua
+initialize.lua

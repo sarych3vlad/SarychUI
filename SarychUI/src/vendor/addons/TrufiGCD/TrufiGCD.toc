@@ -1,0 +1,12 @@
+## Interface: 30300
+## Title: TrufiGCD
+## Notes: View queue of last spells
+## SavedVariables: TrufiGCDGlSave
+## SavedVariablesPerCharacter: TrufiGCDChSave
+## OptionalDeps: ButtonFacade, Masque
+
+# Libraries
+
+# Addon
+TrufiGCD.lua
+TrufiGCD.lua

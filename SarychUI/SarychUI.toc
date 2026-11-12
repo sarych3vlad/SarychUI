@@ -1,479 +1,474 @@
 ## Interface: 30300
 ## Title: |cFFFFFFFFSarych|rUI
 ## Notes: Complete UI for WotLK 3.3.5
-## Notes-ruRU: Комплексный интерфейс для WotLK 3.3.5
-## Author: Сарыч
-## Version: 1.3.6
-## SavedVariables: SarychUIFlightTimeDB, SarychUIDB, CompactRaidFrameDB, EnhancedRaidFramesDB, RaidFrameSorterDB, InternalCooldownsDB, BagnonForeverDB, BigDebuffsDB, OmniBarDB, LootClickerDB, LootHistoryDB, MapsterDB, SarychUIElvNamePlatesDB, SarychUIElvNamePlatesPrivateDB, SarychUIElvBagsDB, SarychUIElvBagsPrivateDB, EquipenceDB, TrufiGCDGlSave, Postal3DB, PurgeatoryDB, AUCTIONATOR_SAVEDVARS, AUCTIONATOR_PRICING_HISTORY, AUCTIONATOR_SHOPPING_LISTS, AUCTIONATOR_PRICE_DATABASE, AUCTIONATOR_MEAN_PRICE_DATABASE, AUCTIONATOR_LAST_SCAN_TIME, AUCTIONATOR_TOONS, AUCTIONATOR_STACKING_PREFS, AUCTIONATOR_SCAN_MINLEVEL, _CursorOptions, InspectEquipConfig, RaidRoll_DB, RaidRoll_DBPC, TalentedDB
-## SavedVariablesPerCharacter: TrufiGCDChSave, AUCTIONATOR_SHOW_ST_PRICE, AUCTIONATOR_ENABLE_ALT, AUCTIONATOR_OPEN_FIRST, AUCTIONATOR_OPEN_BUY, AUCTIONATOR_OPEN_ALL_BAGS, AUCTIONATOR_DEF_DURATION, AUCTIONATOR_SHOW_TIPS, AUCTIONATOR_V_TIPS, AUCTIONATOR_A_TIPS, AUCTIONATOR_D_TIPS, AUCTIONATOR_SHIFT_TIPS, AUCTIONATOR_DE_DETAILS_TIPS, AUCTIONATOR_DEFTAB, AUCTIONATOR_CHARACTER_RECENTS, _CursorOptionsCharacter, BASpammerDB, RR_Accept_All_Rolls, RR_Track_Unannounced_Rolls, RR_Roll_Tracking_Enabled, RR_AllowExtraRolls, RR_Show_Ranks, RR_RankPriority, RR_ExtraWidth, RR_ShowGroupNumber, RR_RollFrameHeight
+## Notes-ruRU: РљРѕРјРїР»РµРєСЃРЅС‹Р№ РёРЅС‚РµСЂС„РµР№СЃ РґР»СЏ WotLK 3.3.5
+## Author: РЎР°СЂС‹С‡
+## Version: 1.4.0
+## SavedVariables: SarychUIFlightTimeDB, SarychUIDB, CompactRaidFrameDB, InternalCooldownsDB, BagnonForeverDB, BigDebuffsDB, OmniBarDB, LootClickerDB, LootHistoryDB, MapsterDB, SarychUIElvNamePlatesDB, SarychUIElvNamePlatesPrivateDB, SarychUIElvBagsDB, SarychUIElvBagsPrivateDB, TrufiGCDGlSave, Postal3DB, PurgeatoryDB, AUCTIONATOR_SAVEDVARS, AUCTIONATOR_PRICING_HISTORY, AUCTIONATOR_SHOPPING_LISTS, AUCTIONATOR_PRICE_DATABASE, AUCTIONATOR_MEAN_PRICE_DATABASE, AUCTIONATOR_LAST_SCAN_TIME, AUCTIONATOR_TOONS, AUCTIONATOR_STACKING_PREFS, AUCTIONATOR_SCAN_MINLEVEL, InspectEquipConfig, RaidRoll_DB, RaidRoll_DBPC, TalentedDB
+## SavedVariablesPerCharacter: SnowfallKeyPressSV, TrufiGCDChSave, AUCTIONATOR_SHOW_ST_PRICE, AUCTIONATOR_ENABLE_ALT, AUCTIONATOR_OPEN_FIRST, AUCTIONATOR_OPEN_BUY, AUCTIONATOR_OPEN_ALL_BAGS, AUCTIONATOR_DEF_DURATION, AUCTIONATOR_SHOW_TIPS, AUCTIONATOR_V_TIPS, AUCTIONATOR_A_TIPS, AUCTIONATOR_D_TIPS, AUCTIONATOR_SHIFT_TIPS, AUCTIONATOR_DE_DETAILS_TIPS, AUCTIONATOR_DEFTAB, AUCTIONATOR_CHARACTER_RECENTS, BASpammerDB, RR_Accept_All_Rolls, RR_Track_Unannounced_Rolls, RR_Roll_Tracking_Enabled, RR_AllowExtraRolls, RR_Show_Ranks, RR_RankPriority, RR_ExtraWidth, RR_ShowGroupNumber, RR_RollFrameHeight
 
-# Libraries (includes ClassicAPI)
-libs\load-libs.xml
+# Private compatibility and libraries
+src\foundation\compatibility\timer.lua
+src\foundation\compatibility\math.lua
+src\foundation\compatibility\mixin.lua
+src\foundation\compatibility\client.lua
+src\foundation\compatibility\group.lua
+src\vendor\libraries\load-libs.xml
 
-# HealEx LibHealComm-4.0 117 must load first (original HealEx is the only LHC).
-addons\CompactRaidFrame_HealEx\Libs\Load.xml
+# Shared heal and absorb libraries; load before all frame consumers.
+src\vendor\libraries\unitframelayers-libs.xml
 
 # Core
-core\init.lua
-core\lockdown_debug.lua
-core\format_money.lua
-core\quickstart.lua
-core\quickstart_catalog.lua
-core\quickstart_profiles.lua
-core\profile.lua
-core\transfer_encode.lua
-core\transfer_data.lua
-core\transfer.lua
-core\transfer_equip.lua
-core\transfer_presets.lua
-core\perf.lua
-core\perf_debug.lua
-core\compatibility.lua
+src\foundation\lifecycle\init.lua
+src\options\pool.lua
+src\foundation\compatibility\widgets.lua
+src\foundation\frameworks\visuals\animation.lua
+src\foundation\frameworks\visuals\smoothing.lua
+src\foundation\data\registry.lua
+src\foundation\data\aura_tracking.lua
+src\foundation\frameworks\auratracking\core.lua
+src\foundation\data\group_auras.lua
+src\foundation\data\group_aura_control.lua
+src\vendor\libraries\LibCUFAuras-1.0\lib.xml
+src\foundation\data\diminishings.lua
+src\foundation\data\party_abilities.lua
+src\foundation\data\enemy_abilities.lua
+src\foundation\data\arena_trinkets.lua
+src\foundation\data\internal_cooldowns.lua
+src\vendor\libraries\DRList-1.0\Spells.lua
+src\vendor\libraries\LibInternalCooldowns-1.1\Data.lua
+src\diagnostics\lockdown.lua
+src\foundation\services\format_money.lua
+src\foundation\configuration\profile.lua
+src\foundation\configuration\transfer\transfer_encode.lua
+src\foundation\configuration\transfer\transfer_data.lua
+src\foundation\configuration\transfer\transfer.lua
+src\foundation\configuration\transfer\transfer_equip.lua
+src\foundation\configuration\transfer\transfer_presets.lua
+src\foundation\compatibility\client\compatibility.lua
 
-core\update_scheduler.lua
-core\carbonite_detect.lua
-core\channel_frame_fix.lua
-core\wcollections_micromenu.lua
-core\registry.lua
-core\defaults.lua
-core\profiles\Sarych.lua
-core\coordinator.lua
-core\media.lua
-core\alt_mode.lua
-core\toggle_bindings.lua
-core\combat_animations.lua
-core\drag_mode.lua
-core\combat_text_drag_panel.lua
-core\addons_registry.lua
-extensions\registry.lua
+src\foundation\services\update_scheduler.lua
+src\foundation\compatibility\client\carbonite_detect.lua
+src\foundation\compatibility\client\channel_frame_fix.lua
+src\foundation\compatibility\client\lfd_aura_event_fix.lua
+src\foundation\compatibility\client\wcollections_micromenu.lua
+src\foundation\lifecycle\registry.lua
+src\foundation\configuration\defaults.lua
+src\foundation\configuration\presets\Sarych.lua
+src\foundation\lifecycle\coordinator.lua
+src\foundation\services\media.lua
+src\foundation\services\alt_mode.lua
+src\foundation\services\toggle_bindings.lua
+src\foundation\frameworks\visuals\combat_animations.lua
+src\foundation\services\drag_mode.lua
+src\modules\floating_text\drag_panel.lua
+src\foundation\lifecycle\addons_registry.lua
+src\extensions\registry.lua
+src\extensions\addon_management\module.lua
+src\extensions\internal_cooldowns\module.lua
+src\extensions\id_detection\module.lua
+src\extensions\item_info\module.lua
+src\extensions\modern_features\options.lua
+src\extensions\loot_management\options.lua
+src\extensions\blizzard_improvements\options.lua
+src\extensions\interactions\options.lua
+src\extensions\aura_tracking\module.lua
+src\extensions\aura_tracking\window.lua
 # Localization
-core\localization\Locale.lua
-core\localization\en.lua
-core\localization\ru.lua
-core\localization\esES.lua
-core\localization\ukUA.lua
-core\localization\maps\enUS.lua
-core\localization\maps\esES.lua
-core\localization\maps\enUS_extra.lua
-core\localization\maps\esES_extra.lua
-core\localization\Apply.lua
+src\foundation\localization\Locale.lua
+src\foundation\localization\keys.lua
+src\foundation\localization\enUS.lua
+src\foundation\localization\ruRU.lua
+src\foundation\localization\esES.lua
+src\foundation\localization\ukUA.lua
+src\foundation\localization\Apply.lua
 
 # Modules
-modules\mainmenubar\module.lua
-modules\minimap\module.lua
-modules\minimap\preview.lua
-modules\minimap\visibility.lua
-modules\map\module.lua
-modules\map\api.lua
-modules\map\data\poi_names.lua
-modules\map\data\pois.lua
-modules\map\data\overlays.lua
-modules\map\zoom.lua
-modules\map\questie.lua
-modules\map\worldmap.lua
-modules\map\fog.lua
-modules\map\poi.lua
-modules\map\zoneinfo.lua
-modules\map\coords.lua
-modules\map\groupicons.lua
-modules\map\scalehandle.lua
-modules\map\button.lua
-modules\frame\module.lua
-modules\frame\specs.lua
-modules\frame\portraits.lua
-modules\frame\classicon.lua
-modules\frame\focus_combo.lua
-modules\frame\visibility.lua
-modules\frame\preview.lua
-modules\frame\pvp_preview.lua
-modules\auras\module.lua
-modules\auras\poison_icons.lua
-modules\auras\preview.lua
-modules\chat\module.lua
-modules\chat\functionality.lua
-modules\chat\lagbar.lua
-modules\chat\meme_pack_v2_data.lua
-modules\chat\emotions.lua
-modules\chat\class_mentions.lua
-modules\chat\appearance.lua
-modules\chat\tooltip_preview.lua
-modules\chat\spam_filter.lua
-modules\chat\chatwheel.lua
-modules\chat\visibility.lua
-modules\chat\ChatBar.xml
-modules\player_resources\module.lua
-modules\player_resources\plate.lua
-modules\player_resources\plate_prediction.lua
-modules\player_resources\runes.lua
-modules\player_resources\totem_data.lua
-modules\player_resources\totems.lua
-modules\player_resources\shield.lua
-modules\player_resources\preview.lua
-modules\castbar\module.lua
-modules\castbar\ticks.lua
-modules\castbar\dragonflight.lua
-modules\cc\module.lua
-modules\cc\previews.lua
-modules\bags\module.lua
-modules\bags\bag_sort.lua
-modules\automation\module.lua
-modules\tools\flight_data_alliance.lua
-modules\tools\flight_data_horde.lua
-modules\tools\font_outline_values.lua
-modules\tools\loot_roll_counts.lua
-modules\tools\loot_roll_preview.lua
-extensions\interface_style\core.lua
-extensions\interface_style\buttons.lua
-extensions\interface_style\frames.lua
-extensions\interface_style\auras.lua
-extensions\interface_style\inspect.lua
-addons\EasyGlyph\EasyGlyph.lua
-addons\EasyGlyph\EasyGlyph_ItemData.lua
-addons\EasyGlyph\EasyGlyph_ItemIcons.lua
-modules\tools\module.lua
-modules\tools\quest_tracker.lua
-modules\floating_text\module.lua
-modules\floating_text\preview.lua
-modules\health_indicators\module.lua
-modules\health_indicators\scale.lua
-modules\health_indicators\distance_preview.lua
-modules\plates_auras\configID.lua
-modules\plates_auras\elvui_layout.lua
-modules\plates_auras\glow.lua
-modules\plates_auras\core.lua
-modules\plates_auras\pb_bridge.lua
-modules\plates_auras\module.lua
-modules\plates_auras\test.lua
-modules\plates_auras\layout_preview.lua
-modules\arena\module.lua
-modules\arena\preview.lua
+src\modules\action_bars\module.lua
+src\modules\minimap\module.lua
+src\modules\minimap\preview.lua
+src\modules\minimap\visibility.lua
+src\modules\map\module.lua
+src\modules\map\api.lua
+src\modules\map\data\poi_names.lua
+src\modules\map\data\pois.lua
+src\modules\map\data\overlays.lua
+src\modules\map\zoom.lua
+src\modules\map\questie.lua
+src\modules\map\worldmap.lua
+src\modules\map\fog.lua
+src\modules\map\poi.lua
+src\modules\map\zoneinfo.lua
+src\modules\map\coords.lua
+src\modules\map\groupicons.lua
+src\modules\map\scalehandle.lua
+src\modules\map\button.lua
+src\modules\unit_frames\module.lua
+src\modules\unit_frames\specs.lua
+src\modules\unit_frames\portraits.lua
+src\modules\unit_frames\classicon.lua
+src\modules\unit_frames\focus_combo.lua
+src\modules\unit_frames\visibility.lua
+src\modules\unit_frames\preview.lua
+src\modules\unit_frames\pvp_preview.lua
+src\modules\auras\module.lua
+src\modules\auras\poison_icons.lua
+src\modules\auras\preview.lua
+src\modules\chat\module.lua
+src\modules\chat\functionality.lua
+src\modules\chat\lagbar.lua
+src\modules\chat\meme_pack_v2_data.lua
+src\modules\chat\emotions.lua
+src\modules\chat\class_mentions.lua
+src\modules\chat\appearance.lua
+src\modules\chat\tooltip_preview.lua
+src\modules\chat\spam_filter.lua
+src\modules\chat\chatwheel.lua
+src\modules\chat\visibility.lua
+src\modules\chat\ChatBar.xml
+src\extensions\player_resources\module.lua
+src\extensions\player_resources\plate.lua
+src\extensions\player_resources\plate_prediction.lua
+src\extensions\player_resources\runes.lua
+src\extensions\player_resources\totem_data.lua
+src\extensions\player_resources\totems.lua
+src\extensions\player_resources\shield.lua
+src\extensions\player_resources\preview.lua
+src\modules\castbar\module.lua
+src\modules\castbar\ticks.lua
+src\modules\castbar\dragonflight.lua
+src\extensions\cc\module.lua
+src\extensions\cc\previews.lua
+src\modules\bags\module.lua
+src\modules\bags\bag_sort.lua
+src\modules\bags\ownership\localization\localization.lua
+src\modules\bags\ownership\localization\localization.ru.lua
+src\modules\bags\ownership\localization\localization.de.lua
+src\modules\bags\ownership\localization\localization.cn.lua
+src\modules\bags\ownership\localization\localization.tw.lua
+src\modules\bags\ownership\db.lua
+src\modules\bags\ownership\tooltips.lua
+src\modules\automation\module.lua
+src\modules\automation\loot_rolls\util.lua
+src\modules\automation\loot_rolls\locale.lua
+src\modules\automation\loot_rolls\init.lua
+src\modules\automation\loot_rolls\core.lua
+src\modules\automation\loot_rolls\module.lua
+src\modules\automation\loot_rolls\options.lua
+src\extensions\blizzard_improvements\flight_data_alliance.lua
+src\extensions\blizzard_improvements\flight_data_horde.lua
+src\options\font_outline_values.lua
+src\extensions\loot_management\roll_counts.lua
+src\extensions\loot_management\roll_preview.lua
+src\extensions\interface_style\core.lua
+src\extensions\interface_style\buttons.lua
+src\extensions\interface_style\frames.lua
+src\extensions\interface_style\auras.lua
+src\extensions\talents\glyphs\EasyGlyph.lua
+src\extensions\talents\glyphs\EasyGlyph_ItemData.lua
+src\extensions\talents\glyphs\EasyGlyph_ItemIcons.lua
+src\extensions\modern_features\quest_tracker.lua
+src\modules\floating_text\module.lua
+src\modules\floating_text\preview.lua
+src\modules\nameplates\module.lua
+src\modules\nameplates\scale.lua
+src\modules\nameplates\pet_icons.lua
+src\modules\nameplates\distance_preview.lua
+src\modules\plates_auras\configID.lua
+src\modules\plates_auras\elvui_layout.lua
+src\modules\plates_auras\glow.lua
+src\modules\plates_auras\core.lua
+src\modules\plates_auras\pb_bridge.lua
+src\modules\plates_auras\module.lua
+src\modules\plates_auras\test.lua
+src\modules\plates_auras\layout_preview.lua
+src\foundation\frameworks\unitspecialization\core.lua
+src\modules\arena\module.lua
+src\modules\arena\spec_detection.lua
+src\modules\arena\gladius_style.lua
+src\modules\arena\timers.lua
+src\modules\arena\preview.lua
 
 # Native extensions
-extensions\party_abilities\data.lua
-extensions\party_abilities\module.lua
-extensions\party_abilities\preview.lua
+src\extensions\visibility_control\module.lua
+src\extensions\diminishings\module.lua
+src\extensions\cooldown_tracking\cooldown_tracking.lua
+src\extensions\cooldown_tracking\standalone.lua
+src\extensions\cooldown_tracking\preview.lua
+src\modules\arena\proc_trinkets.lua
 
 # MainMenuBar Panels (loaded after main module)
-modules\mainmenubar\panelText.lua
-modules\mainmenubar\panelVisual.lua
-modules\mainmenubar\panelColor.lua
-modules\mainmenubar\preview.lua
-modules\mainmenubar\bfa.lua
-modules\mainmenubar\central_multilevel.lua
-modules\mainmenubar\visibility.lua
+src\modules\action_bars\panelText.lua
+src\modules\action_bars\panelVisual.lua
+src\modules\action_bars\panelColor.lua
+src\modules\action_bars\preview.lua
+src\modules\action_bars\bfa.lua
+src\modules\action_bars\central_multilevel.lua
+src\modules\action_bars\visibility.lua
+
+src\extensions\interactions\features.lua
+src\extensions\blizzard_improvements\features.lua
+src\extensions\loot_management\features.lua
+src\modules\auras\features.lua
+src\modules\unit_frames\features.lua
+src\modules\action_bars\features.lua
+src\modules\castbar\features.lua
+src\extensions\cc\features.lua
+src\modules\arena\features.lua
+src\modules\floating_text\features.lua
+src\extensions\loot_management\roll_options.lua
+src\extensions\modern_features\quest_options.lua
+src\extensions\blizzard_improvements\features_options.lua
+src\extensions\blizzard_improvements\tooltip_options.lua
+src\extensions\interactions\announcement_options.lua
+src\extensions\interactions\focus_options.lua
 
 # Module Options
-modules\mainmenubar\options.lua
-modules\minimap\options.lua
-modules\map\options.lua
-modules\frame\options.lua
-modules\auras\options.lua
-modules\chat\options.lua
-modules\player_resources\options.lua
-modules\castbar\options.lua
-modules\cc\options.lua
-modules\bags\options.lua
-modules\automation\options.lua
-modules\tools\options.lua
-modules\floating_text\options.lua
-modules\health_indicators\options.lua
-modules\plates_auras\options.lua
-modules\arena\options.lua
-extensions\party_abilities\options.lua
-extensions\interface_style\options.lua
+src\modules\action_bars\options.lua
+src\modules\minimap\options.lua
+src\modules\map\options.lua
+src\modules\unit_frames\options.lua
+src\modules\auras\options.lua
+src\modules\chat\options.lua
+src\extensions\player_resources\options.lua
+src\modules\castbar\options.lua
+src\extensions\cc\options.lua
+src\modules\bags\options.lua
+src\modules\automation\options.lua
+src\modules\floating_text\options.lua
+src\modules\nameplates\options.lua
+src\modules\plates_auras\options.lua
+src\modules\arena\options.lua
+src\extensions\cooldown_tracking\options.lua
+src\extensions\visibility_control\options.lua
+src\extensions\diminishings\options.lua
+src\extensions\interface_style\options.lua
 
 # Options Interface
-options\options_perf.lua
-options\options_acegui_overrides.lua
-options\options_skin.lua
-options\options_widgets.lua
-options\options_cleanup.lua
-options\module_options_wrapper.lua
+src\options\adapters\acegui.lua
+src\options\adapters\skin.lua
+src\options\adapters\widgets.lua
+src\options\adapters\cleanup.lua
+src\options\adapters\module_options.lua
 # Custom Details-like options core (primary UI)
-options\options_theme.lua
-options\options_widgets_custom.lua
-options\options_window.lua
-options\options_renderer.lua
-options\options_core.lua
-options\options_transfer.lua
-options\options.lua
+src\options\theme.lua
+src\options\tooltip.lua
+src\options\widgets.lua
+src\options\window.lua
+src\options\previews.lua
+src\options\renderer.lua
+src\options\controller.lua
+src\options\transfer.lua
+src\options\registry.lua
+
+# Shared frame framework
+src\foundation\frameworks\unitframerange\core.lua
+src\foundation\frameworks\unitframelayers\core.lua
+src\foundation\frameworks\unitframelayers\Dependence\BuilderSpenderFrame.xml
+src\foundation\frameworks\unitframelayers\Dependence\GetSpellPowerCost.lua
+src\foundation\frameworks\unitframelayers\Dependence\AnimatedHealthLossMixin.lua
+src\foundation\frameworks\unitframelayers\templates.xml
+src\foundation\frameworks\unitframelayers\layers.lua
+src\foundation\frameworks\unitframelayers\events.lua
+src\foundation\frameworks\unitframelayers\resource_prediction.lua
 
 # AddOns (from addons folder)
-# UnitFrameLayers
-addons\UnitFrameLayers\embeds.xml
-addons\UnitFrameLayers\Dependence\BuilderSpenderFrame.xml
-addons\UnitFrameLayers\Dependence\MathUtil.lua
-addons\UnitFrameLayers\Dependence\Mixin.lua
-addons\UnitFrameLayers\Dependence\GetSpellPowerCost.lua
-addons\UnitFrameLayers\Dependence\AnimatedHealthLossMixin.lua
-addons\UnitFrameLayers\Dependence\BuilderSpenderFrame.lua
-addons\UnitFrameLayers\UnitFrame.xml
-addons\UnitFrameLayers\UnitFrame.lua
-addons\UnitFrameLayers\wrapper.lua
+# RaidRoll (embedded with EPGP and Loot Tracker)
+src\vendor\addons\RaidRoll\RaidRoll_EPGP\RaidRoll_EPGP.lua
+src\vendor\addons\RaidRoll\RaidRoll_LootTracker\RaidRoll_LootTracker.lua
+src\vendor\addons\RaidRoll\RaidRoll.xml
+src\vendor\addons\RaidRoll\options.lua
+src\vendor\addons\RaidRoll\wrapper.lua
 
 # pw_lossofcontrol
-addons\pw_lossofcontrol\pw_lossofcontrol.xml
-addons\pw_lossofcontrol\wrapper.lua
+src\extensions\aura_tracking\engines\loss_of_control\pw_lossofcontrol.xml
+src\extensions\aura_tracking\engines\loss_of_control\control.lua
+
+# BASpammer
+src\vendor\addons\BASpammer\bootstrap.lua
+src\vendor\addons\BASpammer\BASpammer.xml
+src\vendor\addons\BASpammer\BASpammer.lua
+src\vendor\addons\BASpammer\wrapper.lua
 
 # BNetToast
-addons\BNetToast\BNetToast.lua
-addons\BNetToast\wrapper.lua
+src\extensions\modern_features\friend_notifications\BNetToast.lua
+src\extensions\modern_features\friend_notifications\control.lua
 
 # Cheese
-addons\Cheese\Data.lua
-addons\Cheese\APIAnimation.xml
-addons\Cheese\APISpellActivationOverlay.lua
-addons\Cheese\GlobalStrings.lua
-addons\Cheese\UIParent.lua
-addons\Cheese\InterfaceOptionsPanels.xml
-addons\Cheese\ActionBarFrame.xml
-addons\Cheese\SpellActivationOverlay.xml
-addons\Cheese\wrapper.lua
+src\extensions\modern_features\spell_alerts\Data.lua
+src\extensions\modern_features\spell_alerts\APIAnimation.xml
+src\extensions\modern_features\spell_alerts\APISpellActivationOverlay.lua
+src\extensions\modern_features\spell_alerts\GlobalStrings.lua
+src\extensions\modern_features\spell_alerts\UIParent.lua
+src\extensions\modern_features\spell_alerts\ActionBarFrame.xml
+src\extensions\modern_features\spell_alerts\SpellActivationOverlay.xml
+src\extensions\modern_features\spell_alerts\control.lua
 
 # Purgeatory
-addons\Purgeatory\bootstrap.lua
-addons\Purgeatory\localization.enUS.lua
-addons\Purgeatory\Purgeatory.lua
-addons\Purgeatory\config.lua
-addons\Purgeatory\wrapper.lua
+src\vendor\addons\Purgeatory\bootstrap.lua
+src\vendor\addons\Purgeatory\localization.enUS.lua
+src\vendor\addons\Purgeatory\Purgeatory.lua
+src\vendor\addons\Purgeatory\config.lua
+src\vendor\addons\Purgeatory\wrapper.lua
 
 # GearScoreLite
-addons\GearScoreLite\informationLite.lua
-addons\GearScoreLite\GearScoreLite.lua
-addons\GearScoreLite\wrapper.lua
+src\extensions\item_info\gearscore\score.lua
+src\extensions\item_info\gearscore\core.lua
+src\extensions\item_info\gearscore\control.lua
 
 # pretty_lootalert
-addons\pretty_lootalert\pretty_lootalert.xml
-addons\pretty_lootalert\wrapper.lua
+src\extensions\loot_management\alerts\pretty_lootalert.xml
+src\extensions\loot_management\alerts\control.lua
 
 # FlashWindow
-addons\FlashWindow\main.lua
-addons\FlashWindow\wrapper.lua
+src\extensions\blizzard_improvements\window_alerts\main.lua
+src\extensions\blizzard_improvements\window_alerts\control.lua
 
 # IdTip
-addons\IdTip\core.lua
-addons\IdTip\wrapper.lua
+src\extensions\id_detection\engine\core.lua
+src\extensions\id_detection\engine\control.lua
 
 # LevelUpDisplay
-addons\LevelUpDisplay\LevelUpDisplay.xml
-addons\LevelUpDisplay\wrapper.lua
+src\extensions\modern_features\level_up\LevelUpDisplay.xml
+src\extensions\modern_features\level_up\control.lua
 
-# LootClicker
-# Do not load global_patches.lua: it writes SetShown/SetEnabled into the
-# shared Blizzard widget metatables and taints protected unit frames.
-addons\LootClicker\util.lua
-addons\LootClicker\locale.lua
-addons\LootClicker\init.lua
-addons\LootClicker\core.lua
-addons\LootClicker\options.lua
-addons\LootClicker\wrapper.lua
+
 
 # LootHistory
-addons\LootHistory\compat\compat.xml
-addons\LootHistory\LootHistory.xml
-addons\LootHistory\core.lua
-addons\LootHistory\wrapper.lua
+src\extensions\loot_management\history\compat\compat.xml
+src\extensions\loot_management\history\LootHistory.xml
+src\extensions\loot_management\history\core.lua
+src\extensions\loot_management\history\control.lua
 
 # BigDebuffs
-addons\BigDebuffs\embeds.xml
-addons\BigDebuffs\CircleCooldownTemplate\CircleCooldownTemplate.xml
-addons\BigDebuffs\locale\locale.xml
-addons\BigDebuffs\BigDebuffs.xml
-addons\BigDebuffs\BigDebuffs.lua
-addons\BigDebuffs\Options.lua
-addons\BigDebuffs\wrapper.lua
+src\extensions\aura_tracking\engines\bigdebuffs\CircleCooldownTemplate\CircleCooldownTemplate.xml
+src\extensions\aura_tracking\engines\bigdebuffs\locale\locale.xml
+src\extensions\aura_tracking\engines\bigdebuffs\BigDebuffs.xml
+src\extensions\aura_tracking\engines\bigdebuffs\BigDebuffs.lua
+src\extensions\aura_tracking\engines\bigdebuffs\Options.lua
+src\extensions\aura_tracking\engines\bigdebuffs\control.lua
 
 # InternalCooldowns
-addons\InternalCooldowns\embeds.xml
-addons\InternalCooldowns\Core.lua
-addons\InternalCooldowns\modules.xml
-addons\InternalCooldowns\wrapper.lua
+src\extensions\internal_cooldowns\engine\Core.lua
+src\extensions\internal_cooldowns\engine\modules.xml
+src\extensions\internal_cooldowns\engine\control.lua
 
-# OmniBar
-addons\OmniBar\Locales\Locales.xml
-addons\OmniBar\OmniBar.xml
-addons\OmniBar\OmniBar_Wrath.lua
-addons\OmniBar\OmniBar.lua
-addons\OmniBar\Options.lua
-addons\OmniBar\wrapper.lua
 
 # ElvUI NamePlates (embedded)
-addons\ElvUI_NamePlates\embeds.xml
-addons\ElvUI_NamePlates\wrapper.lua
+src\modules\nameplates\engines\elvui\embeds.xml
+src\modules\nameplates\runtime.lua
 
 # SarychUI Bags (embedded)
-addons\SarychUI_Bags\embeds.xml
-addons\SarychUI_Bags\wrapper.lua
-
-# Equipence (embedded)
-addons\Equipence\bootstrap.lua
-addons\Equipence\embeds.xml
-addons\Equipence\wrapper.lua
+src\modules\bags\engine\embeds.xml
 
 # TrufiGCD (embedded)
-addons\TrufiGCD\bootstrap.lua
-addons\TrufiGCD\embeds.xml
-addons\TrufiGCD\wrapper.lua
+src\vendor\addons\TrufiGCD\bootstrap.lua
+src\vendor\addons\TrufiGCD\embeds.xml
+src\vendor\addons\TrufiGCD\wrapper.lua
 
 # Postal (strict embedded)
-addons\Postal\bootstrap.lua
-addons\Postal\embed_compat.lua
-addons\Postal\Localization.lua
-addons\Postal\Postal.lua
-addons\Postal\Modules\Express.lua
-addons\Postal\Modules\OpenAll.lua
-addons\Postal\Modules\Wire.lua
-addons\Postal\Modules\Select.lua
-addons\Postal\Modules\TradeBlock.lua
-addons\Postal\Modules\Rake.lua
-addons\Postal\Modules\BlackBook.lua
-addons\Postal\Modules\DoNotWant.lua
-addons\Postal\wrapper.lua
+src\vendor\addons\Postal\bootstrap.lua
+src\vendor\addons\Postal\Localization.lua
+src\vendor\addons\Postal\storage.lua
+src\vendor\addons\Postal\Postal.lua
+src\vendor\addons\Postal\Modules\Express.lua
+src\vendor\addons\Postal\Modules\OpenAll.lua
+src\vendor\addons\Postal\Modules\Wire.lua
+src\vendor\addons\Postal\Modules\Select.lua
+src\vendor\addons\Postal\Modules\TradeBlock.lua
+src\vendor\addons\Postal\Modules\Rake.lua
+src\vendor\addons\Postal\Modules\BlackBook.lua
+src\vendor\addons\Postal\Modules\DoNotWant.lua
+src\vendor\addons\Postal\wrapper.lua
 
 # SnowfallKeyPress
-addons\SnowfallKeyPress\embeds.xml
-addons\SnowfallKeyPress\Init.lua
-addons\SnowfallKeyPress\SnowfallKeyPressAnimation\SnowfallKeyPressAnimation.lua
-addons\SnowfallKeyPress\SnowfallKeyPress.lua
-addons\SnowfallKeyPress\SnowfallKeyPressSettings\SnowfallKeyPressSettings.lua
-addons\SnowfallKeyPress\wrapper.lua
+src\vendor\addons\SnowfallKeyPress\embeds.xml
+src\vendor\addons\SnowfallKeyPress\Init.lua
+src\vendor\addons\SnowfallKeyPress\SnowfallKeyPressAnimation\SnowfallKeyPressAnimation.lua
+src\vendor\addons\SnowfallKeyPress\SnowfallKeyPress.lua
+src\vendor\addons\SnowfallKeyPress\SnowfallKeyPressSettings\SnowfallKeyPressSettings.lua
+src\vendor\addons\SnowfallKeyPress\wrapper.lua
 
 # CL_Fix
-addons\CL_Fix\embeds.xml
-addons\CL_Fix\CL_Fix.lua
-addons\CL_Fix\wrapper.lua
+src\foundation\compatibility\combat_log\CL_Fix.lua
 
 # Auctionator
-addons\Auctionator\embeds.xml
-addons\Auctionator\Locales\enUS.lua
-addons\Auctionator\Locales\deDE.lua
-addons\Auctionator\Locales\ruRU.lua
-addons\Auctionator\Locales\frFR.lua
-addons\Auctionator\Locales\esES.lua
-addons\Auctionator\zcUtils.lua
-addons\Auctionator\Auctionator.lua
-addons\Auctionator\AuctionatorShop.lua
-addons\Auctionator\Auctionator.xml
-addons\Auctionator\AuctionatorLocalize.lua
-addons\Auctionator\AuctionatorPane.lua
-addons\Auctionator\AuctionatorScan.lua
-addons\Auctionator\AuctionatorQuery.lua
-addons\Auctionator\AuctionatorHints.lua
-addons\Auctionator\AuctionatorVendor.lua
-addons\Auctionator\AuctionatorConflicts.lua
-addons\Auctionator\AuctionatorAPI.lua
-addons\Auctionator\AuctionatorConfig.lua
-addons\Auctionator\AuctionatorBuy.lua
-addons\Auctionator\AuctionatorConfig.xml
-addons\Auctionator\wrapper.lua
+src\vendor\addons\Auctionator\embeds.xml
+src\vendor\addons\Auctionator\Locales\enUS.lua
+src\vendor\addons\Auctionator\Locales\deDE.lua
+src\vendor\addons\Auctionator\Locales\ruRU.lua
+src\vendor\addons\Auctionator\Locales\frFR.lua
+src\vendor\addons\Auctionator\Locales\esES.lua
+src\vendor\addons\Auctionator\zcUtils.lua
+src\vendor\addons\Auctionator\Auctionator.lua
+src\vendor\addons\Auctionator\AuctionatorShop.lua
+src\vendor\addons\Auctionator\Auctionator.xml
+src\vendor\addons\Auctionator\AuctionatorLocalize.lua
+src\vendor\addons\Auctionator\AuctionatorPane.lua
+src\vendor\addons\Auctionator\AuctionatorScan.lua
+src\vendor\addons\Auctionator\AuctionatorQuery.lua
+src\vendor\addons\Auctionator\AuctionatorHints.lua
+src\vendor\addons\Auctionator\AuctionatorVendor.lua
+src\vendor\addons\Auctionator\AuctionatorConflicts.lua
+src\vendor\addons\Auctionator\AuctionatorAPI.lua
+src\vendor\addons\Auctionator\options.lua
+src\vendor\addons\Auctionator\AuctionatorBuy.lua
+src\vendor\addons\Auctionator\wrapper.lua
 
-# AddonList (replaces ACP)
-addons\AddonList\Localization.lua
-addons\AddonList\AddonList.xml
-addons\AddonList\wrapper.lua
+# Integrated extension: modification management (legacy storage key: AddonList)
+src\extensions\addon_management\load.xml
+src\extensions\addon_management\engine\Localization.lua
+src\extensions\addon_management\engine\AddonList.xml
+src\extensions\addon_management\engine\control.lua
 
 # autolos
-addons\autolos\font_flags.lua
-addons\autolos\main.lua
-addons\autolos\elvui_layout.lua
-addons\autolos\wrapper.lua
+src\modules\nameplates\distance\font_flags.lua
+src\modules\nameplates\distance\main.lua
+src\modules\nameplates\distance\elvui_layout.lua
+src\modules\nameplates\distance\control.lua
 
-# CompactRaidFrame 1.2.2 (RomanSpector & Blizzard), embedded
-addons\CompactRaidFrame\embeds.xml
-addons\CompactRaidFrame\locales.xml
-addons\CompactRaidFrame\Dependence\load.xml
-addons\CompactRaidFrame\Templates\load.xml
-addons\CompactRaidFrame\CUFProfiles\CompactUnitFrameProfiles.xml
-addons\CompactRaidFrame\FlowContainer.lua
-addons\CompactRaidFrame\CompactUnitFrame.xml
-addons\CompactRaidFrame\CompactRaidGroup.xml
-addons\CompactRaidFrame\CompactPartyFrame.xml
-addons\CompactRaidFrame\CompactRaidFrames\CompactRaidFrameReservationManager.lua
-addons\CompactRaidFrame\CompactRaidFrames\CompactRaidFrameContainer.xml
-addons\CompactRaidFrame\CompactRaidFrames\CompactRaidFrameManager.xml
-addons\CompactRaidFrame\wrapper.lua
+# Group frames: Compact engine with UnitFrameLayers
+src\modules\group_frames\module.lua
+src\modules\group_frames\engine\CompactRaidFrame\locales.xml
+src\modules\group_frames\engine\CompactRaidFrame\Dependence\load.xml
+src\modules\group_frames\engine\CompactRaidFrame\Templates\load.xml
+src\modules\group_frames\engine\CompactRaidFrame\CUFProfiles\CompactUnitFrameProfiles.xml
+src\modules\group_frames\engine\CompactRaidFrame\FlowContainer.lua
+src\modules\group_frames\engine\CompactRaidFrame\CompactUnitFrame.xml
+src\modules\group_frames\engine\CompactRaidFrame\CompactRaidGroup.xml
+src\modules\group_frames\engine\CompactRaidFrame\CompactPartyFrame.xml
+src\modules\group_frames\engine\CompactRaidFrame\CompactRaidFrames\CompactRaidFrameReservationManager.lua
+src\modules\group_frames\engine\CompactRaidFrame\CompactRaidFrames\CompactRaidFrameContainer.xml
+src\modules\group_frames\engine\CompactRaidFrame\CompactRaidFrames\CompactRaidFrameManager.xml
+src\modules\group_frames\minimal_player.lua
+src\modules\group_frames\castbar.lua
+src\modules\group_frames\preview.lua
+src\modules\group_frames\options.lua
 
-# CompactRaidFrame_HealEx (Tsoukie 1.8) — libs already loaded above
-addons\CompactRaidFrame_HealEx\Extension.lua
-addons\CompactRaidFrame_HealEx\wrapper.lua
+# Talents extension: editor engine, glyph presentation and SUI lifecycle
+src\extensions\talents\engine\Locales\Locales.xml
+src\extensions\talents\engine\Talented.lua
+src\extensions\talents\engine\Options.lua
+src\extensions\talents\engine\Data.lua
+src\extensions\talents\engine\Ui.lua
+src\extensions\talents\engine\Glyphs.lua
+src\extensions\talents\engine\Talented_Skin.lua
+src\extensions\talents\module.lua
 
-# EnhancedRaidFrames (Britt W. Yazel, Tsoukie 1.9)
-addons\EnhancedRaidFrames\Libs\embeds.xml
-addons\EnhancedRaidFrames\Localizations\Localizations.xml
-addons\EnhancedRaidFrames\EnhancedRaidFrames.lua
-addons\EnhancedRaidFrames\Globals.lua
-addons\EnhancedRaidFrames\DatabaseDefaults.lua
-addons\EnhancedRaidFrames\Overrides.lua
-addons\EnhancedRaidFrames\Utils\Utilities.lua
-addons\EnhancedRaidFrames\Utils\DatabaseMigration.lua
-addons\EnhancedRaidFrames\Modules\AuraListeners.lua
-addons\EnhancedRaidFrames\Modules\AuraIndicators.lua
-addons\EnhancedRaidFrames\Modules\TargetMarkers.lua
-addons\EnhancedRaidFrames\XML\IndicatorTemplate.xml
-addons\EnhancedRaidFrames\GUI\GeneralConfigPanel.lua
-addons\EnhancedRaidFrames\GUI\IndicatorConfigPanel.lua
-addons\EnhancedRaidFrames\GUI\TargetMarkerConfigPanel.lua
-addons\EnhancedRaidFrames\GUI\ProfileImportExport.lua
-addons\EnhancedRaidFrames\wrapper.lua
+# On-demand compatibility checks
 
-# RaidFrameSorter (zooood, Tsoukie v1.3)
-addons\RaidFrameSorter\embeds.xml
-addons\RaidFrameSorter\globals.lua
-addons\RaidFrameSorter\util.lua
-addons\RaidFrameSorter\constants.lua
-addons\RaidFrameSorter\Init.lua
-addons\RaidFrameSorter\Options.lua
-addons\RaidFrameSorter\RaidFrameSorter.lua
-addons\RaidFrameSorter\wrapper.lua
-
-# Bagnon_FT
-addons\Bagnon_FT\localization\localization.lua
-addons\Bagnon_FT\localization\localization.tw.lua
-addons\Bagnon_FT\localization\localization.cn.lua
-addons\Bagnon_FT\localization\localization.ru.lua
-addons\Bagnon_FT\localization\localization.de.lua
-addons\Bagnon_FT\db.lua
-addons\Bagnon_FT\ui.xml
-addons\Bagnon_FT\tooltips.lua
-addons\Bagnon_FT\wrapper.lua
-
-# _Cursor (embedded) — runtime valve (no loadfile on this client)
-addons\_Cursor\bootstrap.lua
-addons\_Cursor\Locales.xml
-addons\_Cursor\_Cursor.lua
-addons\_Cursor\_Cursor.Options.lua
-addons\_Cursor\wrapper.lua
-
-# BASpammer (embedded)
-addons\BASpammer\bootstrap.lua
-addons\BASpammer\BASpammer.xml
-addons\BASpammer\BASpammer.lua
-addons\BASpammer\wrapper.lua
-
-# InspectEquip (embedded)
-addons\InspectEquip\bootstrap.lua
-addons\InspectEquip\embeds.xml
-addons\InspectEquip\Locales\Locales.xml
-addons\InspectEquip\ItemSources.lua
-addons\InspectEquip\InfoWindow.xml
-addons\InspectEquip\Core.lua
-addons\InspectEquip\Tooltips.lua
-addons\InspectEquip\wrapper.lua
-
-# RaidRoll (embedded: RaidRoll + RaidRoll_EPGP + RaidRoll_LootTracker as one settings entry)
-addons\RaidRoll\RaidRoll.xml
-addons\RaidRoll\RaidRoll_EPGP\RaidRoll_EPGP.lua
-addons\RaidRoll\RaidRoll_LootTracker\RaidRoll_LootTracker.lua
-addons\RaidRoll\wrapper.lua
-
-# Talented (embedded)
-addons\Talented\Libs\Libs.xml
-addons\Talented\Locales\Locales.xml
-addons\Talented\Talented.lua
-addons\Talented\Options.lua
-addons\Talented\Data.lua
-addons\Talented\Ui.lua
-addons\Talented\Glyphs.lua
-addons\Talented\Talented_Skin.lua
-addons\Talented\wrapper.lua
-
+# Clique: native SUI settings, shared libraries/storage, no ClassicAPI dependency
+src\vendor\addons\Clique\AddonCore.lua
+src\vendor\addons\Clique\i18n\Localization.enUS.lua
+src\vendor\addons\Clique\i18n\Localization.ruRU.lua
+src\vendor\addons\Clique\i18n\Localization.zhCN.lua
+src\vendor\addons\Clique\i18n\Localization.zhTW.lua
+src\vendor\addons\Clique\DatabaseDefaults.lua
+src\vendor\addons\Clique\templates.xml
+src\vendor\addons\Clique\Clique.xml
+src\vendor\addons\Clique\Clique.lua
+src\vendor\addons\Clique\Utils.lua
+src\vendor\addons\Clique\config\BindConfig.lua
+src\vendor\addons\Clique\modules\Blizzard_utils.lua
+src\vendor\addons\Clique\modules\Blizzard_wrath.lua
+src\vendor\addons\Clique\wrapper.lua
