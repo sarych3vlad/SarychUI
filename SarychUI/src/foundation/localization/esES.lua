@@ -2802,6 +2802,8 @@ SarychUI.RegisterUIMap("esES", {
 SarychUI.RegisterUIMap("esES", {
     ["ui.arena.dark_background"] = "Activar fondo oscuro",
     ["ui.arena.protected_cast_texture"] = "Mostrar textura de lanzamiento ininterrumpible",
+    ["ui.arena.protected_cast_icon_shield"] = "Mostrar escudo detrás del icono",
+    ["ui.arena.protected_cast_silver_bar"] = "Colorear la barra de lanzamiento de plateado",
 })
 
 SarychUI.RegisterUIMap("esES", {

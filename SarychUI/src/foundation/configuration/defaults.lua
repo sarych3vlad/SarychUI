@@ -224,6 +224,7 @@ SarychUI.defaults = {
                     gladius = {
                         showSpecText = true, classColorHP = true, showPets = true,
                         showDarkBackground = true, showCastShield = true,
+                        showCastShieldIcon = true, colorProtectedCast = true,
                         scale = 1, frameSpacing = 4,
                         arenaA = "RIGHT", arenaR = "RIGHT", arenaX = -311, arenaY = 131,
                         barWidth = 165, castBarHeight = 18, castTextSize = 10,
@@ -1404,7 +1405,7 @@ SarychUI.defaults = {
 	
 	-- Global settings (not per character)
 	global = {
-        version = "1.4.0",
+        version = "1.4.1",
 		general = {
 			-- Saved size of the config window (matches ElvUI / ElvUI_NamePlates_Standalone defaults).
 			AceGUI = {

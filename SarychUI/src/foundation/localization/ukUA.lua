@@ -820,6 +820,8 @@ SarychUI.RegisterUIMap("ukUA", {
 SarychUI.RegisterUIMap("ukUA", {
     ["ui.arena.dark_background"] = "Увімкнути темне тло",
     ["ui.arena.protected_cast_texture"] = "Показувати текстуру захищеного закляття",
+    ["ui.arena.protected_cast_icon_shield"] = "Показувати щиток під іконкою",
+    ["ui.arena.protected_cast_silver_bar"] = "Фарбувати смугу закляття у сріблястий колір",
 })
 
 SarychUI.RegisterUIMap("ukUA", {

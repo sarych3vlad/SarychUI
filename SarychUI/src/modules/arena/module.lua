@@ -144,6 +144,8 @@ function module:GetStyleSettings(kind)
 	end
 	if db.styles.gladius.showDarkBackground == nil then db.styles.gladius.showDarkBackground = true end
 	if db.styles.gladius.showCastShield == nil then db.styles.gladius.showCastShield = true end
+	if db.styles.gladius.showCastShieldIcon == nil then db.styles.gladius.showCastShieldIcon = true end
+	if db.styles.gladius.colorProtectedCast == nil then db.styles.gladius.colorProtectedCast = true end
 	if db.styles.gladius.castBarPos ~= "LEFT" then db.styles.gladius.castBarPos = "CENTER" end
 	db.styles.gladius.castBarHeight = math.max(12, math.min(
 		db.styles.gladius.castBarPos == "LEFT" and 40 or 30,

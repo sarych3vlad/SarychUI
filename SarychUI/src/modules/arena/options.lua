@@ -630,7 +630,36 @@ function module:GetOptions()
 									module:UpdateGladiusVisuals()
 									module:UpdateClassicCastShields()
 									NotifyArenaPreview()
+									RefreshArenaOptions()
 								end,
+							},
+							protectedCastEffects = {
+								type = "group", name = "", order = 0.3, inline = true,
+								hidden = function()
+									local db = GetDB()
+									return not db or db.frameType ~= "gladius"
+										or module:GetStyleSettings("gladius").showCastShield == false
+								end,
+								args = {
+									showCastShieldIcon = {
+										type = "toggle", name = "ui.arena.protected_cast_icon_shield", order = 1, width = "full",
+										get = function() return module:GetStyleSettings("gladius").showCastShieldIcon ~= false end,
+										set = function(_, value)
+											module:GetStyleSettings("gladius").showCastShieldIcon = value and true or false
+											module:UpdateGladiusVisuals()
+											NotifyArenaPreview()
+										end,
+									},
+									colorProtectedCast = {
+										type = "toggle", name = "ui.arena.protected_cast_silver_bar", order = 2, width = "full",
+										get = function() return module:GetStyleSettings("gladius").colorProtectedCast ~= false end,
+										set = function(_, value)
+											module:GetStyleSettings("gladius").colorProtectedCast = value and true or false
+											module:UpdateGladiusVisuals()
+											NotifyArenaPreview()
+										end,
+									},
+								},
 							},
 							scale = {
 								type = "range",

@@ -360,7 +360,10 @@ merchantAutoSell:SetScript("OnEvent", function()
 	if not E:IsBagsRuntimeEnabled() then return end
 	if not E.db or not E.db.bags or not E.db.bags.vendorGrays or not E.db.bags.vendorGrays.enable then return end
 	local B = E:GetModule("Bags", true)
-	if B and B.VendorGrays then
+	if B and B.SellFrame and B.GetGraysInfo and B.VendorGrays then
+		if B.SellFrame:IsShown() then return end
+		-- VendorGrays consumes a prepared queue; rebuild it for this merchant visit.
+		B:GetGraysInfo()
 		B:VendorGrays()
 	end
 end)

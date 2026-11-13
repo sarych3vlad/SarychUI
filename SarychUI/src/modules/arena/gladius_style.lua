@@ -44,9 +44,11 @@ function module:UpdateGladiusCastShield(bar, icon, protected, kind)
 	if not bar or not icon then return end
 	kind = kind or "gladius"
 	local style = self:GetStyleSettings(kind) or {}
-	local visible = protected and style.showCastShield ~= false
+	local enabled = protected and style.showCastShield ~= false
+	local visible = enabled and (kind ~= "gladius" or style.showCastShieldIcon ~= false)
+	local silver = enabled and (kind ~= "gladius" or style.colorProtectedCast ~= false)
 	UpdateClassicProtectedIcon(bar, icon, kind == "classic" and visible)
-	if visible then
+	if silver then
 		bar:SetStatusBarColor(0.8, 0.8, 0.8, 1)
 	elseif bar._suiGladiusProtectedColor then
 		if kind == "classic" then
@@ -55,7 +57,7 @@ function module:UpdateGladiusCastShield(bar, icon, protected, kind)
 			bar:SetStatusBarColor(1, 1, 0, 1)
 		end
 	end
-	bar._suiGladiusProtectedColor = visible and true or nil
+	bar._suiGladiusProtectedColor = silver and true or nil
 	local shield = bar._suiGladiusCastShield
 	if kind == "classic" then
 		local name = bar.GetName and bar:GetName()

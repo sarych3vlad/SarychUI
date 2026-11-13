@@ -89,17 +89,6 @@ end
 local function CanAutoSellGrey()
     if not IsAutoSellGreyEnabled() then return false end
 
-    local bagsModule = SarychUI and SarychUI.modules and SarychUI.modules.bags
-    if bagsModule then
-        if bagsModule.IsEnabled and not bagsModule:IsEnabled() then
-            return false
-        end
-        -- ElvUI-сумки имеют свою автопродажу; классика и Baud Bag - через Автоматизацию.
-        if bagsModule.IsElvUIMode and bagsModule:IsElvUIMode() then
-            return false
-        end
-    end
-
     local db = DB()
     local requireKey = db.enableAutoSellGreyRequireKey == 1
     local keyDown = IsAutoSellGreyModifierKeyDown()

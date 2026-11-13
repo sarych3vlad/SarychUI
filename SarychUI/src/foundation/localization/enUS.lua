@@ -2862,6 +2862,8 @@ SarychUI.RegisterUIMap("enUS", {
 SarychUI.RegisterUIMap("enUS", {
     ["ui.arena.dark_background"] = "Enable dark background",
     ["ui.arena.protected_cast_texture"] = "Show uninterruptible cast texture",
+    ["ui.arena.protected_cast_icon_shield"] = "Show shield behind the icon",
+    ["ui.arena.protected_cast_silver_bar"] = "Color the cast bar silver",
 })
 
 SarychUI.RegisterUIMap("enUS", {
