@@ -25,6 +25,82 @@ local function GetSetting(key, default)
     return default
 end
 
+local function DataBarRegionOptions(position, label, default, order)
+    local key = "dataBar" .. position:gsub("^%l", string.upper)
+    local function Apply()
+        if _G.ApplyDataBarSettings then _G.ApplyDataBarSettings() end
+    end
+    return {
+        type = "group", name = label, inline = true, order = order,
+        disabled = function() return GetSetting("dataBarEnabled", 0) ~= 1 end,
+        args = {
+            content = {
+                type = "select", name = "ui.chat.data_bar.content", order = 1, width = "full",
+                values = function() return _G.SarychUI_ChatDataTexts:GetValues() end,
+                get = function() return GetSetting(key, default) end,
+                set = function(_, value)
+                    SarychUI.db.profile.modules.chat[key] = value
+                    Apply()
+                end,
+            },
+            tooltip = {
+                type = "toggle", name = "ui.chat.data_bar.tooltip", order = 2, width = "full",
+                get = function()
+                    local value = GetSetting(key .. "Tooltip", true)
+                    return value ~= false and value ~= 0
+                end,
+                set = function(_, value)
+                    SarychUI.db.profile.modules.chat[key .. "Tooltip"] = value
+                    Apply()
+                end,
+            },
+            text = {
+                type = "toggle", name = "ui.chat.data_bar.text", order = 3, width = "full",
+                desc = "ui.chat.data_bar.text_desc",
+                get = function()
+                    local value = GetSetting(key .. "Text", true)
+                    return value ~= false and value ~= 0
+                end,
+                set = function(_, value)
+                    SarychUI.db.profile.modules.chat[key .. "Text"] = value
+                    Apply()
+                end,
+            },
+            altEnabled = {
+                type = "toggle", name = "ui.chat.data_bar.alt_enabled", order = 4, width = "full",
+                desc = "ui.chat.data_bar.alt_desc",
+                suiHelpIcon = SarychUI.DOTA_ALT_HELP_ICON,
+                get = function()
+                    local value = GetSetting(key .. "AltEnabled", false)
+                    return value == true or value == 1
+                end,
+                set = function(_, value)
+                    SarychUI.db.profile.modules.chat[key .. "AltEnabled"] = value
+                    Apply()
+                    if SarychUI.NotifySarychUIOptionsChange then SarychUI:NotifySarychUIOptionsChange() end
+                end,
+            },
+            altContent = {
+                type = "select", name = "ui.chat.data_bar.alt_content", order = 5, width = "full",
+                hidden = function()
+                    local value = GetSetting(key .. "AltEnabled", false)
+                    return value ~= true and value ~= 1
+                end,
+                values = function()
+                    local values = _G.SarychUI_ChatDataTexts:GetValues()
+                    values.SAME = SarychUI:T("ui.chat.data_bar.alt_same")
+                    return values
+                end,
+                get = function() return GetSetting(key .. "Alt", "SAME") end,
+                set = function(_, value)
+                    SarychUI.db.profile.modules.chat[key .. "Alt"] = value
+                    Apply()
+                end,
+            },
+        },
+    }
+end
+
 -- ChatFrame1 is the main docked chat window. Blizzard stores its position as
 -- normalized screen coordinates and its dimensions in UI units.
 local function GetMainChatGeometry()
@@ -1057,59 +1133,44 @@ function module:GetOptions()
                                     },
                                 },
                             },
-                            lagBarBox = {
+                        },
+                    },
+
+                    -- Data bar tab
+                    dataBar = {
+                        type = "group",
+                        name = "ui.chat.data_bar",
+                        order = 4,
+                        args = {
+                            dataBarEnabled = {
+                                type = "toggle",
+                                name = "ui.chat.data_bar.enabled",
+                                desc = "ui.chat.data_bar.desc",
+                                order = 1,
+                                width = "full",
+                                get = function()
+                                    return GetSetting("dataBarEnabled", 0) == 1
+                                end,
+                                set = function(info, value)
+                                    SarychUI.db.profile.modules[moduleName].dataBarEnabled = value and 1 or 0
+                                    if SarychUI.modules and SarychUI.modules[moduleName] then
+                                        SarychUI.modules[moduleName]:ApplyDataBarSettings()
+                                    elseif _G.ApplyDataBarSettings then
+                                        _G.ApplyDataBarSettings()
+                                    end
+                                    RefreshChatOptionsPanel()
+                                end,
+                            },
+                            dataBarDetails = {
                                 type = "group",
-                                name = "ui.lag_bar_efcd1730",
-                                order = 3,
+                                name = "",
+                                order = 2,
                                 inline = true,
+                                hidden = function() return GetSetting("dataBarEnabled", 0) ~= 1 end,
                                 args = {
-                                    lagBarEnabled = {
-                                        type = "toggle",
-                                        name = "ui.enable_lag_bar_95dd2d11",
-                                        desc = "ui.fps_182513ad",
-                                        order = 1,
-                                        width = "full",
-                                        get = function()
-                                            return GetSetting("lagBarEnabled", 0) == 1
-                                        end,
-                                        set = function(info, value)
-                                            SarychUI.db.profile.modules[moduleName].lagBarEnabled = value and 1 or 0
-                                            if SarychUI.modules and SarychUI.modules[moduleName] then
-                                                SarychUI.modules[moduleName]:ApplyLagBarSettings()
-                                            elseif _G.ApplyLagBarSettings then
-                                                _G.ApplyLagBarSettings()
-                                            end
-                                        end,
-                                    },
-                                    lagBarDetails = {
-                                        type = "group",
-                                        name = "",
-                                        order = 2,
-                                        inline = true,
-                                        args = {
-                                            lagBarLabelsEnabled = {
-                                                type = "toggle",
-                                                name = "ui.add_text_d3802682",
-                                                desc = "ui.adds_mb_ms_and_fps_labels_to_the_lag_bar_values_8384fb27",
-                                                order = 2,
-                                                width = "full",
-                                                disabled = function()
-                                                    return GetSetting("lagBarEnabled", 0) ~= 1
-                                                end,
-                                                get = function()
-                                                    return GetSetting("lagBarLabelsEnabled", 0) == 1
-                                                end,
-                                                set = function(info, value)
-                                                    SarychUI.db.profile.modules[moduleName].lagBarLabelsEnabled = value and 1 or 0
-                                                    if SarychUI.modules and SarychUI.modules[moduleName] then
-                                                        SarychUI.modules[moduleName]:ApplyLagBarSettings()
-                                                    elseif _G.ApplyLagBarSettings then
-                                                        _G.ApplyLagBarSettings()
-                                                    end
-                                                end,
-                                            },
-                                        },
-                                    },
+                                    left = DataBarRegionOptions("left", "ui.chat.data_bar.left", "Memory", 1),
+                                    middle = DataBarRegionOptions("middle", "ui.chat.data_bar.middle", "MS", 2),
+                                    right = DataBarRegionOptions("right", "ui.chat.data_bar.right", "FPS", 3),
                                 },
                             },
                         },

@@ -1079,9 +1079,23 @@ SarychUI.defaults = {
 				fastScrollEnabled = 1,
 				fastScrollSteps = 5,
 
-				-- Chat LagBar (FPS + latency under chat)
-				lagBarEnabled = 0,
-				lagBarLabelsEnabled = 0,
+				-- Chat DataBar: independent left, middle and right data texts
+				dataBarEnabled = 0,
+				dataBarLeft = "Memory",
+				dataBarMiddle = "MS",
+				dataBarRight = "FPS",
+				dataBarLeftTooltip = true,
+				dataBarMiddleTooltip = true,
+				dataBarRightTooltip = true,
+				dataBarLeftText = true,
+				dataBarMiddleText = true,
+				dataBarRightText = true,
+				dataBarLeftAltEnabled = false,
+				dataBarMiddleAltEnabled = false,
+				dataBarRightAltEnabled = false,
+				dataBarLeftAlt = "SAME",
+				dataBarMiddleAlt = "SAME",
+				dataBarRightAlt = "SAME",
 				
 				-- Chat Appearance settings
 				friendsButtonModEnabled = 1,
@@ -1443,6 +1457,28 @@ local function ResolveAceDBProfile()
 
 	if type(profile) == "table" then
 		SarychUIDB.profile = profile
+	end
+end
+
+-- Legacy keys win once, including over values already filled by AceDB defaults.
+-- Remove them afterwards so later changes to the data bar remain authoritative.
+function SarychUI:MigrateChatDataBarSettings(chatDb)
+	if type(chatDb) ~= "table" then return end
+	local renamed = {
+		lagBarEnabled = "dataBarEnabled",
+		lagBarleft = "dataBarLeft", lagBarmiddle = "dataBarMiddle", lagBarright = "dataBarRight",
+		lagBarleftTooltip = "dataBarLeftTooltip", lagBarmiddleTooltip = "dataBarMiddleTooltip", lagBarrightTooltip = "dataBarRightTooltip",
+		lagBarleftText = "dataBarLeftText", lagBarmiddleText = "dataBarMiddleText", lagBarrightText = "dataBarRightText",
+	}
+	for oldKey, newKey in pairs(renamed) do
+		if chatDb[oldKey] ~= nil then
+			chatDb[newKey] = chatDb[oldKey]
+			chatDb[oldKey] = nil
+		end
+	end
+	chatDb.lagBarLabelsEnabled = nil
+	for _, key in ipairs({"dataBarLeft", "dataBarMiddle", "dataBarRight"}) do
+		if chatDb[key] == "DPS" or chatDb[key] == "HPS" then chatDb[key] = "NONE" end
 	end
 end
 
@@ -2135,6 +2171,7 @@ local function MigrateProfileDefaults(profile)
 	end
 
 	local chatDb = modules and modules.chat
+	SarychUI:MigrateChatDataBarSettings(chatDb)
 	local chatDef = SarychUI.defaults.profile.modules.chat
 	if chatDb and chatDef and chatDb.lfgAbbrev == nil then
 		chatDb.lfgAbbrev = chatDef.lfgAbbrev or "[Поиск]"
@@ -2564,6 +2601,14 @@ local function InitializeDefaults()
 end
 
 -- Resolve AceDB profile before embedded addons read SarychUIDB during .toc load.
+-- Rename stored fields before AceDB fills the new defaults (also covers inactive profiles).
+if type(SarychUIDB) == "table" then
+	local function migrate(profile)
+		SarychUI:MigrateChatDataBarSettings(type(profile) == "table" and profile.modules and profile.modules.chat)
+	end
+	migrate(SarychUIDB.profile)
+	for _, profile in pairs(SarychUIDB.profiles or {}) do migrate(profile) end
+end
 ResolveAceDBProfile()
 
 -- Call initialization on addon load

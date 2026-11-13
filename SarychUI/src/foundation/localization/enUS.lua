@@ -3,6 +3,64 @@ do
 
 local L = {}
 
+-- Chat data text labels and tooltip content.
+L["ChatData_AFK"] = "AFK"
+L["ChatData_Achievement"] = "Achievement"
+L["ChatData_Armor"] = "Armor"
+L["ChatData_Attack Power"] = "Attack Power"
+L["ChatData_Avoidance"] = "Avoidance"
+L["ChatData_Avoidance Breakdown"] = "Avoidance Breakdown"
+L["ChatData_Bags"] = "Bags"
+L["ChatData_Character: "] = "Character: "
+L["ChatData_Combat Time"] = "Combat Time"
+L["ChatData_Coords"] = "Coords"
+L["ChatData_Crit Chance"] = "Crit Chance"
+L["ChatData_DND"] = "DND"
+L["ChatData_Deficit:"] = "Deficit:"
+L["ChatData_Download"] = "Download"
+L["ChatData_Durability"] = "Durability"
+L["ChatData_Earned:"] = "Earned:"
+L["ChatData_FPS"] = "FPS"
+L["ChatData_Friends"] = "Friends"
+L["ChatData_Friends List"] = "Friends List"
+L["ChatData_Gold"] = "Gold"
+L["ChatData_Guild"] = "Guild"
+L["ChatData_HP"] = "HP"
+L["ChatData_Haste"] = "Haste"
+L["ChatData_Hit"] = "Hit"
+L["ChatData_Hold Shift + Right Click:"] = "Hold Shift + Right Click:"
+L["ChatData_Honorable Kills"] = "Honorable Kills"
+L["ChatData_Latency"] = "Latency"
+L["ChatData_Left Click:"] = "Left Click:"
+L["ChatData_MS"] = "MS"
+L["ChatData_Mana Regen"] = "Mana Regen"
+L["ChatData_Memory"] = "Memory"
+L["ChatData_Miss Chance"] = "Miss Chance"
+L["ChatData_Mitigation By Level: "] = "Mitigation By Level: "
+L["ChatData_More addons: %d"] = "More addons: %d"
+L["ChatData_No Guild"] = "No Guild"
+L["ChatData_None"] = "None"
+L["ChatData_Profit:"] = "Profit:"
+L["ChatData_Reload UI"] = "Reload UI"
+L["ChatData_Reset Counters: Hold Shift + Left Click"] = "Reset Counters: Hold Shift + Left Click"
+L["ChatData_Reset Data: Hold Shift + Right Click"] = "Reset Data: Hold Shift + Right Click"
+L["ChatData_Resilience"] = "Resilience"
+L["ChatData_SP"] = "SP"
+L["ChatData_SarychUI Config"] = "SarychUI Config"
+L["ChatData_Saved Dungeon(s)"] = "Saved Dungeon(s)"
+L["ChatData_Saved Raid(s)"] = "Saved Raid(s)"
+L["ChatData_Server: "] = "Server: "
+L["ChatData_Session:"] = "Session:"
+L["ChatData_Spell/Heal Power"] = "Spell/Heal Power"
+L["ChatData_Spent:"] = "Spent:"
+L["ChatData_Time"] = "Time"
+L["ChatData_Toggle Configuration"] = "Toggle Configuration"
+L["ChatData_Total: "] = "Total: "
+L["ChatData_Unhittable:"] = "Unhittable:"
+L["ChatData_Upload"] = "Upload"
+L["ChatData_Wintergrasp"] = "Wintergrasp"
+L["ChatData_lvl"] = "lvl"
+
 -- Native settings labels, independent of the game client locale.
 L["RaidRoll_Allow_Extra_Rolls"] = "Allow extra rolls"
 L["RaidRoll_Allow_all_rolls"] = "Accept all rolls (e.g. 1–50)"
@@ -1689,7 +1747,6 @@ M["Включить кастомную позицию окна подсказо�
 M["Включить кастомные анимации чата"] = "Enable custom chat animations"
 M["Включить кастомный внешний вид вкладок чата"] = "Enable custom chat tab appearance"
 M["Включить копирование ссылок URL"] = "Enable URL copy"
-M["ui.enable_lag_bar_95dd2d11"] = "Enable lag bar"
 M["Включить отображение дистанции"] = "Enable distance display"
 M["Включить панель чата |cFFFFD700ChatBar|r"] = "Enable |cFFFFD700ChatBar|r chat bar"
 M["ui.enable_totem_support_c9a57b38"] = "Enable totem support"
@@ -1796,7 +1853,6 @@ M["ui.lines_or_particles_f8c2a0e0"] = "Lines or particles"
 M["Личные сообщения"] = "Whispers"
 M["Локальное время"] = "Local time"
 M["Лёгкий"] = "Light"
-M["ui.lag_bar_efcd1730"] = "Lag bar"
 M["Макс. дистанция камеры"] = "Max camera distance"
 M["ui.maximum_extra_size_for_center_icons_for_example__70aeff5b"] = "Maximum extra size for center icons. For example 0.20 = no more than +20% of the normal size."
 M["Масштаб UI"] = "UI scale"
@@ -2414,8 +2470,6 @@ M["Автоматически нажимает кнопки при розыгр�
 M["\n\n|cFFFFD700Команды:|r /lootclicker или /lc"] = "\n\n|cFFFFD700Commands:|r /lootclicker or /lc"
 M["Включить/выключить LootHistory"] = "Enable/disable LootHistory"
 M["Включить кнопку на вкладке loot"] = "Enable the button on the loot tab"
-M["ui.add_text_d3802682"] = "Add text"
-M["ui.adds_mb_ms_and_fps_labels_to_the_lag_bar_values_8384fb27"] = "Adds mb:, ms:, and fps: labels to the lag bar values."
 M["Отслеживает кулдауны врагов (Tracks enemy cooldowns).\nВключение - сразу; выключение из списка Модификаций - после /reload.\n\nАвтор: "] = "Tracks enemy cooldowns.\nEnable applies immediately; remove it from AddOns after /reload.\n\nAuthor: "
 M["|cffff0000Обнаружена standalone-версия Postal.|r Отключите её, чтобы использовать встроенную версию."] = "|cffff0000A standalone version was found: Postal.|r Disable it to use the embedded version."
 M["|cff1784d1Postal|r будет загружен после перезагрузки интерфейса (/reload)."] = "|cff1784d1Postal|r will load after a UI reload (/reload)."
@@ -2847,4 +2901,21 @@ SarychUI.RegisterUIMap("enUS", {
 SarychUI.RegisterUIMap("enUS", {
     ["ui.chat.emoji_button_alt"] = "Show the emoji button only while holding {SUI_MODIFIER}",
     ["ui.chat.emoji_button_alt_desc"] = "Shows the emoji picker button while holding {SUI_MODIFIER}, independently of the chat menu button.",
+})
+
+SarychUI.RegisterUIMap("enUS", {
+    ["ui.chat.data_bar"] = "Data bar",
+    ["ui.chat.data_bar.enabled"] = "Enable data bar",
+    ["ui.chat.data_bar.alt_enabled"] = "Alternate value with {SUI_MODIFIER}",
+    ["ui.chat.data_bar.alt_desc"] = "Shows the alternate value while {SUI_MODIFIER} mode is active, then restores the main value when released. Label and tooltip settings apply to both values in this region.",
+    ["ui.chat.data_bar.alt_content"] = "Value with {SUI_MODIFIER}",
+    ["ui.chat.data_bar.alt_same"] = "Main value",
+    ["ui.chat.data_bar.content"] = "Content",
+    ["ui.chat.data_bar.text"] = "Show text",
+    ["ui.chat.data_bar.text_desc"] = "Show the label before the value. Turning this off keeps the value visible.",
+    ["ui.chat.data_bar.tooltip"] = "Show tooltip",
+    ["ui.chat.data_bar.left"] = "Left",
+    ["ui.chat.data_bar.middle"] = "Middle",
+    ["ui.chat.data_bar.right"] = "Right",
+    ["ui.chat.data_bar.desc"] = "Three configurable data texts below the chat window.",
 })

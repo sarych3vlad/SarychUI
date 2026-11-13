@@ -3,7 +3,10 @@ RR_EPGPHasLoaded=true
  
 function RR_ReallyGetEPGPGuildData()
 	if IsInGuild() then
-		RR_GuildInfo = GetGuildInfoText();
+		local RR_GuildInfo = GetGuildInfoText();
+		-- Guild information can be unavailable or contain an unfinished EPGP block.
+		-- Keep the existing/default settings until a complete block is available.
+		if type(RR_GuildInfo) ~= "string" then return end
 		
 		--[[
 		-EPGP-
@@ -14,9 +17,9 @@ function RR_ReallyGetEPGPGuildData()
 		-EPGP-
 		]]
 		
-		string_start,string_end = string.find(RR_GuildInfo, "%-EPGP%-");
+		local string_start,string_end = string.find(RR_GuildInfo, "%-EPGP%-");
 		if string_start ~= nil and string_end ~= nil then
-			RR_GuildInfo = string.sub(RR_GuildInfo, string_end+2)
+			RR_GuildInfo = string.sub(RR_GuildInfo, string_end+1)
 			
 			--[[
 			@DECAY_P:10
@@ -27,7 +30,8 @@ function RR_ReallyGetEPGPGuildData()
 			]]
 			
 			string_start,string_end = string.find(RR_GuildInfo, "%-EPGP%-");
-			RR_GuildInfo = string.sub(RR_GuildInfo, 1, string_start-2);
+			if not string_start then return end
+			RR_GuildInfo = string.sub(RR_GuildInfo, 1, string_start-1);
 			
 			--[[	
 			@DECAY_P:10
@@ -40,8 +44,8 @@ function RR_ReallyGetEPGPGuildData()
 				if RR_GuildInfo ~= nil then
 					string_start,string_end=string.find(RR_GuildInfo, "%@+%a+%_%a+%:%d+");
 					if string_start ~= nil then
-						Substring = string.sub(RR_GuildInfo, string_start, string_end);
-						RR_GuildInfo = string.sub(RR_GuildInfo, string_end+2);
+						local Substring = string.sub(RR_GuildInfo, string_start, string_end);
+						RR_GuildInfo = string.sub(RR_GuildInfo, string_end+1);
 						if RaidRoll_DB["debug"] == true then RR_Test("Leftover String: " .. RR_GuildInfo) end
 						
 						--[[
@@ -57,13 +61,13 @@ function RR_ReallyGetEPGPGuildData()
 						]]
 						
 						string_start,string_end=string.find(Substring, "%@+%a+%_%a+%:");
-						Type = string.upper(string.sub(Substring, string_start+1, string_end-1))
+						local Type = string.upper(string.sub(Substring, string_start+1, string_end-1))
 						if RaidRoll_DB["debug"] == true then RR_Test("Type: " .. Type); end
 						
 						-- DECAY_P
 						
 						string_start,string_end=string.find(Substring, "%:%d+");
-						Value = tonumber(string.sub(Substring, string_start+1, string_end));
+						local Value = tonumber(string.sub(Substring, string_start+1, string_end));
 						if RaidRoll_DB["debug"] == true then RR_Test("Value: " .. Value); end
 						
 						-- 10

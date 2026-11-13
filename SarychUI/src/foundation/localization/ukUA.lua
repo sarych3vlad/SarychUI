@@ -3,6 +3,64 @@ do
 
 local L = {}
 
+-- Chat data text labels and tooltip content.
+L["ChatData_AFK"] = "Відійшов"
+L["ChatData_Achievement"] = "Досягнення"
+L["ChatData_Armor"] = "Броня"
+L["ChatData_Attack Power"] = "Сила атаки"
+L["ChatData_Avoidance"] = "Уникнення атак"
+L["ChatData_Avoidance Breakdown"] = "Розподіл захисту"
+L["ChatData_Bags"] = "Сумки"
+L["ChatData_Character: "] = "Персонаж: "
+L["ChatData_Combat Time"] = "Час бою"
+L["ChatData_Coords"] = "Координати"
+L["ChatData_Crit Chance"] = "Критичний удар"
+L["ChatData_DND"] = "Не турбувати"
+L["ChatData_Deficit:"] = "Збиток:"
+L["ChatData_Download"] = "Отримано"
+L["ChatData_Durability"] = "Міцність"
+L["ChatData_Earned:"] = "Зароблено:"
+L["ChatData_FPS"] = "FPS"
+L["ChatData_Friends"] = "Друзі"
+L["ChatData_Friends List"] = "Список друзів"
+L["ChatData_Gold"] = "Золото"
+L["ChatData_Guild"] = "Гільдія"
+L["ChatData_HP"] = "Зцілення"
+L["ChatData_Haste"] = "Швидкість"
+L["ChatData_Hit"] = "Влучність"
+L["ChatData_Hold Shift + Right Click:"] = "Shift + ПКМ:"
+L["ChatData_Honorable Kills"] = "Почесні вбивства"
+L["ChatData_Latency"] = "Затримка"
+L["ChatData_Left Click:"] = "ЛКМ:"
+L["ChatData_MS"] = "MS"
+L["ChatData_Mana Regen"] = "Відновлення мани"
+L["ChatData_Memory"] = "Пам’ять"
+L["ChatData_Miss Chance"] = "Імовірність промаху"
+L["ChatData_Mitigation By Level: "] = "Зменшення шкоди за рівнем: "
+L["ChatData_More addons: %d"] = "Інших аддонів: %d"
+L["ChatData_No Guild"] = "Немає гільдії"
+L["ChatData_None"] = "Немає"
+L["ChatData_Profit:"] = "Прибуток:"
+L["ChatData_Reload UI"] = "Перезавантажити інтерфейс"
+L["ChatData_Reset Counters: Hold Shift + Left Click"] = "Скинути лічильники: Shift + ЛКМ"
+L["ChatData_Reset Data: Hold Shift + Right Click"] = "Скинути дані: Shift + ПКМ"
+L["ChatData_Resilience"] = "Стійкість"
+L["ChatData_SP"] = "Сила заклять"
+L["ChatData_SarychUI Config"] = "Налаштування SarychUI"
+L["ChatData_Saved Dungeon(s)"] = "Збережені підземелля"
+L["ChatData_Saved Raid(s)"] = "Збережені рейди"
+L["ChatData_Server: "] = "Сервер: "
+L["ChatData_Session:"] = "За сеанс:"
+L["ChatData_Spell/Heal Power"] = "Сила заклять / зцілення"
+L["ChatData_Spent:"] = "Витрачено:"
+L["ChatData_Time"] = "Час"
+L["ChatData_Toggle Configuration"] = "Відкрити або закрити налаштування"
+L["ChatData_Total: "] = "Усього: "
+L["ChatData_Unhittable:"] = "Запас захисту від ударів:"
+L["ChatData_Upload"] = "Надіслано"
+L["ChatData_Wintergrasp"] = "Озеро Крижаної Хватки"
+L["ChatData_lvl"] = "рів."
+
 -- Native settings labels, independent of the game client locale.
 L["RaidRoll_Allow_Extra_Rolls"] = "Дозволити додаткові кидки"
 L["RaidRoll_Allow_all_rolls"] = "Приймати всі кидки (наприклад, 1–50)"
@@ -802,4 +860,21 @@ SarychUI.RegisterUIMap("ukUA", {
 SarychUI.RegisterUIMap("ukUA", {
     ["ui.chat.emoji_button_alt"] = "Показувати кнопку емодзі лише при {SUI_MODIFIER}",
     ["ui.chat.emoji_button_alt_desc"] = "Показує кнопку вибору емодзі при затиснутій клавіші {SUI_MODIFIER}, незалежно від видимості кнопки меню чату.",
+})
+
+SarychUI.RegisterUIMap("ukUA", {
+    ["ui.chat.data_bar"] = "Інформаційна панель",
+    ["ui.chat.data_bar.enabled"] = "Увімкнути інформаційну панель",
+    ["ui.chat.data_bar.alt_enabled"] = "Додатково при {SUI_MODIFIER}",
+    ["ui.chat.data_bar.alt_desc"] = "Поки активний режим {SUI_MODIFIER}, показує вибраний додатковий показник. Після відпускання повертає основний. Налаштування тексту й підказки спільні для цієї області.",
+    ["ui.chat.data_bar.alt_content"] = "Показник при {SUI_MODIFIER}",
+    ["ui.chat.data_bar.alt_same"] = "Основний показник",
+    ["ui.chat.data_bar.content"] = "Показник",
+    ["ui.chat.data_bar.text"] = "Показувати текст",
+    ["ui.chat.data_bar.text_desc"] = "Показувати підпис перед значенням. Після вимкнення залишається саме значення.",
+    ["ui.chat.data_bar.tooltip"] = "Показувати підказку",
+    ["ui.chat.data_bar.left"] = "Ліворуч",
+    ["ui.chat.data_bar.middle"] = "По центру",
+    ["ui.chat.data_bar.right"] = "Праворуч",
+    ["ui.chat.data_bar.desc"] = "Три налаштовувані показники під вікном чату.",
 })

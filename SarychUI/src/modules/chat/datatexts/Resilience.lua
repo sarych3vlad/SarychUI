@@ -1,0 +1,40 @@
+-- Adapted from ElvUI (WoW 3.3.5), Modules/DataTexts/Resilience.lua.
+local DT = _G.SarychUI_ChatDataTexts
+local E, L = DT.Engine, DT.L
+
+--Lua functions
+local min = math.min
+local join = string.join
+--WoW API / Variables
+local GetCombatRating = GetCombatRating
+local CR_CRIT_TAKEN_MELEE = CR_CRIT_TAKEN_MELEE
+local CR_CRIT_TAKEN_RANGED = CR_CRIT_TAKEN_RANGED
+local CR_CRIT_TAKEN_SPELL = CR_CRIT_TAKEN_SPELL
+local STAT_RESILIENCE = STAT_RESILIENCE
+
+local displayNumberString = ""
+local lastPanel
+
+local function OnEvent(self)
+	lastPanel = self
+
+	local melee = GetCombatRating(CR_CRIT_TAKEN_MELEE)
+	local ranged = GetCombatRating(CR_CRIT_TAKEN_RANGED)
+	local spell = GetCombatRating(CR_CRIT_TAKEN_SPELL)
+
+	local minResilience = min(melee, ranged)
+	minResilience = min(minResilience, spell)
+
+	self.text:SetFormattedText(displayNumberString, minResilience)
+end
+
+local function ValueColorUpdate(hex)
+	displayNumberString = join("", STAT_RESILIENCE, ": ", hex, "%d|r")
+
+	if lastPanel ~= nil then
+		OnEvent(lastPanel)
+	end
+end
+E.valueColorUpdateFuncs[ValueColorUpdate] = true
+
+DT:RegisterDatatext("Resilience", {"COMBAT_RATING_UPDATE"}, OnEvent, nil, nil, nil, nil, STAT_RESILIENCE)

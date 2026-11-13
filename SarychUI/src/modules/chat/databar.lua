@@ -1,10 +1,11 @@
--- SarychUI Chat LagBar
+-- SarychUI Chat DataBar
 -- FPS/ms: GetFramerate() and GetNetStats(), same as MainMenuBarPerformanceBar tooltip.
 -- Memory: read GetAddOnMemoryUsage after the game already scanned it on menu hover.
 -- Visibility follows the selected chat tab (same idea as the LootHistory loot-tab button).
 -- Anchored under the chat; shifts below the edit box when it opens (like ChatFrameMenuButton).
 
 local floor = math.floor
+local DT = _G.SarychUI_ChatDataTexts
 
 local UPDATE_INTERVAL = 1
 local LAYOUT_INTERVAL = 0.15
@@ -17,21 +18,12 @@ local COLOR_WHITE = { 1, 1, 1 }
 local COLOR_YELLOW = { 1, 0.82, 0 }
 local COLOR_RED = { 1, 0.15, 0.15 }
 
-local lagBarFrame
-local lagBarMemText
-local lagBarMsText
-local lagBarFpsText
-local lagBarDriver
+local dataBarFrame
+local dataBarDriver
+local altCallbackRegistered = false
 local lastSyncedAlpha
 local lastHostFrame
 local lastEditBoxOpen
-local lastFramerate
-local lastFramerateColor
-local lastLatency
-local lastLatencyColor
-local lastMemoryValue
-local lastMemoryColor
-local lastLabelsEnabled
 local cachedMemoryMB = 0
 local statsElapsed = 0
 local layoutElapsed = 0
@@ -39,7 +31,7 @@ local memoryElapsed = 0
 local memoryPrimed = false
 local hooksInstalled = false
 local performanceHooksInstalled = false
-local UpdateLagBar
+local UpdateDataBar
 local UpdateStats
 
 local function GetChatDb()
@@ -51,24 +43,13 @@ local function IsChatModuleEnabled()
     return db and db.enabled
 end
 
-local function IsLagBarEnabled()
+local function IsDataBarEnabled()
     if not IsChatModuleEnabled() then
         return false
     end
     local db = GetChatDb()
-    if db and db.lagBarEnabled ~= nil then
-        return db.lagBarEnabled == 1
-    end
-    return false
-end
-
-local function IsLagBarLabelsEnabled()
-    if not IsLagBarEnabled() then
-        return false
-    end
-    local db = GetChatDb()
-    if db and db.lagBarLabelsEnabled ~= nil then
-        return db.lagBarLabelsEnabled == 1
+    if db and db.dataBarEnabled ~= nil then
+        return db.dataBarEnabled == 1
     end
     return false
 end
@@ -205,7 +186,7 @@ local function RefreshAddonMemory(forceScan)
         UpdateAddOnMemoryUsage()
     end
     cachedMemoryMB = ReadGameAddonMemoryMB()
-    if UpdateStats and lagBarFrame and lagBarFrame:IsShown() then
+    if UpdateStats and dataBarFrame and dataBarFrame:IsShown() then
         UpdateStats()
     end
 end
@@ -226,10 +207,10 @@ local function HookPerformanceBarMemoryCapture()
     end
 
     local function HookEnter(frame)
-        if not frame or frame._sarychLagBarMemHook then
+        if not frame or frame._sarychDataBarMemHook then
             return
         end
-        frame._sarychLagBarMemHook = true
+        frame._sarychDataBarMemHook = true
         if frame.HookScript then
             frame:HookScript("OnEnter", CaptureGameAddonMemory)
         elseif frame.GetScript and frame.SetScript then
@@ -274,7 +255,7 @@ local function ComputeAlphaFromTab(tab)
 end
 
 local function SyncAlphaFromTab()
-    if not lagBarFrame or not lagBarFrame:IsShown() then
+    if not dataBarFrame or not dataBarFrame:IsShown() then
         return
     end
 
@@ -284,97 +265,78 @@ local function SyncAlphaFromTab()
         return
     end
     lastSyncedAlpha = alpha
-    lagBarFrame:SetAlpha(alpha)
+    dataBarFrame:SetAlpha(alpha)
 end
 
 function UpdateStats()
-    if not (lagBarMemText and lagBarMsText and lagBarFpsText) then
-        return
-    end
-
+    if not dataBarFrame then return end
     local framerate = floor(GetFramerate() + 0.5)
-    local framerateColor = GetFramerateColor(framerate)
     local _, _, latency = GetNetStats()
-    local latencyValue = floor(latency or 0)
-    local latencyColor = GetLatencyColor(latencyValue)
-    local memoryMB = cachedMemoryMB
-    local memoryColor = GetMemoryColor(memoryMB)
-    local memoryValue = floor(memoryMB * 10 + 0.5)
-
-    local labelsEnabled = IsLagBarLabelsEnabled()
-
-    if framerate == lastFramerate
-        and framerateColor == lastFramerateColor
-        and latencyValue == lastLatency
-        and latencyColor == lastLatencyColor
-        and memoryValue == lastMemoryValue
-        and memoryColor == lastMemoryColor
-        and labelsEnabled == lastLabelsEnabled then
-        return
+    latency = floor(latency or 0)
+    for _, slot in ipairs(dataBarFrame.slots) do
+        if slot.kind == "Memory" then
+            slot.text:SetFormattedText(slot.textEnabled and "mb: %.1f" or "%.1f", cachedMemoryMB)
+            SetStatColor(slot.text, GetMemoryColor(cachedMemoryMB))
+        elseif slot.kind == "MS" then
+            slot.text:SetFormattedText(slot.textEnabled and "ms: %d" or "%d", latency)
+            SetStatColor(slot.text, GetLatencyColor(latency))
+        elseif slot.kind == "FPS" then
+            slot.text:SetFormattedText(slot.textEnabled and "fps: %d" or "%d", framerate)
+            SetStatColor(slot.text, GetFramerateColor(framerate))
+        end
     end
-
-    lastFramerate = framerate
-    lastFramerateColor = framerateColor
-    lastLatency = latencyValue
-    lastLatencyColor = latencyColor
-    lastMemoryValue = memoryValue
-    lastMemoryColor = memoryColor
-    lastLabelsEnabled = labelsEnabled
-
-    if labelsEnabled then
-        lagBarMemText:SetFormattedText("mb: %5.1f ", memoryMB)
-        lagBarMsText:SetFormattedText("ms: %4d ", latencyValue)
-        lagBarFpsText:SetFormattedText("fps: %3d ", framerate)
-    else
-        lagBarMemText:SetFormattedText(" %5.1f ", memoryMB)
-        lagBarMsText:SetFormattedText(" %4d ", latencyValue)
-        lagBarFpsText:SetFormattedText(" %3d ", framerate)
-    end
-    SetStatColor(lagBarMemText, memoryColor)
-    SetStatColor(lagBarMsText, latencyColor)
-    SetStatColor(lagBarFpsText, framerateColor)
 end
 
-local function AnchorLagBar(chatFrame)
-    if not (lagBarFrame and chatFrame) then
+DT.RefreshMemory = function()
+    RefreshAddonMemory(true)
+    return cachedMemoryMB
+end
+
+local function AnchorDataBar(chatFrame)
+    if not (dataBarFrame and chatFrame) then
         return
     end
 
     -- Parent stays UIParent: ChatFrame would clip a child drawn below its bounds.
-    if lagBarFrame:GetParent() ~= UIParent then
-        lagBarFrame:SetParent(UIParent)
+    if dataBarFrame:GetParent() ~= UIParent then
+        dataBarFrame:SetParent(UIParent)
     end
 
-    lagBarFrame:SetFrameStrata(chatFrame:GetFrameStrata() or "LOW")
-    lagBarFrame:SetFrameLevel((chatFrame:GetFrameLevel() or 0) + 5)
+    dataBarFrame:SetFrameStrata(chatFrame:GetFrameStrata() or "LOW")
+    dataBarFrame:SetFrameLevel((chatFrame:GetFrameLevel() or 0) + 5)
 
     local eb = GetOpenEditBox(chatFrame)
     local editBoxOpen = eb ~= nil
 
-    lagBarFrame:ClearAllPoints()
+    dataBarFrame:ClearAllPoints()
     if editBoxOpen then
-        lagBarFrame:SetPoint("TOPLEFT", eb, "BOTTOMLEFT", 0, 4)
-        lagBarFrame:SetPoint("TOPRIGHT", eb, "BOTTOMRIGHT", 0, 4)
+        dataBarFrame:SetPoint("TOPLEFT", eb, "BOTTOMLEFT", 0, 4)
+        dataBarFrame:SetPoint("TOPRIGHT", eb, "BOTTOMRIGHT", 0, 4)
     else
-        lagBarFrame:SetPoint("TOPLEFT", chatFrame, "BOTTOMLEFT", 0, -8)
-        lagBarFrame:SetPoint("TOPRIGHT", chatFrame, "BOTTOMRIGHT", 0, -8)
+        dataBarFrame:SetPoint("TOPLEFT", chatFrame, "BOTTOMLEFT", 0, -8)
+        dataBarFrame:SetPoint("TOPRIGHT", chatFrame, "BOTTOMRIGHT", 0, -8)
     end
 
     lastHostFrame = chatFrame
     lastEditBoxOpen = editBoxOpen
 end
 
-local function HideLagBar()
+local function HideDataBar()
+    DT:Leave()
     lastSyncedAlpha = nil
-    if lagBarFrame then
-        lagBarFrame:Hide()
-        lagBarFrame:SetAlpha(1)
+    if dataBarFrame then
+        dataBarFrame:Hide()
+        dataBarFrame:SetAlpha(1)
     end
 end
 
 local function StopDriver()
-    if lagBarDriver then
-        lagBarDriver:Hide()
+    if altCallbackRegistered and SarychUI.AltMode then
+        SarychUI.AltMode:UnregisterCallback("chat_data_bar")
+        altCallbackRegistered = false
+    end
+    if dataBarDriver then
+        dataBarDriver:Hide()
     end
 end
 
@@ -385,7 +347,7 @@ local function RefreshLayout()
         SyncAlphaFromTab()
         return
     end
-    UpdateLagBar()
+    UpdateDataBar()
 end
 
 local function OnDriverUpdate(self, elapsed)
@@ -400,14 +362,14 @@ local function OnDriverUpdate(self, elapsed)
     statsElapsed = statsElapsed + elapsed
     if statsElapsed >= UPDATE_INTERVAL then
         statsElapsed = 0
-        if lagBarFrame and lagBarFrame:IsShown() then
+        if dataBarFrame and dataBarFrame:IsShown() then
             UpdateStats()
         end
     end
 
     memoryElapsed = memoryElapsed + elapsed
     local memoryNeed = memoryPrimed and MEMORY_INTERVAL or 2
-    if memoryElapsed >= memoryNeed then
+    if memoryElapsed >= memoryNeed and DT:HasKind("Memory") then
         if IsPlayerInCombat() then
             memoryElapsed = memoryNeed - 1
         else
@@ -419,17 +381,18 @@ local function OnDriverUpdate(self, elapsed)
 end
 
 local function StartDriver()
-    if not lagBarDriver then
-        lagBarDriver = CreateFrame("Frame")
-        lagBarDriver:SetScript("OnUpdate", OnDriverUpdate)
+    if not dataBarDriver then
+        dataBarDriver = CreateFrame("Frame")
+        dataBarDriver:SetScript("OnUpdate", OnDriverUpdate)
     end
-    lagBarDriver:Show()
+    dataBarDriver:Show()
 end
 
-function UpdateLagBar()
-    if not IsLagBarEnabled() then
-        HideLagBar()
+function UpdateDataBar()
+    if not IsDataBarEnabled() then
+        HideDataBar()
         StopDriver()
+        DT:Stop()
         lastHostFrame = nil
         lastEditBoxOpen = nil
         return
@@ -437,11 +400,11 @@ function UpdateLagBar()
 
     local visibility = _G.SarychUI_ChatVisibility
     if visibility and visibility.IsHidden and visibility.IsHidden() then
-        HideLagBar()
+        HideDataBar()
         return
     end
 
-    if not lagBarFrame then
+    if not dataBarFrame then
         return
     end
 
@@ -449,39 +412,52 @@ function UpdateLagBar()
     if not chatFrame or (chatFrame.IsShown and not chatFrame:IsShown()) then
         lastHostFrame = chatFrame
         lastEditBoxOpen = false
-        HideLagBar()
+        HideDataBar()
         return
     end
 
-    AnchorLagBar(chatFrame)
-    lagBarFrame:Show()
+    AnchorDataBar(chatFrame)
+    dataBarFrame:Show()
     SyncAlphaFromTab()
 end
 
-local function EnsureLagBar()
-    if lagBarFrame then
+local function EnsureDataBar()
+    if dataBarFrame then
         return
     end
 
-    local frame = CreateFrame("Frame", "SarychUIChatLagBar", UIParent)
+    local frame = CreateFrame("Frame", "SarychUIChatDataBar", UIParent)
     frame:SetHeight(16)
     frame:EnableMouse(false)
     frame:Hide()
 
-    local function MakeValue(justify, point)
-        local text = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        text:SetPoint(point, frame, point, 0, 0)
+    frame.slots = {}
+    local function MakeValue(position, justify, point)
+        local slot = CreateFrame("Button", nil, frame)
+        slot.position = position
+        slot:SetHeight(16)
+        slot:SetPoint(point, frame, point, 0, 0)
+        slot:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        local text = slot:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        text:SetPoint("LEFT", slot, "LEFT", 2, 0)
+        text:SetPoint("RIGHT", slot, "RIGHT", -2, 0)
         text:SetJustifyH(justify)
         text:SetTextColor(1, 1, 1, TEXT_ALPHA)
         text:SetAlpha(TEXT_ALPHA)
-        text:Show()
-        return text
+        text:SetWordWrap(false)
+        slot.text = text
+        table.insert(frame.slots, slot)
     end
-
-    lagBarMemText = MakeValue("LEFT", "LEFT")
-    lagBarMsText = MakeValue("CENTER", "CENTER")
-    lagBarFpsText = MakeValue("RIGHT", "RIGHT")
-    lagBarFrame = frame
+    MakeValue("left", "LEFT", "LEFT")
+    MakeValue("middle", "CENTER", "CENTER")
+    MakeValue("right", "RIGHT", "RIGHT")
+    local function ResizeSlots(self)
+        local width = math.max(1, self:GetWidth() / 3)
+        for _, slot in ipairs(self.slots) do slot:SetWidth(width) end
+    end
+    frame:SetScript("OnSizeChanged", ResizeSlots)
+    ResizeSlots(frame)
+    dataBarFrame = frame
 end
 
 local function HookIfPresent(funcName, hook)
@@ -497,39 +473,63 @@ local function InstallHooks()
     end
     hooksInstalled = true
 
-    HookIfPresent("ChatEdit_ActivateChat", UpdateLagBar)
-    HookIfPresent("ChatEdit_DeactivateChat", UpdateLagBar)
-    HookIfPresent("FCF_Tab_OnClick", UpdateLagBar)
-    HookIfPresent("FCFTab_OnClick", UpdateLagBar)
-    HookIfPresent("FCFDock_UpdateTabs", UpdateLagBar)
-    HookIfPresent("ChatFrameMenu_UpdateAnchorPoint", UpdateLagBar)
+    HookIfPresent("ChatEdit_ActivateChat", UpdateDataBar)
+    HookIfPresent("ChatEdit_DeactivateChat", UpdateDataBar)
+    HookIfPresent("FCF_Tab_OnClick", UpdateDataBar)
+    HookIfPresent("FCFTab_OnClick", UpdateDataBar)
+    HookIfPresent("FCFDock_UpdateTabs", UpdateDataBar)
+    HookIfPresent("ChatFrameMenu_UpdateAnchorPoint", UpdateDataBar)
 end
 
-local function EnableLagBar()
-    EnsureLagBar()
+local function OnDataBarAltChanged(pressed)
+    if not IsDataBarEnabled() then return end
+    local hovered = DT.hoveredSlot or (GetMouseFocus and GetMouseFocus())
+    if not DT:SetAltState(pressed) then return end
+    UpdateStats()
+    -- The mouse need not leave/re-enter a region to get the new value's tooltip.
+    for _, slot in ipairs(DT.slots) do
+        if slot == hovered and slot:IsShown() then DT:Enter(slot); break end
+    end
+end
+
+local function EnableDataBar()
+    EnsureDataBar()
     InstallHooks()
     HookPerformanceBarMemoryCapture()
+    DT:Apply(dataBarFrame, GetChatDb())
+    if SarychUI.AltMode then
+        if DT.altConfigured and not altCallbackRegistered then
+            altCallbackRegistered = true
+            SarychUI.AltMode:RegisterCallback("chat_data_bar", OnDataBarAltChanged)
+        elseif not DT.altConfigured and altCallbackRegistered then
+            SarychUI.AltMode:UnregisterCallback("chat_data_bar")
+            altCallbackRegistered = false
+        end
+    end
     StartDriver()
-    UpdateLagBar()
-    if lagBarFrame and lagBarFrame:IsShown() then
+    UpdateDataBar()
+    if dataBarFrame and dataBarFrame:IsShown() then
         UpdateStats()
     end
 end
 
-local function DisableLagBar()
+local function DisableDataBar()
+    DT:Stop()
     StopDriver()
-    HideLagBar()
+    HideDataBar()
     lastHostFrame = nil
     lastEditBoxOpen = nil
     memoryPrimed = false
     memoryElapsed = 0
 end
 
-local function ApplyLagBarSettings()
-    if IsLagBarEnabled() then
-        EnableLagBar()
+local function ApplyDataBarSettings()
+    -- Imported/copied profiles may still contain settings from the old lag bar.
+    SarychUI:MigrateChatDataBarSettings(GetChatDb())
+    if IsDataBarEnabled() then
+        EnableDataBar()
     else
-        DisableLagBar()
+        DisableDataBar()
     end
 end
 
@@ -538,12 +538,12 @@ initFrame:RegisterEvent("PLAYER_LOGIN")
 initFrame:RegisterEvent("UPDATE_CHAT_WINDOWS")
 pcall(initFrame.RegisterEvent, initFrame, "CHAT_TAB_CHANGED")
 initFrame:SetScript("OnEvent", function()
-    if IsLagBarEnabled() then
-        ApplyLagBarSettings()
+    if IsDataBarEnabled() then
+        if dataBarFrame then UpdateDataBar() else ApplyDataBarSettings() end
     end
 end)
 
-_G.EnableLagBar = EnableLagBar
-_G.DisableLagBar = DisableLagBar
-_G.ApplyLagBarSettings = ApplyLagBarSettings
-_G.SarychUI_UpdateChatLagBar = UpdateLagBar
+_G.EnableDataBar = EnableDataBar
+_G.DisableDataBar = DisableDataBar
+_G.ApplyDataBarSettings = ApplyDataBarSettings
+_G.SarychUI_UpdateChatDataBar = UpdateDataBar

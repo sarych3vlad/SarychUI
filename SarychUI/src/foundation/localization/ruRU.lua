@@ -3,6 +3,64 @@ do
 
 local L = {}
 
+-- Chat data text labels and tooltip content.
+L["ChatData_AFK"] = "АФК"
+L["ChatData_Achievement"] = "Достижения"
+L["ChatData_Armor"] = "Броня"
+L["ChatData_Attack Power"] = "Сила атаки"
+L["ChatData_Avoidance"] = "Избегание атак"
+L["ChatData_Avoidance Breakdown"] = "Распределение защиты"
+L["ChatData_Bags"] = "Сумки"
+L["ChatData_Character: "] = "Персонаж: "
+L["ChatData_Combat Time"] = "Время боя"
+L["ChatData_Coords"] = "Координаты"
+L["ChatData_Crit Chance"] = "Критический удар"
+L["ChatData_DND"] = "ДНД"
+L["ChatData_Deficit:"] = "Убыток:"
+L["ChatData_Download"] = "Получено"
+L["ChatData_Durability"] = "Прочность"
+L["ChatData_Earned:"] = "Заработано"
+L["ChatData_FPS"] = "FPS"
+L["ChatData_Friends"] = "Друзья"
+L["ChatData_Friends List"] = "Список друзей"
+L["ChatData_Gold"] = "Золото"
+L["ChatData_Guild"] = "Гильдия"
+L["ChatData_HP"] = "+ Исцел."
+L["ChatData_Haste"] = "Скорость"
+L["ChatData_Hit"] = "Меткость"
+L["ChatData_Hold Shift + Right Click:"] = "Shift + ПКМ:"
+L["ChatData_Honorable Kills"] = "Почётные убийства"
+L["ChatData_Latency"] = "Задержка"
+L["ChatData_Left Click:"] = "ЛКМ:"
+L["ChatData_MS"] = "MS"
+L["ChatData_Mana Regen"] = "Восполнение маны"
+L["ChatData_Memory"] = "Память"
+L["ChatData_Miss Chance"] = "Вероятность промаха"
+L["ChatData_Mitigation By Level: "] = "Снижение на уровне: "
+L["ChatData_More addons: %d"] = "Других аддонов: %d"
+L["ChatData_No Guild"] = "Нет гильдии"
+L["ChatData_None"] = "Нет"
+L["ChatData_Profit:"] = "Прибыль:"
+L["ChatData_Reload UI"] = "Перезагрузить интерфейс"
+L["ChatData_Reset Counters: Hold Shift + Left Click"] = "Сбросить счётчики: Shift + ЛКМ"
+L["ChatData_Reset Data: Hold Shift + Right Click"] = "Сбросить данные: Shift + ПКМ"
+L["ChatData_Resilience"] = "Устойчивость"
+L["ChatData_SP"] = "+ Закл."
+L["ChatData_SarychUI Config"] = "Настройки SarychUI"
+L["ChatData_Saved Dungeon(s)"] = "Сохраненнные подземелья"
+L["ChatData_Saved Raid(s)"] = "Сохраненные рейды"
+L["ChatData_Server: "] = "На сервере:"
+L["ChatData_Session:"] = "За сеанс:"
+L["ChatData_Spell/Heal Power"] = "Сила заклинаний / исцеления"
+L["ChatData_Spent:"] = "Потрачено:"
+L["ChatData_Time"] = "Время"
+L["ChatData_Toggle Configuration"] = "Конфигурация"
+L["ChatData_Total: "] = "Всего: "
+L["ChatData_Unhittable:"] = "Полная защита от ударов"
+L["ChatData_Upload"] = "Отправлено"
+L["ChatData_Wintergrasp"] = "Озеро Ледяных Оков"
+L["ChatData_lvl"] = "ур."
+
 -- Native settings labels, independent of the game client locale.
 L["RaidRoll_Allow_Extra_Rolls"] = "Разрешить дополнительные броски"
 L["RaidRoll_Allow_all_rolls"] = "Принимать все броски (например, 1–50)"
@@ -671,4 +729,21 @@ SarychUI.RegisterUIMap("ruRU", {
     ["ui.text_0781c0a5"] = "Включить состояние количества",
     ["ui.options.saved"] = "Сохранено",
     ["ui.options_09ba471fba"] = "Эмоции",
+})
+
+SarychUI.RegisterUIMap("ruRU", {
+    ["ui.chat.data_bar"] = "Информационная панель",
+    ["ui.chat.data_bar.enabled"] = "Включить информационную панель",
+    ["ui.chat.data_bar.alt_enabled"] = "Дополнительно при {SUI_MODIFIER}",
+    ["ui.chat.data_bar.alt_desc"] = "Пока активен режим {SUI_MODIFIER}, показывает выбранный дополнительный показатель. После отпускания возвращает основной. Настройки текста и подсказки общие для этой области.",
+    ["ui.chat.data_bar.alt_content"] = "Показатель при {SUI_MODIFIER}",
+    ["ui.chat.data_bar.alt_same"] = "Основной показатель",
+    ["ui.chat.data_bar.content"] = "Показатель",
+    ["ui.chat.data_bar.text"] = "Показывать текст",
+    ["ui.chat.data_bar.text_desc"] = "Показывать подпись перед значением. При отключении остаётся само значение.",
+    ["ui.chat.data_bar.tooltip"] = "Показывать подсказку",
+    ["ui.chat.data_bar.left"] = "Слева",
+    ["ui.chat.data_bar.middle"] = "По центру",
+    ["ui.chat.data_bar.right"] = "Справа",
+    ["ui.chat.data_bar.desc"] = "Три настраиваемых показателя под окном чата.",
 })

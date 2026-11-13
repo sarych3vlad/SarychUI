@@ -434,43 +434,10 @@ local function ForceDisableTooltipIcons()
 end
 
 -- ========================================
--- СКРЫТИЕ КНОПКИ ДРУЗЕЙ (EXACT COPY FROM sarChat)
+-- СКРЫТИЕ КНОПКИ ДРУЗЕЙ
 -- ========================================
 
--- Переменная для хранения фрейма счетчика друзей
-local FriendsMicroButtonCount = nil
-
--- Функция обновления счетчика друзей (IMPROVED)
-local function UpdateFriendsCount()
-    if not FriendsMicroButtonCount then return end
-    if not GetNumFriends or not GetFriendInfo then return end
-    
-    local totalFriends = GetNumFriends()
-    local onlineFriends = 0
-    
-    -- Безопасный подсчет ТОЛЬКО друзей онлайн
-    for i = 1, totalFriends do
-        local success, name, level, class, area, connected, status, note, RAFInfo = pcall(GetFriendInfo, i)
-        if success and connected and status ~= "Offline" and status ~= nil then 
-            -- Дополнительная проверка: убеждаемся что друг действительно онлайн
-            if name and name ~= "" then
-                onlineFriends = onlineFriends + 1 
-            end
-        end
-    end
-    
-    -- Обновляем отображение ТОЛЬКО если есть друзья онлайн
-    if onlineFriends > 0 then
-        FriendsMicroButtonCount.text:SetText(onlineFriends)
-        FriendsMicroButtonCount:Show()
-        -- Принудительно обновляем позицию
-        FriendsMicroButtonCount.text:SetPoint("CENTER", MinimapCluster, "CENTER", 10, -47)
-    else
-        FriendsMicroButtonCount:Hide()
-    end
-end
-
--- Функция применения модификации кнопки друзей (EXACT COPY)
+-- Скрытие стандартной кнопки друзей в чате.
 local function ApplyFriendsButtonMod(forceEnabled)
     local enabled
     if forceEnabled ~= nil then
@@ -480,50 +447,8 @@ local function ApplyFriendsButtonMod(forceEnabled)
         enabled = (tonumber(v) or 1) == 1
     end
 
-    if enabled then
-        if not FriendsMicroButtonCount then
-            FriendsMicroButtonCount = CreateFrame("Frame", "FriendsMicroButtonCountFrame", UIParent)
-            FriendsMicroButtonCount:SetSize(100, 30)
-            FriendsMicroButtonCount.text = FriendsMicroButtonCount:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-            FriendsMicroButtonCount.text:SetPoint("CENTER", MinimapCluster, "CENTER", 10, -47)
-            FriendsMicroButtonCount.text:SetText("")
-            -- Регистрируем все возможные события
-            FriendsMicroButtonCount:RegisterEvent("FRIENDLIST_UPDATE")
-            FriendsMicroButtonCount:RegisterEvent("PLAYER_ENTERING_WORLD")
-            FriendsMicroButtonCount:RegisterEvent("PLAYER_LEAVING_WORLD")
-            FriendsMicroButtonCount:RegisterEvent("FRIEND_OFFLINE")
-            FriendsMicroButtonCount:RegisterEvent("FRIEND_ONLINE")
-            FriendsMicroButtonCount:RegisterEvent("CHAT_MSG_SYSTEM")
-            FriendsMicroButtonCount:RegisterEvent("PLAYER_LOGIN")
-            FriendsMicroButtonCount:RegisterEvent("PLAYER_LOGOUT")
-            FriendsMicroButtonCount:RegisterEvent("UPDATE_FRIEND_LIST")
-            FriendsMicroButtonCount:RegisterEvent("FRIENDLIST_SHOW")
-            FriendsMicroButtonCount:RegisterEvent("FRIENDLIST_CLOSED")
-            FriendsMicroButtonCount:RegisterEvent("SOCIAL_QUEUE_UPDATE")
-            FriendsMicroButtonCount:RegisterEvent("GROUP_ROSTER_UPDATE")
-            FriendsMicroButtonCount:RegisterEvent("RAID_ROSTER_UPDATE")
-            FriendsMicroButtonCount:RegisterEvent("PARTY_MEMBERS_CHANGED")
-            
-            FriendsMicroButtonCount:SetScript("OnEvent", function(self, event, ...)
-                -- Обновляем при любом событии
-                SuiTimer.After(0.1, function()
-                    UpdateFriendsCount()
-                end)
-            end)
-        end
-        -- Принудительное обновление при включении
-        UpdateFriendsCount()
-        -- Дополнительное обновление через небольшую задержку
-        SuiTimer.After(0.5, function()
-            UpdateFriendsCount()
-        end)
-        if FriendsMicroButton then FriendsMicroButton:Hide() end
-    else
-        if FriendsMicroButtonCount then
-            FriendsMicroButtonCount:UnregisterAllEvents()
-            FriendsMicroButtonCount:Hide()
-        end
-        if FriendsMicroButton then FriendsMicroButton:Show() end
+    if FriendsMicroButton then
+        if enabled then FriendsMicroButton:Hide() else FriendsMicroButton:Show() end
     end
 end
 
@@ -540,10 +465,6 @@ end
 -- Функция полного отключения скрытия кнопки друзей (для отключения модуля)
 local function ForceDisableFriendsButtonHiding()
     -- Принудительно восстанавливаем оригинальную кнопку друзей
-    if FriendsMicroButtonCount then
-        FriendsMicroButtonCount:UnregisterAllEvents()
-        FriendsMicroButtonCount:Hide()
-    end
     if FriendsMicroButton then 
         FriendsMicroButton:Show() 
     end

@@ -2,6 +2,64 @@ do
 -- SarychUI esES Localization
 local L = {}
 
+-- Chat data text labels and tooltip content.
+L["ChatData_AFK"] = "Ausente"
+L["ChatData_Achievement"] = "Logros"
+L["ChatData_Armor"] = "Armadura"
+L["ChatData_Attack Power"] = "Poder de ataque"
+L["ChatData_Avoidance"] = "Evasión"
+L["ChatData_Avoidance Breakdown"] = "Desglose de evasión"
+L["ChatData_Bags"] = "Bolsas"
+L["ChatData_Character: "] = "Personaje: "
+L["ChatData_Combat Time"] = "Tiempo de combate"
+L["ChatData_Coords"] = "Coordenadas"
+L["ChatData_Crit Chance"] = "Golpe crítico"
+L["ChatData_DND"] = "No molestar"
+L["ChatData_Deficit:"] = "Déficit:"
+L["ChatData_Download"] = "Descarga"
+L["ChatData_Durability"] = "Durabilidad"
+L["ChatData_Earned:"] = "Ganado:"
+L["ChatData_FPS"] = "FPS"
+L["ChatData_Friends"] = "Amigos"
+L["ChatData_Friends List"] = "Lista de amigos"
+L["ChatData_Gold"] = "Oro"
+L["ChatData_Guild"] = "Hermandad"
+L["ChatData_HP"] = "Sanación"
+L["ChatData_Haste"] = "Celeridad"
+L["ChatData_Hit"] = "Golpe"
+L["ChatData_Hold Shift + Right Click:"] = "Mayús + clic derecho:"
+L["ChatData_Honorable Kills"] = "Muertes con honor"
+L["ChatData_Latency"] = "Latencia"
+L["ChatData_Left Click:"] = "Clic izquierdo:"
+L["ChatData_MS"] = "MS"
+L["ChatData_Mana Regen"] = "Regeneración de maná"
+L["ChatData_Memory"] = "Memoria"
+L["ChatData_Miss Chance"] = "Probabilidad de fallo"
+L["ChatData_Mitigation By Level: "] = "Reducción de daño por nivel: "
+L["ChatData_More addons: %d"] = "Otros addons: %d"
+L["ChatData_No Guild"] = "Sin hermandad"
+L["ChatData_None"] = "Ninguno"
+L["ChatData_Profit:"] = "Beneficio:"
+L["ChatData_Reload UI"] = "Recargar interfaz"
+L["ChatData_Reset Counters: Hold Shift + Left Click"] = "Reiniciar contadores: Mayús + clic izquierdo"
+L["ChatData_Reset Data: Hold Shift + Right Click"] = "Borrar datos: Mayús + clic derecho"
+L["ChatData_Resilience"] = "Temple"
+L["ChatData_SP"] = "Poder con hechizos"
+L["ChatData_SarychUI Config"] = "Opciones de SarychUI"
+L["ChatData_Saved Dungeon(s)"] = "Mazmorras guardadas"
+L["ChatData_Saved Raid(s)"] = "Bandas guardadas"
+L["ChatData_Server: "] = "Reino: "
+L["ChatData_Session:"] = "Sesión:"
+L["ChatData_Spell/Heal Power"] = "Poder de hechizos / sanación"
+L["ChatData_Spent:"] = "Gastado:"
+L["ChatData_Time"] = "Hora"
+L["ChatData_Toggle Configuration"] = "Abrir o cerrar opciones"
+L["ChatData_Total: "] = "Total: "
+L["ChatData_Unhittable:"] = "Margen de cobertura de ataques:"
+L["ChatData_Upload"] = "Subida"
+L["ChatData_Wintergrasp"] = "Conquista del Invierno"
+L["ChatData_lvl"] = "nivel"
+
 -- Native settings labels, independent of the game client locale.
 L["RaidRoll_Allow_Extra_Rolls"] = "Permitir tiradas extra"
 L["RaidRoll_Allow_all_rolls"] = "Aceptar todas las tiradas (p. ej., 1–50)"
@@ -1633,7 +1691,6 @@ M["Включить кастомную позицию окна подсказо�
 M["Включить кастомные анимации чата"] = "Activar animaciones de chat personalizadas"
 M["Включить кастомный внешний вид вкладок чата"] = "Activar aspecto personalizado de pestañas de chat"
 M["Включить копирование ссылок URL"] = "Activar copia de enlaces URL"
-M["ui.enable_lag_bar_95dd2d11"] = "Activar barra de lag"
 M["Включить отображение дистанции"] = "Activar visualización de distancia"
 M["Включить панель чата |cFFFFD700ChatBar|r"] = "Activar la barra de chat |cFFFFD700ChatBar|r"
 M["ui.enable_totem_support_c9a57b38"] = "Activar soporte de tótems"
@@ -1740,7 +1797,6 @@ M["ui.lines_or_particles_f8c2a0e0"] = "Líneas o partículas"
 M["Личные сообщения"] = "Susurros"
 M["Локальное время"] = "Hora local"
 M["Лёгкий"] = "Ligero"
-M["ui.lag_bar_efcd1730"] = "Barra de lag"
 M["Макс. дистанция камеры"] = "Distancia máxima de cámara"
 M["ui.maximum_extra_size_for_center_icons_for_example__70aeff5b"] = "Máximo extra de los iconos centrales. Por ejemplo 0.20 = no más de +20% del tamaño normal."
 M["Масштаб UI"] = "Escala de UI"
@@ -2358,8 +2414,6 @@ M["Автоматически нажимает кнопки при розыгр�
 M["\n\n|cFFFFD700Команды:|r /lootclicker или /lc"] = "\n\n|cFFFFD700Comandos:|r /lootclicker o /lc"
 M["Включить/выключить LootHistory"] = "Activar/desactivar LootHistory"
 M["Включить кнопку на вкладке loot"] = "Activar el botón en la pestaña de botín"
-M["ui.add_text_d3802682"] = "Añadir texto"
-M["ui.adds_mb_ms_and_fps_labels_to_the_lag_bar_values_8384fb27"] = "Añade las etiquetas mb:, ms: y fps: a los valores de la barra de lag."
 M["Добавить кнопку на вкладку loot для быстрого доступа к LootHistory"] = "Añadir un botón en la pestaña de botín para abrir LootHistory"
 M["Отслеживает кулдауны врагов (Tracks enemy cooldowns).\nВключение - сразу; выключение из списка Модификаций - после /reload.\n\nАвтор: "] = "Sigue los tiempos de reutilización enemigos.\nLa activación es inmediata; se quita de AddOns tras /reload.\n\nAutor: "
 M["|cffff0000Обнаружена standalone-версия Postal.|r Отключите её, чтобы использовать встроенную версию."] = "|cffff0000Se encontró una versión independiente: Postal.|r Desactívala para usar la versión integrada."
@@ -2787,4 +2841,21 @@ SarychUI.RegisterUIMap("esES", {
 SarychUI.RegisterUIMap("esES", {
     ["ui.chat.emoji_button_alt"] = "Mostrar el botón de emojis solo al mantener {SUI_MODIFIER}",
     ["ui.chat.emoji_button_alt_desc"] = "Muestra el botón de emojis al mantener {SUI_MODIFIER}, independientemente del botón del menú del chat.",
+})
+
+SarychUI.RegisterUIMap("esES", {
+    ["ui.chat.data_bar"] = "Barra de datos",
+    ["ui.chat.data_bar.enabled"] = "Activar barra de datos",
+    ["ui.chat.data_bar.alt_enabled"] = "Valor alternativo con {SUI_MODIFIER}",
+    ["ui.chat.data_bar.alt_desc"] = "Muestra el valor alternativo mientras el modo {SUI_MODIFIER} está activo y restaura el principal al soltar la tecla. Los ajustes de texto y descripción se aplican a ambos valores de esta zona.",
+    ["ui.chat.data_bar.alt_content"] = "Valor con {SUI_MODIFIER}",
+    ["ui.chat.data_bar.alt_same"] = "Valor principal",
+    ["ui.chat.data_bar.content"] = "Contenido",
+    ["ui.chat.data_bar.text"] = "Mostrar texto",
+    ["ui.chat.data_bar.text_desc"] = "Mostrar la etiqueta antes del valor. Al desactivarlo, el valor sigue visible.",
+    ["ui.chat.data_bar.tooltip"] = "Mostrar descripción",
+    ["ui.chat.data_bar.left"] = "Izquierda",
+    ["ui.chat.data_bar.middle"] = "Centro",
+    ["ui.chat.data_bar.right"] = "Derecha",
+    ["ui.chat.data_bar.desc"] = "Tres textos de información configurables debajo del chat.",
 })

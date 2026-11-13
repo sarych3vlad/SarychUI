@@ -92,8 +92,7 @@ function SarychUI:ApplySarych2KProductDefaults(profile)
 	modules.chat.classColorMentionsEnabled = 1
 	modules.chat.classColorMentionsChat = 1
 	modules.chat.classColorMentionsSpeech = 1
-	modules.chat.lagBarEnabled = 1
-	modules.chat.lagBarLabelsEnabled = 1
+	modules.chat.dataBarEnabled = 1
 
 	modules.player_resources = modules.player_resources or {}
 	modules.player_resources.enabled = false

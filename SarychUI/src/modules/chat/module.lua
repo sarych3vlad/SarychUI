@@ -200,8 +200,8 @@ function module:Disable()
     -- Disable Fast Scroll completely
     self:DisableFastScroll()
 
-    -- Disable LagBar completely
-    self:DisableLagBar()
+    -- Disable DataBar completely
+    self:DisableDataBar()
 
     -- Disable Spam Filter completely
     self:DisableSpamFilter()
@@ -350,7 +350,7 @@ function module:ApplyAllSettings()
         self:DisableEmotionSettings()
         self:DisableClassMentions()
         self:DisableFastScroll()
-        self:DisableLagBar()
+        self:DisableDataBar()
         self:DisableSpamFilter()
         self:DisableForeignFactionFilter()
         self:DisableShiftHistory()
@@ -401,8 +401,8 @@ function module:ApplyAllSettings()
     -- Apply Fast Scroll settings
     self:ApplyFastScrollSettings()
 
-    -- Apply LagBar settings
-    self:ApplyLagBarSettings()
+    -- Apply DataBar settings
+    self:ApplyDataBarSettings()
     
     -- Apply Spam Filter settings
     self:ApplySpamFilterSettings()
@@ -681,16 +681,16 @@ function module:DisableUrlCopying()
     end
 end
 
--- Apply LagBar settings
-function module:ApplyLagBarSettings()
-    if _G.ApplyLagBarSettings then
-        _G.ApplyLagBarSettings()
+-- Apply DataBar settings
+function module:ApplyDataBarSettings()
+    if _G.ApplyDataBarSettings then
+        _G.ApplyDataBarSettings()
     end
 end
 
-function module:DisableLagBar()
-    if _G.DisableLagBar then
-        _G.DisableLagBar()
+function module:DisableDataBar()
+    if _G.DisableDataBar then
+        _G.DisableDataBar()
     end
 end
 

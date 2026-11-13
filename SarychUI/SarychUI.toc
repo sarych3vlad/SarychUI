@@ -116,7 +116,8 @@ src\modules\auras\poison_icons.lua
 src\modules\auras\preview.lua
 src\modules\chat\module.lua
 src\modules\chat\functionality.lua
-src\modules\chat\lagbar.lua
+src\modules\chat\datatexts\load.xml
+src\modules\chat\databar.lua
 src\modules\chat\meme_pack_v2_data.lua
 src\modules\chat\emotions.lua
 src\modules\chat\class_mentions.lua
