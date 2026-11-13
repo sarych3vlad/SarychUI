@@ -6,21 +6,21 @@ BASpammerEnabled = BASpammerEnabled -- set by SarychUI bootstrap/wrapper
 
 BASpammerTooltip = CreateFrame("GameTooltip", "BASpammerTooltip", nil, "GameTooltipTemplate")
 
-BASpammerDB = BASpammerDB or {
-    posx , posy, posx1, posy1,
-    Tumbler = false,
-    Flag = false,
-    Pattern = {},
-    CheckedPattern = 1,
-    Channel = 1,
-    Interval = 10,
-    LastTimeSpam = 0,
-}
-BASpammerDB.Pattern = BASpammerDB.Pattern or {}
-BASpammerDB.CheckedPattern = BASpammerDB.CheckedPattern or 1
-BASpammerDB.Channel = BASpammerDB.Channel or 1
-BASpammerDB.Interval = BASpammerDB.Interval or 10
-BASpammerDB.LastTimeSpam = BASpammerDB.LastTimeSpam or 0
+local function EnsureBASpammerDB()
+    -- SavedVariables can replace the table created while this file loads.
+    BASpammerDB = BASpammerDB or {}
+    BASpammerDB.Pattern = BASpammerDB.Pattern or {}
+    for i = 1, 10 do
+        if BASpammerDB.Pattern[i] == nil then BASpammerDB.Pattern[i] = "Пусто" end
+    end
+    if BASpammerDB.Tumbler == nil then BASpammerDB.Tumbler = false end
+    if BASpammerDB.Flag == nil then BASpammerDB.Flag = true end
+    BASpammerDB.CheckedPattern = BASpammerDB.CheckedPattern or 1
+    BASpammerDB.Channel = BASpammerDB.Channel or 1
+    BASpammerDB.Interval = BASpammerDB.Interval or 10
+    BASpammerDB.LastTimeSpam = BASpammerDB.LastTimeSpam or 0
+end
+EnsureBASpammerDB()
 
 local BASpammerRaidIconList = {
 [1] = { text = RAID_TARGET_1, color = {r = 1.0, g = 0.92, b = 0}, icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcons", tCoordLeft = 0, tCoordRight = 0.25, tCoordTop = 0, tCoordBottom = 0.25 };
@@ -260,6 +260,7 @@ BASpammerMarkersDropdown.initialize = function(self, level)
 end
 
 function BASpammer:SetupFrames()
+    EnsureBASpammerDB()
     if BASpammerDB.posx ~= nil and BASpammerDB.posy ~= nil then
         BASpammer:ClearAllPoints()
         BASpammer:SetPoint("TOPLEFT","UIParent", "BOTTOMLEFT", BASpammerDB.posx, BASpammerDB.posy)
@@ -304,9 +305,7 @@ function BASpammer_OnEvent(BASpammer_self, BASpammer_event, BASpammer_arg1, ...)
         end
     end
     if ( BASpammer_event == "VARIABLES_LOADED" ) then
-        if BASpammerDB == nil then
-            BASpammerDB.Flag = false
-        end
+        EnsureBASpammerDB()
         BASpammerDB.Tumbler = false
         BASpammerDB.LastTimeSpam = 0
         BASpammer_SetText()

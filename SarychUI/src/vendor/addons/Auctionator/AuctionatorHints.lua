@@ -465,6 +465,8 @@ local dustCacheState = DUST_CACHE_READY_FOR_NEXT;
 
 function Atr_GetNextDustIntoCache()		-- make sure all the dusts and essences are in the local cache
 										-- only needed after a major patch and a cache wipe
+	-- Do not enter the waiting state until a cache request can actually run.
+	if AuctionatorEnabled ~= true or not AtrScanningTooltip then return; end
 	if (gAtr_dustCacheIndex == 0) then
 		return;
 	end

@@ -2,7 +2,7 @@
 
   
    <!-- Frame to handle all core events --> 
-   <Frame name="Atr_core"> 
+   <Frame name="Atr_core" hidden="true">
       <Scripts> 
          <OnLoad>
 			Atr_RegisterEvents(self);

@@ -178,12 +178,15 @@ end
 -----------------------------------------
 
 function Atr_EventHandler(self, event, ...)
+	-- Lifecycle events can arrive before the embedded runtime is enabled.
+	if event == "VARIABLES_LOADED" then Atr_OnLoad(); return; end
+	if event == "ADDON_LOADED" then Atr_OnAddonLoaded(...); return; end
+	if not IsEnabled() or not AuctionatorLoaded then return; end
+	if not AuctionatorInited and (event:find("^AUCTION_") or event == "NEW_AUCTION_UPDATE") then return; end
 
 	-- zc.md (event, select("#", ...), select(1, ...), select(2, ...), select(3, ...));
 
 
-	if (event == "VARIABLES_LOADED")			then	Atr_OnLoad(); 						end;
-	if (event == "ADDON_LOADED")				then	Atr_OnAddonLoaded(...); 			end;
 	if (event == "AUCTION_ITEM_LIST_UPDATE")	then	Atr_OnAuctionUpdate(...); 			end;
 	if (event == "AUCTION_OWNED_LIST_UPDATE")	then	Atr_OnAuctionOwnedUpdate(); 		end;
 	
@@ -535,8 +538,6 @@ function Atr_OnLoad()
 	
 	kBagIDs[NUM_BAG_SLOTS+2] = KEYRING_CONTAINER;
 
-	AuctionatorLoaded = true;
-
 	SlashCmdList["Auctionator"] = Atr_SlashCmdFunction;
 	
 	SLASH_Auctionator1 = "/auctionator";
@@ -603,6 +604,7 @@ function Atr_OnLoad()
 	------------------
 
 	Atr_InitDETable();
+	AuctionatorLoaded = true;
 
 	if ( IsAddOnLoaded("Blizzard_AuctionUI") ) then		-- need this for AH_QuickSearch since that mod forces Blizzard_AuctionUI to load at a startup
 		Atr_Init();
@@ -682,7 +684,7 @@ function Atr_Init()
 		return;
 	end
 	
-	if not IsEnabled() then
+	if not IsEnabled() or not AuctionatorLoaded then
 		return;
 	end
 
@@ -2279,6 +2281,7 @@ end
 -----------------------------------------
 
 function Atr_OnUpdate(self, elapsed)
+	if not IsEnabled() or not AuctionatorLoaded then return; end
 
 	-- update the global "precision" timer
 	

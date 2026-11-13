@@ -1,4 +1,5 @@
 RaidRollHasLoaded = true
+local raidRollRuntimeReady = false
 
 
 
@@ -32,6 +33,7 @@ RR_ListOfIcons = {"","! ","(N)","(G)","(NG)"}
 
 
 function RR_LootWindowEvent(self, event, ...)
+	if RaidRollEnabled == false or not raidRollRuntimeReady then return end
 	local arg1, arg2, arg3, arg4, arg5, arg6 = ...;
 
 	if event == "CHAT_MSG_ADDON" then
@@ -85,6 +87,7 @@ end
 
 
 function RR_SendItemInfo()
+	if RaidRollEnabled == false or not raidRollRuntimeReady then return end
 local 	player_name,mob_name,mob_guid,numLootItems,
 		LootNumber,WeHaveFoundAnItem,ItemLink,AcceptItem,
 		DontAcceptItem,AcceptableZone,ZoneName,Seperator,
@@ -608,6 +611,16 @@ end
 ----------------------------------------------------------------------------------------------
 
 function RaidRoll_Event(self, event, ...)
+	-- Settings must still initialize while disabled so later enabling works.
+	if event == "VARIABLES_LOADED" then
+		RR_SetupVariables()
+		RR_SetupSlashCommands()
+		RR_EPGP_Setup()
+		RR_LootSettings_Setup()
+		raidRollRuntimeReady = true
+		return
+	end
+	if RaidRollEnabled == false or not raidRollRuntimeReady then return end
 	local arg1, arg2, arg3, arg4, arg5, arg6 = ...;
   
 	if event == "CHAT_MSG_ADDON" and arg1 == "RAIDROLL" then
@@ -629,13 +642,6 @@ function RaidRoll_Event(self, event, ...)
 	end
 
 		
--- Set up the variables with default values and set up the check boxes
-	if event == "VARIABLES_LOADED" then
-		RR_SetupVariables()	
-		RR_SetupSlashCommands()
-		RR_EPGP_Setup()
-		RR_LootSettings_Setup()
-	end
 	
 	
 	if event == "GUILD_ROSTER_UPDATE" then
@@ -2961,4 +2967,4 @@ function RR_GetClassColor(Class)
 
 	return ClassColor
 
-end 
+end

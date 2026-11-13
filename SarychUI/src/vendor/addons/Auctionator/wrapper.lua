@@ -46,7 +46,9 @@ local function ApplyAuctionatorRuntime(enable)
 		if Atr_Init and IsAddOnLoaded and IsAddOnLoaded("Blizzard_AuctionUI") then
 			Atr_Init()
 		end
+		if Atr_core then Atr_core:Show() end
 	else
+		if Atr_core then Atr_core:Hide() end
 		if AuctionFrame and AuctionFrame:IsShown() and Atr_IsAuctionatorTab then
 			local selectedTab = PanelTemplates_GetSelectedTab(AuctionFrame)
 			if Atr_IsAuctionatorTab(selectedTab) and AuctionFrameTab1 then
