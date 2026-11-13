@@ -2658,7 +2658,7 @@ M["Настройки игры: текст боя, имена, индикато�
 M["Дальность, скорость и сглаживание камеры, скорость и инверсия мыши."] = "Distancia, velocidad y suavizado de cámara, velocidad e inversión del ratón."
 M["Настройки видео, кроме разрешения, оконного режима и графического API. Некоторые вступают в силу только после перезапуска клиента."] = "Opciones de vídeo excepto resolución, modo ventana y API gráfica. Algunas solo tras reiniciar el cliente."
 M["Громкость и настройки звука, кроме устройства вывода."] = "Volúmenes y opciones de sonido excepto el dispositivo de salida."
-M["Вкладки чата с типами сообщений, каналами, размером шрифта и фоном, каналы, в которых вы состоите, и цвета чата."] = "Pestañas de chat con tipos de mensaje, canales, tamaño de fuente y fondo, canales unidos y colores."
+M["Вкладки чата с типами сообщений, размером шрифта и фоном, а также цвета чата. Подписки на каналы настраиваются в меню Blizzard."] = "Pestañas de chat con tipos de mensaje, tamaño de fuente, fondo y colores. Las suscripciones a canales se configuran en el menú de Blizzard."
 M["Друзья с заметками. Только добавляет друзей, никого не удаляет."] = "Amigos con notas. Solo añade amigos, no elimina a nadie."
 M["Игнорируемые игроки. Только добавляет, никого не удаляет."] = "Jugadores ignorados. Solo añade, no elimina a nadie."
 M["Экспорт"] = "Exportar"
@@ -2852,6 +2852,9 @@ SarychUI.RegisterUIMap("esES", {
     ["ui.chat.data_bar.alt_desc"] = "Muestra el valor alternativo mientras el modo {SUI_MODIFIER} está activo y restaura el principal al soltar la tecla. Los ajustes de texto y descripción se aplican a ambos valores de esta zona.",
     ["ui.chat.data_bar.alt_content"] = "Valor con {SUI_MODIFIER}",
     ["ui.chat.data_bar.alt_same"] = "Valor principal",
+    ["ui.chat.data_bar.tooltip_appearance"] = "Apariencia de las descripciones",
+    ["ui.chat.data_bar.tooltip_style"] = "Estilo de descripción",
+    ["ui.chat.data_bar.tooltip_style_classic"] = "Clásico",
     ["ui.chat.data_bar.content"] = "Contenido",
     ["ui.chat.data_bar.text"] = "Mostrar texto",
     ["ui.chat.data_bar.text_desc"] = "Mostrar la etiqueta antes del valor. Al desactivarlo, el valor sigue visible.",

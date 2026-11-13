@@ -60,13 +60,116 @@ function DT:GetValues()
     return values
 end
 
+-- Wrath's embedded |T textures do not fade reliably with a FontString.
+-- Render panel icons as normal child regions, sharing the slot's opacity.
+
+function DT:LayoutInline(slot)
+    local runs = slot.inlineRuns
+    if not runs then return end
+    local available = math.max(0, slot:GetWidth() - 4)
+    local width = math.min(slot.inlineWidth, available)
+    local x = 2
+    if slot.justify == "RIGHT" then x = x + available - width
+    elseif slot.justify == "CENTER" then x = x + (available - width) / 2 end
+    local remaining = width
+    for _, run in ipairs(runs) do
+        local shownWidth = math.min(run.inlineWidth, remaining)
+        run:ClearAllPoints()
+        run:SetPoint("LEFT", slot, "LEFT", x + run.offsetX, run.offsetY)
+        if shownWidth > 0 and (not run.isIcon or shownWidth == run.inlineWidth) then
+            run:SetWidth(shownWidth)
+            run:Show()
+        else
+            run:Hide()
+        end
+        x = x + shownWidth
+        remaining = remaining - shownWidth
+    end
+end
+
+function DT:RenderSlotText(slot, text)
+    for _, region in ipairs(slot.inlineTextPool or {}) do region:Hide() end
+    for _, region in ipairs(slot.inlineIconPool or {}) do region:Hide() end
+    slot.inlineRuns = nil
+    slot.text:SetText(text)
+    if type(text) ~= "string" or not text:find("|T[^|]+|t") then
+        slot.text:Show()
+        return
+    end
+
+    slot.text:Hide()
+    slot.inlineTextPool = slot.inlineTextPool or {}
+    slot.inlineIconPool = slot.inlineIconPool or {}
+    slot.inlineRuns, slot.inlineWidth = {}, 0
+    local textCount, iconCount = 0, 0
+    local font, size, flags = slot.text:GetFont()
+    local color = ""
+    local function Append(region, width, offsetX, offsetY)
+        region.inlineWidth, region.offsetX, region.offsetY = width, offsetX or 0, offsetY or 0
+        slot.inlineRuns[#slot.inlineRuns + 1] = region
+        slot.inlineWidth = slot.inlineWidth + width
+    end
+    local function AppendText(value)
+        if value == "" then return end
+        textCount = textCount + 1
+        local region = slot.inlineTextPool[textCount]
+        if not region then
+            region = slot:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            region:SetJustifyH("LEFT")
+            region:SetWordWrap(false)
+            slot.inlineTextPool[textCount] = region
+        end
+        region:SetFont(font, size, flags)
+        region:SetTextColor(1, 1, 1, 1)
+        region:SetWidth(0)
+        region:SetText(color .. value)
+        Append(region, region:GetStringWidth())
+        -- Carry a color span across an icon; |r ends that span.
+        for code in value:gmatch("|[cr][^|]*") do
+            if code:sub(1, 2) == "|r" then color = ""
+            else color = code:match("^|c%x%x%x%x%x%x%x%x") or color end
+        end
+    end
+    local position = 1
+    while true do
+        local first, last, markup = text:find("|T([^|]+)|t", position)
+        if not first then AppendText(text:sub(position)); break end
+        AppendText(text:sub(position, first - 1))
+        local fields = {}
+        for field in (markup .. ":"):gmatch("(.-):") do fields[#fields + 1] = field end
+        local height = tonumber(fields[2]) or 0
+        if height <= 0 then height = size end
+        local width = tonumber(fields[3]) or 0
+        if width <= 0 then width = height end
+        iconCount = iconCount + 1
+        local icon = slot.inlineIconPool[iconCount]
+        if not icon then
+            icon = slot:CreateTexture(nil, "OVERLAY")
+            icon.isIcon = true
+            slot.inlineIconPool[iconCount] = icon
+        end
+        icon:SetTexture(fields[1])
+        icon:SetHeight(height)
+        local sourceWidth, sourceHeight = tonumber(fields[6]), tonumber(fields[7])
+        local left, right, top, bottom = tonumber(fields[8]), tonumber(fields[9]), tonumber(fields[10]), tonumber(fields[11])
+        if sourceWidth and sourceWidth > 0 and sourceHeight and sourceHeight > 0 and left and right and top and bottom then
+            icon:SetTexCoord(left / sourceWidth, right / sourceWidth, top / sourceHeight, bottom / sourceHeight)
+        else
+            icon:SetTexCoord(0, 1, 0, 1)
+        end
+        Append(icon, width, tonumber(fields[4]), tonumber(fields[5]))
+        position = last + 1
+    end
+    self:LayoutInline(slot)
+end
+
 function DT:SetSlotText(slot, text)
     if slot.textEnabled == false and type(text) == "string" then
         -- Imported values use "label: |cAARRGGBBvalue". Strip only that label;
         -- clock separators, coordinates, coin textures and status text stay intact.
         text = text:match("^.-:%s+(|c%x%x%x%x%x%x%x%x.*)$") or text
     end
-    slot.text:SetText(text)
+    self:RenderSlotText(slot, text)
 end
 
 function DT:IsHovered(provider)
@@ -74,15 +177,65 @@ function DT:IsHovered(provider)
         and self.hoveredSlot.tooltipEnabled and self.hoveredSlot:IsShown()
 end
 
+function DT:ApplyTooltipLineFont(line)
+    local tooltip = self.tooltip
+    local compact = SarychUI.db.profile.modules.chat.dataBarTooltipStyle == "sarychui"
+    for _, side in ipairs({"Left", "Right"}) do
+        local text = _G[tooltip:GetName() .. "Text" .. side .. line]
+        if text then
+            local original = self.tooltipFonts[text]
+            if not original then
+                original = {text:GetFont()}
+                self.tooltipFonts[text] = original
+            end
+            if original[1] then
+                -- Keep the client's font face (including localized glyphs).
+                text:SetFont(original[1], compact and (line == 1 and 12 or 11) or original[2], original[3])
+            end
+        end
+    end
+end
+
+function DT:ApplyTooltipStyle()
+    if not self.tooltip then return end
+    local db = SarychUI.db.profile.modules.chat
+    local theme = SarychUI.OptionsTheme
+    if db.dataBarTooltipStyle == "sarychui" and theme and theme.ApplyFlat then
+        theme:ApplyFlat(self.tooltip, theme.colors.tooltipBg, theme.colors.border)
+    else
+        local classic = self.tooltipClassic
+        self.tooltip:SetBackdrop(classic.backdrop)
+        self.tooltip:SetBackdropColor(unpack(classic.background))
+        self.tooltip:SetBackdropBorderColor(unpack(classic.border))
+    end
+    for line = 1, self.tooltip:NumLines() do self:ApplyTooltipLineFont(line) end
+    -- Show recalculates the native tooltip bounds after changing visible fonts.
+    if self.tooltip:IsShown() then self.tooltip:Show() end
+end
+
 function DT:SetupTooltip(provider)
     if not self:IsHovered(provider) then return false end
     if not self.tooltip then
         self.tooltip = CreateFrame("GameTooltip", "SarychUIChatDataTooltip", UIParent, "GameTooltipTemplate")
         self.tooltip:SetFrameStrata("TOOLTIP")
+        self.tooltipClassic = {
+            backdrop = self.tooltip:GetBackdrop(),
+            background = {self.tooltip:GetBackdropColor()},
+            border = {self.tooltip:GetBackdropBorderColor()},
+        }
+        self.tooltipFonts = {}
+        -- Providers add rows after SetupTooltip; style each row before Show
+        -- calculates its bounds. This also covers dynamically allocated rows.
+        local function StyleAddedLine(tooltip)
+            DT:ApplyTooltipLineFont(tooltip:NumLines())
+        end
+        hooksecurefunc(self.tooltip, "AddLine", StyleAddedLine)
+        hooksecurefunc(self.tooltip, "AddDoubleLine", StyleAddedLine)
     end
     self.tooltip:Hide()
     self.tooltip:SetOwner(self.hoveredSlot, "ANCHOR_TOPLEFT")
     self.tooltip:ClearLines()
+    self:ApplyTooltipStyle()
     return true
 end
 
@@ -135,13 +288,13 @@ function DT:SetAltState(pressed)
     for _, slot in ipairs(self.slots) do
         slot.kind = pressed and slot.altEnabled and slot.altKind or slot.baseKind
         slot.provider = self.providers[slot.kind]
-        slot.text:SetTextColor(1, 1, 1, 0.8)
+        slot.text:SetTextColor(1, 1, 1, 1)
         slot:EnableMouse(slot.kind ~= "NONE")
         if slot.provider then
             table.insert(slot.provider.slots, slot)
             self:SetSlotText(slot, slot.provider.value or "")
         else
-            slot.text:SetText("")
+            self:SetSlotText(slot, "")
         end
     end
     return true

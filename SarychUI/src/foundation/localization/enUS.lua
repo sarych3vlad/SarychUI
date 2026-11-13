@@ -2713,7 +2713,7 @@ M["Настройки игры: текст боя, имена, индикато�
 M["Дальность, скорость и сглаживание камеры, скорость и инверсия мыши."] = "Camera distance, speed and smoothing, mouse speed and inversion."
 M["Настройки видео, кроме разрешения, оконного режима и графического API. Некоторые вступают в силу только после перезапуска клиента."] = "Video options except resolution, window mode and graphics API. Some take effect only after a client restart."
 M["Громкость и настройки звука, кроме устройства вывода."] = "Volumes and sound options except the output device."
-M["Вкладки чата с типами сообщений, каналами, размером шрифта и фоном, каналы, в которых вы состоите, и цвета чата."] = "Chat tabs with their message types, channels, font size and background, the joined channels and the chat colors."
+M["Вкладки чата с типами сообщений, размером шрифта и фоном, а также цвета чата. Подписки на каналы настраиваются в меню Blizzard."] = "Chat tabs with their message types, font size, background and chat colors. Channel subscriptions are managed in Blizzard's menu."
 M["Друзья с заметками. Только добавляет друзей, никого не удаляет."] = "Friends with their notes. Only adds friends, nobody is removed."
 M["Игнорируемые игроки. Только добавляет, никого не удаляет."] = "Ignored players. Only adds players, nobody is removed."
 M["Экспорт"] = "Export"
@@ -2912,6 +2912,9 @@ SarychUI.RegisterUIMap("enUS", {
     ["ui.chat.data_bar.alt_desc"] = "Shows the alternate value while {SUI_MODIFIER} mode is active, then restores the main value when released. Label and tooltip settings apply to both values in this region.",
     ["ui.chat.data_bar.alt_content"] = "Value with {SUI_MODIFIER}",
     ["ui.chat.data_bar.alt_same"] = "Main value",
+    ["ui.chat.data_bar.tooltip_appearance"] = "Tooltip appearance",
+    ["ui.chat.data_bar.tooltip_style"] = "Tooltip style",
+    ["ui.chat.data_bar.tooltip_style_classic"] = "Classic",
     ["ui.chat.data_bar.content"] = "Content",
     ["ui.chat.data_bar.text"] = "Show text",
     ["ui.chat.data_bar.text_desc"] = "Show the label before the value. Turning this off keeps the value visible.",

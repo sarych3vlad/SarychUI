@@ -125,8 +125,7 @@ end
 
 local function SetStatColor(fs, color)
     if fs then
-        fs:SetTextColor(color[1], color[2], color[3], TEXT_ALPHA)
-        fs:SetAlpha(TEXT_ALPHA)
+        fs:SetTextColor(color[1], color[2], color[3], 1)
     end
 end
 
@@ -435,6 +434,9 @@ local function EnsureDataBar()
     local function MakeValue(position, justify, point)
         local slot = CreateFrame("Button", nil, frame)
         slot.position = position
+        slot.justify = justify
+        -- One opacity for both text and ordinary icon regions.
+        slot:SetAlpha(TEXT_ALPHA)
         slot:SetHeight(16)
         slot:SetPoint(point, frame, point, 0, 0)
         slot:RegisterForClicks("LeftButtonUp", "RightButtonUp")
@@ -442,10 +444,10 @@ local function EnsureDataBar()
         text:SetPoint("LEFT", slot, "LEFT", 2, 0)
         text:SetPoint("RIGHT", slot, "RIGHT", -2, 0)
         text:SetJustifyH(justify)
-        text:SetTextColor(1, 1, 1, TEXT_ALPHA)
-        text:SetAlpha(TEXT_ALPHA)
+        text:SetTextColor(1, 1, 1, 1)
         text:SetWordWrap(false)
         slot.text = text
+        slot:SetScript("OnSizeChanged", function(self) DT:LayoutInline(self) end)
         table.insert(frame.slots, slot)
     end
     MakeValue("left", "LEFT", "LEFT")

@@ -2724,12 +2724,7 @@ function SarychUI:ApplyQuickSettings()
 		MoveViewOutStart(50000)
 	end
 
-	-- Reset Blizzard chat windows first, then apply the SarychUI chat layout.
-	if FCF_ResetChatWindows then
-		FCF_ResetChatWindows()
-	end
-
-	-- Apply chat settings
+	-- Apply our explicit layout without restoring Blizzard's default channels.
 	self:ApplyQuickChatSettings()
 
 	-- Notify user
@@ -2835,10 +2830,29 @@ function SarychUI:ApplyQuickChatSettings()
 	end
 
 	-- Tab titles follow the client locale (Общий / Журнал боя on ruRU).
-	-- Channel names come from ChatBar locale, which matches 3.3.5 zone channels.
+	-- ChatBar supplies the join request; only the client can resolve its name/ID.
 	local generalTabName = LocaleChatString("GENERAL", SarychUI:T("ui.options_c45fe0a494"))
 	local combatLogTabName = SarychUI:T("ui.options_67ade741ae")
 	local lfgChannel = LocaleChatString("CHATBAR_LFG", LocaleChatString("LOOKING_FOR_GROUP", SarychUI:T("ui.options_c74925ddb2")))
+	local chatModule = self:GetModule("chat")
+	local function IsLFGChannel(name)
+		return name == lfgChannel or (chatModule and chatModule.GetChannelStorageKey
+			and chatModule:GetChannelStorageKey(name) == "LookingForGroup")
+	end
+	local function JoinedLFGName()
+		local channels = GetChannelList and { GetChannelList() } or {}
+		for i = 2, #channels, 2 do
+			if IsLFGChannel(channels[i]) then return channels[i] end
+		end
+	end
+	local joinedLFG = JoinedLFGName()
+	if joinedLFG then
+		lfgChannel = joinedLFG
+	elseif EnumerateServerChannels then
+		for _, name in ipairs({ EnumerateServerChannels() }) do
+			if IsLFGChannel(name) then lfgChannel = name; break end
+		end
+	end
 
 	-- Geometry from Sporta chat-cache. Tabs: Общий, Журнал, General, /w, Loot.
 	local chatWindowsSettings = {
@@ -2859,7 +2873,6 @@ function SarychUI:ApplyQuickChatSettings()
 				"TARGETICONS", "BN_WHISPER", "BN_WHISPER_INFORM", "BN_CONVERSATION",
 				"BN_INLINE_TOAST_ALERT", "OPENING"
 			},
-			channels = {},
 			position = {"BOTTOMLEFT", 0.018970, 0.160158},
 			dimensions = {389.272827, 124.266113}
 		},
@@ -2874,7 +2887,6 @@ function SarychUI:ApplyQuickChatSettings()
 				"OPENING", "TRADESKILLS", "PET_INFO",
 				"COMBAT_XP_GAIN", "COMBAT_HONOR_GAIN", "COMBAT_MISC_INFO"
 			},
-			channels = {},
 		},
 		{
 			index = 3,
@@ -2884,7 +2896,6 @@ function SarychUI:ApplyQuickChatSettings()
 			locked = true,
 			shown = false,
 			messages = {},
-			channels = { lfgChannel },
 		},
 		{
 			index = 4,
@@ -2894,7 +2905,6 @@ function SarychUI:ApplyQuickChatSettings()
 			locked = true,
 			shown = false,
 			messages = {"WHISPER", "CHANNEL"},
-			channels = {},
 		},
 		{
 			index = 5,
@@ -2904,31 +2914,8 @@ function SarychUI:ApplyQuickChatSettings()
 			locked = true,
 			shown = false,
 			messages = {"SYSTEM", "PARTY_LEADER", "RAID_LEADER", "RAID_WARNING", "LOOT", "MONEY", "COMBAT_MISC_INFO"},
-			channels = {},
 		}
 	}
-
-	local function ClearChatFrameChannels(chatFrame)
-		if not chatFrame then return end
-		if ChatFrame_RemoveAllChannels then
-			ChatFrame_RemoveAllChannels(chatFrame)
-			return
-		end
-		if not ChatFrame_RemoveChannel then
-			return
-		end
-		local copy = {}
-		for _, list in pairs({ chatFrame.channelList, chatFrame.zoneChannelList }) do
-			if type(list) == "table" then
-				for i = 1, #list do
-					copy[#copy + 1] = list[i]
-				end
-			end
-		end
-		for i = 1, #copy do
-			ChatFrame_RemoveChannel(chatFrame, copy[i])
-		end
-	end
 
 	local function ClearChatFrameMessageGroups(chatFrame)
 		if ChatFrame_RemoveAllMessageGroups then
@@ -2965,6 +2952,11 @@ function SarychUI:ApplyQuickChatSettings()
 	local function ConfigureChatWindow(index, settings)
 		local chatFrame = CreateChatWindowIfNeeded(index, settings.name)
 		if not chatFrame then return false end
+		-- A docked, inactive tab is still an open saved window. Hide() only
+		-- controls its current visibility; saved shown=false means closed.
+		if SetChatWindowShown then
+			SetChatWindowShown(chatFrame:GetID(), 1)
+		end
 
 		if FCF_SetChatWindowFontSize then
 			FCF_SetChatWindowFontSize(nil, chatFrame, settings.size)
@@ -3026,21 +3018,8 @@ function SarychUI:ApplyQuickChatSettings()
 			end
 		end
 
-		ClearChatFrameChannels(chatFrame)
-		if settings.channels then
-			for _, channel in ipairs(settings.channels) do
-				if channel and channel ~= "" then
-					if JoinPermanentChannel then
-						JoinPermanentChannel(channel, nil, chatFrame:GetID(), 1)
-					end
-					if ChatFrame_AddChannel then
-						ChatFrame_AddChannel(chatFrame, channel)
-					end
-				end
-			end
-		end
 
-		return true
+		return chatFrame
 	end
 
 	for i = 3, MAX_CHAT_FRAMES do
@@ -3053,8 +3032,14 @@ function SarychUI:ApplyQuickChatSettings()
 		end
 	end
 
+	local configuredFrames = {}
+	local general
 	for _, settings in ipairs(chatWindowsSettings) do
-		ConfigureChatWindow(settings.index, settings)
+		local frame = ConfigureChatWindow(settings.index, settings)
+		if frame then
+			configuredFrames[#configuredFrames + 1] = frame
+			if settings.index == 3 then general = frame end
+		end
 	end
 
 	-- Undock/restore can fight SetPoint once; pin Общий geometry again at the end.
@@ -3089,25 +3074,53 @@ function SarychUI:ApplyQuickChatSettings()
 			FCF_SetLocked(chatFrame, true)
 		end
 	end
-	self:RestoreQuickChatChannel()
+	local function ClearWindowChannels(frame)
+		-- RemoveAllChannels reads the Lua cache; refresh native saved state first.
+		if ChatFrame_RegisterForChannels and GetChatWindowChannels then
+			ChatFrame_RegisterForChannels(frame, GetChatWindowChannels(frame:GetID()))
+		end
+		if ChatFrame_RemoveAllChannels then ChatFrame_RemoveAllChannels(frame) end
+	end
+	-- Clear the target BEFORE joining, so we cannot erase a pending native join.
+	for _, frame in ipairs(configuredFrames) do ClearWindowChannels(frame) end
+	if general and ChatFrame_AddChannel then
+		local ok = joinedLFG ~= nil
+		local returnedName
+		if not ok and JoinPermanentChannel then
+			local result, zoneOrError, name = pcall(JoinPermanentChannel, lfgChannel, nil, general:GetID(), 1)
+			ok, returnedName = result, name
+			if not result and geterrorhandler then geterrorhandler()(zoneOrError) end
+		end
+		if ok then
+			-- Blizzard's JOIN_CHANNEL popup calls AddChannel independently of
+			-- join return values. The native API decides whether it can subscribe.
+			local name = JoinedLFGName()
+			if not name then
+				name = type(returnedName) == "string" and returnedName ~= "" and returnedName or lfgChannel
+			end
+			ChatFrame_AddChannel(general, name)
+		end
+	end
+	-- Some clients also attach the main tab during join. Only clear OTHER
+	-- preset windows afterward; the new General subscription must survive.
+	for _, frame in ipairs(configuredFrames) do
+		if frame ~= general then ClearWindowChannels(frame) end
+	end
+	if general and ChatFrame_RegisterForChannels and GetChatWindowChannels then
+		ChatFrame_RegisterForChannels(general, GetChatWindowChannels(general:GetID()))
+	end
+	if FCFDock_SelectWindow and GENERAL_CHAT_DOCK and _G.ChatFrame1 then
+		FCFDock_SelectWindow(GENERAL_CHAT_DOCK, _G.ChatFrame1)
+	end
+	self:RestoreQuickChatTabNames()
 	if LootHistory_UpdateLootTabButton then
 		LootHistory_UpdateLootTabButton()
 	end
 end
 
--- Keep the joined LFG channel visible in General without changing membership.
+-- Migrate legacy tab titles without changing the user's channel selections.
 local quickChatWatch = CreateFrame("Frame")
-local function AttachJoinedLFG()
-    if not GetChannelName or not ChatFrame_AddChannel then return end
-    local frame = _G.ChatFrame3
-    if not frame or not GetChatWindowInfo or GetChatWindowInfo(3) ~= "General" then return end
-    local name = CHATBAR_LFG or LOOKING_FOR_GROUP or SarychUI:T("ui.options_c74925ddb2")
-    local id, joinedName = GetChannelName(name)
-    if id and id > 0 then
-        ChatFrame_AddChannel(frame, joinedName or name)
-    end
-end
-function SarychUI:RestoreQuickChatChannel()
+function SarychUI:RestoreQuickChatTabNames()
     if not GetChatWindowInfo then return end
     local names = {
         ["ui.options_9239ee2cda"] = "General",
@@ -3124,16 +3137,10 @@ function SarychUI:RestoreQuickChatChannel()
             FCF_SetWindowName(frame, names[name])
         end
     end
-    AttachJoinedLFG()
 end
 quickChatWatch:RegisterEvent("PLAYER_ENTERING_WORLD")
-quickChatWatch:RegisterEvent("CHANNEL_UI_UPDATE")
-quickChatWatch:SetScript("OnEvent", function(_, event)
-    if event == "PLAYER_ENTERING_WORLD" then
-        SarychUI:RestoreQuickChatChannel()
-    else
-        AttachJoinedLFG()
-    end
+quickChatWatch:SetScript("OnEvent", function()
+    SarychUI:RestoreQuickChatTabNames()
 end)
 
 -- Initialize options when AddOn is ready

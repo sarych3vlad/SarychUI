@@ -32,6 +32,7 @@ local function DataBarRegionOptions(position, label, default, order)
     end
     return {
         type = "group", name = label, inline = true, order = order,
+        hidden = function() return GetSetting("dataBarEnabled", 0) ~= 1 end,
         disabled = function() return GetSetting("dataBarEnabled", 0) ~= 1 end,
         args = {
             content = {
@@ -95,6 +96,29 @@ local function DataBarRegionOptions(position, label, default, order)
                 set = function(_, value)
                     SarychUI.db.profile.modules.chat[key .. "Alt"] = value
                     Apply()
+                end,
+            },
+        },
+    }
+end
+
+local function DataBarStyleOptions()
+    return {
+        type = "group", name = "ui.chat.data_bar.tooltip_appearance", inline = true, order = 2,
+        hidden = function() return GetSetting("dataBarEnabled", 0) ~= 1 end,
+        args = {
+            style = {
+                type = "select", name = "ui.chat.data_bar.tooltip_style", order = 1, width = "full",
+                values = function()
+                    return {
+                        classic = SarychUI:T("ui.chat.data_bar.tooltip_style_classic"),
+                        sarychui = "SarychUI",
+                    }
+                end,
+                get = function() return GetSetting("dataBarTooltipStyle", "classic") end,
+                set = function(_, value)
+                    SarychUI.db.profile.modules.chat.dataBarTooltipStyle = value
+                    _G.SarychUI_ChatDataTexts:ApplyTooltipStyle()
                 end,
             },
         },
@@ -1161,18 +1185,10 @@ function module:GetOptions()
                                     RefreshChatOptionsPanel()
                                 end,
                             },
-                            dataBarDetails = {
-                                type = "group",
-                                name = "",
-                                order = 2,
-                                inline = true,
-                                hidden = function() return GetSetting("dataBarEnabled", 0) ~= 1 end,
-                                args = {
-                                    left = DataBarRegionOptions("left", "ui.chat.data_bar.left", "Memory", 1),
-                                    middle = DataBarRegionOptions("middle", "ui.chat.data_bar.middle", "MS", 2),
-                                    right = DataBarRegionOptions("right", "ui.chat.data_bar.right", "FPS", 3),
-                                },
-                            },
+                            tooltipStyle = DataBarStyleOptions(),
+                            left = DataBarRegionOptions("left", "ui.chat.data_bar.left", "Memory", 3),
+                            middle = DataBarRegionOptions("middle", "ui.chat.data_bar.middle", "MS", 4),
+                            right = DataBarRegionOptions("right", "ui.chat.data_bar.right", "FPS", 5),
                         },
                     },
                 },

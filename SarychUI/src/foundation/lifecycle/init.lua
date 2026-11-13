@@ -5,7 +5,7 @@ local pairs = pairs
 local gsub = string.gsub
 
 local ADDON_NAME = "SarychUI"
-local VERSION = "1.4.1"
+local VERSION = "1.4.1A"
 
 -- Check for required libraries (LibStub is embedded in SarychUI/src/vendor/libraries/)
 local LibStub = _G.LibStub

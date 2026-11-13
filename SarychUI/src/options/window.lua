@@ -1039,7 +1039,7 @@ function OW:RefreshFooterCredit()
 	if not credit then
 		return
 	end
-    local ver = (SUI and SUI.version) or "1.4.1"
+    local ver = (SUI and SUI.version) or "1.4.1A"
 	local author = (SarychUI and SarychUI.T and SarychUI:T("ui.options_416f697182")) or SarychUI:T("ui.options_416f697182")
 	credit:SetText(author .. SarychUI:T("ui.options_0b5a27f988") .. tostring(ver))
 end

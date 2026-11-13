@@ -292,12 +292,7 @@ function ChatBar_ChannelShow(index)
 					--Hide Sky channels
 					return;
 				end
-				for i, bogusName in ipairs(BOGUS_CHANNELS) do
-					if channelName == bogusName then
-						--Hide reorder channels
-						return;
-					end
-				end
+
 			elseif IsAddOnLoaded("CallToArms") and channelName == CTA_DEFAULT_RAID_CHANNEL then
 				--Hide CallToArms channel
 				return;
@@ -972,15 +967,7 @@ function ChatBar_CreateFrameMenu()
 	end
 	UIDropDownMenu_AddButton(info, UIDROPDOWNMENU_MENU_LEVEL);
 	
-	--Reorder Channels
-	local info = {};
-	info.text = CHATBAR_MENU_MAIN_REORDER;
-	if (not Chronos) then
-		info.text = info.text..CHATBAR_MENU_MAIN_REQCHRONOS
-		info.disabled = 1;
-	end
-	info.func = ChatBar_ReorderChannels;
-	UIDropDownMenu_AddButton(info, UIDROPDOWNMENU_MENU_LEVEL);
+
 end
 
 function ChatBar_CreateHiddenButtonsMenu()
@@ -1013,20 +1000,6 @@ function ChatBar_CreateButtonMenu()
 		local channelNum, channelName = GetChannelName(tonumber(channelIndex));
 		local channelShortName = ChatBar_GetFirstWord(channelName);
 		
-		--Block
-		local info = {};
-		info.text = format(CHATBAR_MENU_CHANNEL_BLOCK, ChannelDisplayName(channelName));
-		info.arg1 = channelShortName;
-		info.func = function(self, channel, arg2, checked) ChatBar_ToggleChatChannel(checked, channel) end;
-		info.checked = not ChatBar_IsListeningForChannel(channelShortName);
-		UIDropDownMenu_AddButton(info, UIDROPDOWNMENU_MENU_LEVEL);
-		
-		--Leave
-		local info = {};
-		info.text = CHATBAR_MENU_CHANNEL_LEAVE;
-		info.func = function() LeaveChannelByName(channelNum) end;
-		UIDropDownMenu_AddButton(info, UIDROPDOWNMENU_MENU_LEVEL);
-
 		--Channel User List
 		local info = {};
 		info.text = CHATBAR_MENU_CHANNEL_LIST;
@@ -1203,27 +1176,6 @@ function ChatBar_IsListeningForChatType(chatType)
 	return false;
 end
 
-function ChatBar_IsListeningForChannel(channel)
-	local frame = SELECTED_CHAT_FRAME or DEFAULT_CHAT_FRAME
-	local channelList = frame.channelList;
-	local zoneChannelList = frame.zoneChannelList;
-	if ( channelList ) then
-		for index, value in pairs(channelList) do
-			if ( value == channel ) then
-				return true;
-			end
-		end
-	end
-	if ( zoneChannelList ) then
-		for index, value in pairs(zoneChannelList) do
-			if ( value == channel ) then
-				return true;
-			end
-		end
-	end
-	return false;
-end
-
 function ChatBar_ToggleChatMessageGroup(checked, chatTypeIndex)
 	local frame = SELECTED_CHAT_FRAME or DEFAULT_CHAT_FRAME
 	local chatType = (ChatBar_ChatTypes[chatTypeIndex].chatGroup or ChatBar_ChatTypes[chatTypeIndex].type);
@@ -1243,15 +1195,6 @@ function ChatBar_ToggleChatMessageGroup(checked, chatTypeIndex)
 				ChatFrame_RemoveMessageGroup(frame, v);
 			end
 		end
-	end
-end
-
-function ChatBar_ToggleChatChannel(checked, channel)
-	local frame = SELECTED_CHAT_FRAME or DEFAULT_CHAT_FRAME
-	if ( checked ) then
-		ChatFrame_AddChannel(frame, channel);
-	else
-		ChatFrame_RemoveChannel(frame, channel);
 	end
 end
 
@@ -1530,141 +1473,3 @@ function ChatBar_GetFirstWord(s)
 	local firstWord, count = gsub(s, "%s.*", "")
 	return firstWord;
 end
-
-
---------------------------------------------------
--- Reorder Channels
---------------------------------------------------
-
--- Standard Channel Order
-STANDARD_CHANNEL_ORDER = {
-	[CHATBAR_GENERAL] = 1,
-	[CHATBAR_TRADE] = 2,
-	[CHATBAR_LFG] = 3,
-	[CHATBAR_LOCALDEFENSE] = 4,
-	[CHATBAR_WORLDDEFENSE] = 5,
-	[CHATBAR_GUILDRECRUITMENT] = 6,
-};
-
-BOGUS_CHANNELS = {
-	"morneusgbyfyh",
-	"akufbhfeuinjke",
-	"lkushawdewui",
-	"auwdbadwwho",
-	"uawhbliuernb",
-	"nvcuoiisnejfk",
-	"cmewhumimr",
-	"cliuchbwubine",
-	"omepwucbawy",
-	"yuiwbefmopou"
-};
-
-CHATBAR_CAPITAL_CITIES = {
-	[CHATBAR_ORGRIMMAR] = 1,
-	[CHATBAR_STORMWIND] = 1,
-	[CHATBAR_IRONFORGE] = 1,
-	[CHATBAR_DARNASSUS] = 1,
-	[CHATBAR_UNDERCITY] = 1,
-	[CHATBAR_THUNDERBLUFF] = 1,
-	[CHATBAR_SHATRATH] = 1,
-	[CHATBAR_EXODAR] = 1,
-	[CHATBAR_SILVERMOON] = 1,
-	[CHATBAR_DALARAN] = 1,
-};
-
---
---	reorderChannels()
---		Stores current channels, Leaves all channels and then rejoins them in a standard ordering.
---		
---
-function ChatBar_ReorderChannels()
-	if UnitOnTaxi("player") then
-		-- For some reason channels do not register join/leave in a reasonable amount of time while in transit.
-		return;
-	end
-	
-	local newChannelOrder = {};
-	local openChannelIndex = 1;
-	local currIdentifier, simpleName, inGlobalComm, _;
-	
-	--Get Channel List
-	local list = {GetChannelList()};
-	local currChannelList = {};
-	for i=1, #list, 2 do
-		tinsert(currChannelList, tonumber(list[i]), list[i+1]);
-	end
-	
-	-- Find current standard channels: store and leave
-	for index, chanName in pairs(currChannelList) do
-		if type(chanName) == "string" then
-			_, _, simpleName = strfind(chanName, "(%w+).*");
-			if STANDARD_CHANNEL_ORDER[simpleName] then
-				if ( simpleName == "GlobalComm" ) then 
-					inGlobalComm = true;
-				else
-					newChannelOrder[STANDARD_CHANNEL_ORDER[simpleName]] = simpleName;
-				end
-				LeaveChannelByName(chanName);
-				currChannelList[index] = nil;
-			end
-		end
-	end
-	
-	-- Find current non-standard channels: store and leave
-	for index, chanName in pairs(currChannelList) do
-		if type(chanName) == "string" then
-			while newChannelOrder[openChannelIndex] do
-				openChannelIndex = openChannelIndex + 1;
-			end
-			newChannelOrder[openChannelIndex] = chanName;
-			LeaveChannelByName(chanName);
-			openChannelIndex = openChannelIndex + 1;
-		end
-	end
-	
-	if inGlobalComm then
-		while newChannelOrder[openChannelIndex] do
-			openChannelIndex = openChannelIndex + 1;
-		end
-		newChannelOrder[openChannelIndex] = "GlobalComm";
-	end
-	
-	Chronos.schedule(.6, ChatBar_joinChannelsInOrder, newChannelOrder);
-	Chronos.schedule(1.2, function() end );
-	Chronos.schedule(2, ListChannels );
-end
-
-function ChatBar_joinChannelsInOrder(newChannelOrder)
-	
-	local inACity = CHATBAR_CAPITAL_CITIES[GetRealZoneText()];
-	
-	-- Join channels in new order
-	for i=1, 10 do
-		if newChannelOrder[i] then
-			if ChannelManager_CustomChannelPasswords and ChannelManager_CustomChannelPasswords[newChannelOrder[i]] then
-				JoinChannelByName(newChannelOrder[i], ChannelManager_CustomChannelPasswords[newChannelOrder[i]]);
-			else
-				JoinChannelByName(newChannelOrder[i]);
-			end
-		else
-			-- Allow for hidden trade channel (Unfortunetly if you're not in a city and aren't in trade then numbers will be slightly off)
-			if inACity or STANDARD_CHANNEL_ORDER[CHATBAR_TRADE] ~= i then
-				JoinChannelByName(BOGUS_CHANNELS[i]);
-			end
-		end
-	end
-	Chronos.schedule(.6, ChatBar_leaveExtraChannels, newChannelOrder );
-end
-
-function ChatBar_leaveExtraChannels(newChannelOrder)
-	
-	for i, bogusName in ipairs(BOGUS_CHANNELS) do
-		local channelNum, channelName = GetChannelName(bogusName);
-		if channelName then
-			LeaveChannelByName(channelNum);
-		end
-	end
-
-end
-
-

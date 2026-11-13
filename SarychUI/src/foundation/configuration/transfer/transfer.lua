@@ -103,7 +103,7 @@ Transfer.CATEGORIES = {
 	{
 		key = "chat",
 		label = "Окна чата",
-		desc = "Вкладки чата с типами сообщений, каналами, размером шрифта и фоном, каналы, в которых вы состоите, и цвета чата.",
+		desc = "Вкладки чата с типами сообщений, размером шрифта и фоном, а также цвета чата. Подписки на каналы настраиваются в меню Blizzard.",
 	},
 	{
 		key = "friends",
@@ -826,22 +826,6 @@ local function validColor(color)
 	return type(color) == "table" and tonumber(color[1]) and tonumber(color[2]) and tonumber(color[3])
 end
 
-local function serverChannels()
-	local channels = {}
-	for _, name in ipairs({ EnumerateServerChannels() }) do
-		channels[strlower(name)] = true
-	end
-	return channels
-end
-
-local function channelNames(...)
-	local names = {}
-	for i = 1, select("#", ...), 2 do
-		names[#names + 1] = (select(i, ...))
-	end
-	return names
-end
-
 local function channelColorsStore()
 	local db = SarychUI.db
 	if not db then
@@ -1070,7 +1054,6 @@ function exporters.chat()
 			docked = docked,
 			uninteractable = uninteractable and true or nil,
 			messages = { GetChatWindowMessages(id) },
-			channels = channelNames(GetChatWindowChannels(id)),
 		}
 		local point, x, y = GetChatWindowSavedPosition(id)
 		if point then
@@ -1090,11 +1073,10 @@ function exporters.chat()
 		end
 	end
 
-	local channels, channelColors = {}, {}
+	local channelColors = {}
 	for name, color in pairs(channelColorsStore()) do
 		channelColors[name] = { color.r, color.g, color.b }
 	end
-	local server = serverChannels()
 	local list = { GetChannelList() }
 	for i = 1, #list, 2 do
 		local name = list[i + 1]
@@ -1102,12 +1084,9 @@ function exporters.chat()
 		if info then
 			channelColors[name] = { info.r, info.g, info.b }
 		end
-		if not server[strlower(name)] then
-			channels[#channels + 1] = name
-		end
 	end
 
-	return { windows = windows, colors = colors, channels = channels, channelColors = channelColors }
+	return { windows = windows, colors = colors, channelColors = channelColors }
 end
 
 function exporters.friends()
@@ -1471,74 +1450,6 @@ local function importCVars(values, _, group)
 	return applied, 0
 end
 
-local pendingChannels = {}
-
-local function hasChannel(chatFrame, name)
-	for _, channel in pairs(chatFrame.channelList or {}) do
-		if strlower(channel) == name then
-			return true
-		end
-	end
-end
-
-local function onChannelNotice(_, message, _, _, _, _, _, _, _, channel)
-	if message ~= "YOU_JOINED" or type(channel) ~= "string" then
-		return
-	end
-	local key = strlower(channel)
-	local ids = pendingChannels[key]
-	if not ids then
-		return
-	end
-	pendingChannels[key] = nil
-	for _, id in ipairs(ids) do
-		local chatFrame = _G["ChatFrame" .. id]
-		if chatFrame and not hasChannel(chatFrame, key) then
-			ChatFrame_AddChannel(chatFrame, channel)
-		end
-	end
-	if not next(pendingChannels) then
-		UnregisterTransferEvent("CHAT_MSG_CHANNEL_NOTICE")
-	end
-end
-
-local function windowsWithChannel(windows, key)
-	local ids = {}
-	for id = 1, NUM_CHAT_WINDOWS do
-		local window = windows[id]
-		if type(window) == "table" and type(window.channels) == "table" then
-			for _, channel in ipairs(window.channels) do
-				if type(channel) == "string" and strlower(channel) == key then
-					ids[#ids + 1] = id
-					break
-				end
-			end
-		end
-	end
-	return ids
-end
-
-local function joinChannels(channels, windows)
-	local joined = {}
-	local list = { GetChannelList() }
-	for i = 2, #list, 2 do
-		joined[strlower(list[i])] = true
-	end
-	local server = serverChannels()
-	for _, name in ipairs(channels) do
-		local key = type(name) == "string" and strlower(name)
-		if key and not joined[key] and not server[key] then
-			joined[key] = true
-			local ids = windowsWithChannel(windows, key)
-			JoinPermanentChannel(name, nil, ids[1] or DEFAULT_CHAT_FRAME:GetID())
-			if #ids > 0 then
-				pendingChannels[key] = ids
-				RegisterTransferEvent("CHAT_MSG_CHANNEL_NOTICE", onChannelNotice)
-			end
-		end
-	end
-end
-
 local function applyWindow(id, window)
 	local chatFrame = _G["ChatFrame" .. id]
 	if not chatFrame then
@@ -1574,14 +1485,7 @@ local function applyWindow(id, window)
 			ChatFrame_AddMessageGroup(chatFrame, group)
 		end
 	end
-	ChatFrame_RemoveAllChannels(chatFrame)
-	if type(window.channels) == "table" then
-		for _, channel in ipairs(window.channels) do
-			if type(channel) == "string" then
-				ChatFrame_AddChannel(chatFrame, channel)
-			end
-		end
-	end
+
 end
 
 local function dockOrder(id)
@@ -1610,9 +1514,7 @@ function importers.chat(chat)
 			end
 		end
 	end
-	if type(chat.channels) == "table" then
-		joinChannels(chat.channels, windows)
-	end
+	-- Legacy channel fields are ignored; Blizzard owns channel membership and subscriptions.
 
 	for id = 2, NUM_CHAT_WINDOWS do
 		local frame = _G["ChatFrame" .. id]

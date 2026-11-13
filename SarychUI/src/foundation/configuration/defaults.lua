@@ -1082,6 +1082,7 @@ SarychUI.defaults = {
 
 				-- Chat DataBar: independent left, middle and right data texts
 				dataBarEnabled = 0,
+				dataBarTooltipStyle = "classic",
 				dataBarLeft = "Memory",
 				dataBarMiddle = "MS",
 				dataBarRight = "FPS",
@@ -1405,7 +1406,7 @@ SarychUI.defaults = {
 	
 	-- Global settings (not per character)
 	global = {
-        version = "1.4.1",
+        version = "1.4.1A",
 		general = {
 			-- Saved size of the config window (matches ElvUI / ElvUI_NamePlates_Standalone defaults).
 			AceGUI = {
