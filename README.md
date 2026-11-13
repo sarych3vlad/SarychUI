@@ -12,7 +12,7 @@
   <img alt="Version" src="https://img.shields.io/badge/version-1.4.0-2b2a27?style=flat-square">
   <img alt="Client" src="https://img.shields.io/badge/client-3.3.5a%20(12340)-2b2a27?style=flat-square">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-2b2a27?style=flat-square">
-  <a href="https://discord.gg/Thyh85WfmP"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord&logoColor=white"></a>
+  <a href="https://discord.com/invite/X9ErMKUHVQ"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord&logoColor=white"></a>
   <a href="https://www.youtube.com/@sarych3vlad413/"><img alt="YouTube" src="https://img.shields.io/badge/YouTube-Channel-FF0000?style=flat-square&logo=youtube&logoColor=white"></a>
 </p>
 
