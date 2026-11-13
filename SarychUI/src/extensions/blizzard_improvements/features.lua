@@ -107,6 +107,10 @@ local function StartBadgeBuyQueue(index, amount)
 	amount = tonumber(amount) or 0
 	if not index or amount <= 0 then return end
 	local q = S.badgeBuyQueue
+	if not q then
+		q = { remaining = 0 }
+		S.badgeBuyQueue = q
+	end
 	-- If a buy is already running for the same index, append; otherwise replace.
 	if q.index == index and (q.remaining or 0) > 0 then
 		q.remaining = q.remaining + amount

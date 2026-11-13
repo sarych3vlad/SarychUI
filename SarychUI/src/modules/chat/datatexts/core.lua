@@ -190,7 +190,7 @@ function DT:ApplyTooltipLineFont(line)
             end
             if original[1] then
                 -- Keep the client's font face (including localized glyphs).
-                text:SetFont(original[1], compact and (line == 1 and 12 or 11) or original[2], original[3])
+                text:SetFont(original[1], compact and (line == 1 and 13 or 12) or original[2], original[3])
             end
         end
     end

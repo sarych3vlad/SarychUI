@@ -1,5 +1,5 @@
 ## Interface: 30300
-## Title: SarychUI |cffff0000WoWCircle|r
+## Title: |cFFFFFFFFSarych|rUI |cffff0000WoWCircle|r
 ## Notes: WoWCircle companion for SarychUI: chat filters, server utilities and Quick Start.
 ## Notes-ruRU: Дополнение WoWCircle: фильтры чата, серверные функции и быстрый старт.
 ## Author: Сарыч
