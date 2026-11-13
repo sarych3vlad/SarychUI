@@ -169,8 +169,31 @@ function extension:ResetSpellDefaults()
 	active = {}
 end
 
+local function FillMissingDefaults(target, defaults)
+	for key, value in pairs(defaults) do
+		if type(value) == "table" then
+			if target[key] == nil then target[key] = {} end
+			if type(target[key]) == "table" then
+				FillMissingDefaults(target[key], value)
+			end
+		elseif target[key] == nil then
+			target[key] = value
+		end
+	end
+end
+
 function extension:GetDB()
-	local db = DB()
+	local profile = SUI.db and SUI.db.profile
+	if not profile then return nil end
+	-- Older/plain profiles can lack this extension before options warmup.
+	-- Repair the active profile, keeping explicit values and private tables.
+	profile.modules = profile.modules or {}
+	profile.modules.party_abilities = profile.modules.party_abilities or {}
+	local db = profile.modules.party_abilities
+	local defaults = SUI.defaults and SUI.defaults.profile and SUI.defaults.profile.modules
+	if defaults and defaults.party_abilities then
+		FillMissingDefaults(db, defaults.party_abilities)
+	end
 
 	Seed(db)
 	if db and not db.displayMigrated then
