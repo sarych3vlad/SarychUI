@@ -883,3 +883,13 @@ SarychUI.RegisterUIMap("ukUA", {
     ["ui.chat.data_bar.right"] = "Праворуч",
     ["ui.chat.data_bar.desc"] = "Три налаштовувані показники під вікном чату.",
 })
+
+SarychUI.RegisterUIMap("ukUA", {
+    ["ui.action_bars.micro_and_bags"] = "Мікроменю та сумки",
+    ["ui.action_bars.micro_settings"] = "Налаштування кнопок мікроменю",
+    ["ui.action_bars.bags_settings"] = "Налаштування сумок",
+    ["ui.action_bars.backpack_only"] = "Залишити лише рюкзак",
+    ["ui.action_bars.backpack_scale_enabled"] = "Змінити масштаб рюкзака",
+    ["ui.action_bars.backpack_only_desc"] = "Приховує кнопки чотирьох сумок і в'язки ключів, залишаючи лише кнопку рюкзака. Самі сумки залишаються доступними.",
+    ["ui.action_bars.change_position"] = "Змінити розташування",
+})

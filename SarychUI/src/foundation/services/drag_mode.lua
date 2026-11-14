@@ -262,6 +262,8 @@ local function SizeDragOverlay(data)
     local df = data and data.dragFrame
     local settings = data and data.settings
     if not df or not settings or settings.overlayFrame then return end
+    -- Keep the measured group offset while StartMoving owns its anchor.
+    if data.isMoving then return end
     if settings.getDragBounds and not data.isMoving then
         local left, bottom, right, top = settings.getDragBounds()
         local frame = data.frame
@@ -307,8 +309,10 @@ local function AnchorDragOverlay(data)
         return
     end
     if settings and (settings.dragInsetLeft or settings.dragInsetRight) then
-        df:SetPoint("TOPLEFT", frame, "TOPLEFT", settings.dragInsetLeft or 0, 0)
-        df:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -(settings.dragInsetRight or 0), 0)
+        -- Insets describe the artwork in frame units, not overlay units.
+        local ratio = frame:GetEffectiveScale() / df:GetEffectiveScale()
+        df:SetPoint("TOPLEFT", frame, "TOPLEFT", (settings.dragInsetLeft or 0) * ratio, 0)
+        df:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -(settings.dragInsetRight or 0) * ratio, 0)
         return
     end
     if not (settings and (settings.dragWidth or settings.dragHeight or settings.dragOffsetX or settings.dragOffsetY)) then
@@ -321,7 +325,8 @@ end
 
 function DragMode:RefreshDragOverlay(frameId)
     local data = registeredFrames[frameId]
-    if not data or not data.dragFrame or data.isMoving or data._settleUpdater then return end
+    if not data or not data.dragFrame or data.isMoving
+        or (data._settleUpdater and data._settleUpdater:GetScript("OnUpdate")) then return end
     SizeDragOverlay(data)
     AnchorDragOverlay(data)
 end
@@ -336,8 +341,7 @@ local function BorderCorner(data)
     if not (x and y) then return end
     local ratio = parentScale and parentScale > 0
         and overlay:GetEffectiveScale() / parentScale or 1
-    local half = PixelSize() / 2
-    return x * ratio - half, y * ratio - half
+    return x * ratio, y * ratio
 end
 
 -- Return a correction in UIParent units; convert it to the moved frame's
@@ -366,7 +370,8 @@ function DragMode:SnapVisibleFramesToGrid()
         local overlay = data.dragFrame
         local frame = data.frame
         if data.showDragFrame and overlay and overlay:IsShown() and frame
-            and not data.isMoving and not data._settleUpdater then
+            and not data.isMoving
+            and not (data._settleUpdater and data._settleUpdater:GetScript("OnUpdate")) then
             local dx, dy = GridSnapOffsets(data)
             if math.abs(dx) > 0.0001 or math.abs(dy) > 0.0001 then
                 local saved = data.settings.getPoint and data.settings.getPoint()
@@ -431,7 +436,7 @@ local function CreateDragFrame(frameId, frame, settings)
 	data.fillAlpha = 0.16
 	dragframe.t:SetAlpha(data.fillAlpha)
 
-    -- Border textures are centred on the selection edges below.
+    -- Border textures stay inside the measured selection edges.
     local function BorderLine()
         local line = dragframe:CreateTexture(nil, "OVERLAY")
         line:SetDrawLayer("OVERLAY", 4)
@@ -448,7 +453,8 @@ local function CreateDragFrame(frameId, frame, settings)
     dragframe.f:SetTextColor(unpack(DRAG_BORDER_COLOR))
     dragframe.f:SetJustifyH("LEFT")
     dragframe.f:SetPoint("BOTTOMLEFT", dragframe, "TOPLEFT", 0, 5)
-    dragframe.f:SetText(settings.dragText or "Frame")
+    local label = settings.dragText or "Frame"
+    dragframe.f:SetText(SarychUI.T and SarychUI:T(label) or label)
 
     -- Mark the exact corner used by GridSnapOffsets inside the selection.
     dragframe.cornerLabel = dragframe:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -821,7 +827,8 @@ function DragMode:EnableEditMode(frameId, enabled, showDragFrame, showGrid)
             frame:SetDontSavePosition(true)
         end)
         pcall(function()
-            frame:SetClampedToScreen(true)
+            -- Animated bar buttons must be allowed to follow their parent offscreen.
+            frame:SetClampedToScreen(settings.clampToScreen ~= false)
         end)
     end
     
@@ -880,6 +887,10 @@ function DragMode:EnableEditMode(frameId, enabled, showDragFrame, showGrid)
     end
     
     SizeDragOverlay(data)
+    if data.dragFrame and data.dragFrame.f then
+        local label = settings.dragText or "Frame"
+        data.dragFrame.f:SetText(SarychUI.T and SarychUI:T(label) or label)
+    end
     if data.borderLines then
         local effective = data.dragFrame:GetEffectiveScale()
         local parentScale = UIParent:GetEffectiveScale()
@@ -887,23 +898,22 @@ function DragMode:EnableEditMode(frameId, enabled, showDragFrame, showGrid)
         if effective and effective > 0 and parentScale then
             width = width * parentScale / effective
         end
-        local half = width / 2
         local top, bottom, left, right = unpack(data.borderLines)
         top:ClearAllPoints()
-        top:SetPoint("TOPLEFT", data.dragFrame, "TOPLEFT", 0, half)
-        top:SetPoint("TOPRIGHT", data.dragFrame, "TOPRIGHT", 0, half)
+        top:SetPoint("TOPLEFT", data.dragFrame, "TOPLEFT", 0, 0)
+        top:SetPoint("TOPRIGHT", data.dragFrame, "TOPRIGHT", 0, 0)
         top:SetHeight(width)
         bottom:ClearAllPoints()
-        bottom:SetPoint("BOTTOMLEFT", data.dragFrame, "BOTTOMLEFT", 0, -half)
-        bottom:SetPoint("BOTTOMRIGHT", data.dragFrame, "BOTTOMRIGHT", 0, -half)
+        bottom:SetPoint("BOTTOMLEFT", data.dragFrame, "BOTTOMLEFT", 0, 0)
+        bottom:SetPoint("BOTTOMRIGHT", data.dragFrame, "BOTTOMRIGHT", 0, 0)
         bottom:SetHeight(width)
         left:ClearAllPoints()
-        left:SetPoint("TOPLEFT", data.dragFrame, "TOPLEFT", -half, 0)
-        left:SetPoint("BOTTOMLEFT", data.dragFrame, "BOTTOMLEFT", -half, 0)
+        left:SetPoint("TOPLEFT", data.dragFrame, "TOPLEFT", 0, 0)
+        left:SetPoint("BOTTOMLEFT", data.dragFrame, "BOTTOMLEFT", 0, 0)
         left:SetWidth(width)
         right:ClearAllPoints()
-        right:SetPoint("TOPRIGHT", data.dragFrame, "TOPRIGHT", half, 0)
-        right:SetPoint("BOTTOMRIGHT", data.dragFrame, "BOTTOMRIGHT", half, 0)
+        right:SetPoint("TOPRIGHT", data.dragFrame, "TOPRIGHT", 0, 0)
+        right:SetPoint("BOTTOMRIGHT", data.dragFrame, "BOTTOMRIGHT", 0, 0)
         right:SetWidth(width)
     end
     

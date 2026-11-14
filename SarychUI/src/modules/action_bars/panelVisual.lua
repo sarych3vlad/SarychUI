@@ -1424,9 +1424,11 @@ local function CursorOverButton(button, x, y)
 end
 
 function module:UpdateTransparencyHover()
-    local watchMicro = GetSetting('microMenuAlphaEnabled', false)
+    local watchMicro = GetSetting('microMenuShown', true) ~= false
+        and GetSetting('microMenuAlphaEnabled', false)
         and GetSetting('microMenuShowOnMouseover', false)
-    local watchBags = GetSetting('bagAlphaEnabled', false)
+    local watchBags = GetSetting('bagsShown', true) ~= false
+        and GetSetting('bagAlphaEnabled', false)
         and GetSetting('bagShowOnMouseover', false)
 
     if not self.transparencyHoverFrame then
@@ -2798,6 +2800,7 @@ function module:ApplyAppearanceSettings()
 	-- page arrows stay in the state chosen by hidePageButtons.
 	ApplyPageButtonsSettings()
 	ApplyBagAlpha()
+	if self.ApplyAuxiliaryControls then self:ApplyAuxiliaryControls() end
 	local style = _G.SarychUI_InterfaceStyle
 	if style and style.enabled then
 		if style.RefreshButtonAppearance then style:RefreshButtonAppearance() end

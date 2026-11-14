@@ -2864,3 +2864,13 @@ SarychUI.RegisterUIMap("esES", {
     ["ui.chat.data_bar.right"] = "Derecha",
     ["ui.chat.data_bar.desc"] = "Tres textos de información configurables debajo del chat.",
 })
+
+SarychUI.RegisterUIMap("esES", {
+    ["ui.action_bars.micro_and_bags"] = "Micromenú y bolsas",
+    ["ui.action_bars.micro_settings"] = "Ajustes de los botones del micromenú",
+    ["ui.action_bars.bags_settings"] = "Ajustes de las bolsas",
+    ["ui.action_bars.backpack_only"] = "Mostrar solo la mochila",
+    ["ui.action_bars.backpack_scale_enabled"] = "Cambiar la escala de la mochila",
+    ["ui.action_bars.backpack_only_desc"] = "Oculta los cuatro botones de bolsas y el llavero, dejando solo el botón de la mochila. Las bolsas siguen siendo accesibles.",
+    ["ui.action_bars.change_position"] = "Cambiar posición",
+})

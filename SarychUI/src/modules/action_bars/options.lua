@@ -144,6 +144,130 @@ local function SetIndicationColor(key, r, g, b, a)
 end
 
 -- Get options table for this module
+local function AuxiliaryOptions(group, title, order, shownKey, alphaPrefix, frameId)
+    local function Bars() return SarychUI.modules.mainmenubar end
+    local function Position() return Bars():GetAuxiliaryPosition(group) end
+    local function Hidden() return TextDB()[shownKey] == false end
+    local function PositionHidden()
+        return Hidden() or (TextDB().barStyle or "classic") == "classic"
+    end
+    local function BackpackHidden()
+        return group ~= "bags" or PositionHidden()
+    end
+    local function Apply()
+        Bars():ApplyAppearanceSettings()
+        NotifyOptionsChange()
+    end
+    local function Combat() return InCombatLockdown() end
+    return {
+        type = "group", name = title, inline = true, order = order,
+        args = {
+            visibility = {
+                type = "select", name = "ui.display_205c4b9e", order = 1,
+                values = { __order = { "show", "hide" },
+                    show = SarychUI:T("ui.show_d61d6efc"), hide = SarychUI:T("ui.common.hide") },
+                disabled = Combat,
+                get = function() return Hidden() and "hide" or "show" end,
+                set = function(_, value)
+                    Bars():SetAuxiliaryShown(group, value == "show")
+                    NotifyOptionsChange()
+                end,
+            },
+            backpackOnly = {
+                type = "toggle", name = "ui.action_bars.backpack_only", order = 1.5,
+                desc = "ui.action_bars.backpack_only_desc", width = "full",
+                hidden = BackpackHidden,
+                disabled = Combat,
+                get = function() return TextDB().backpackOnly == true end,
+                set = function(_, value)
+                    Bars():SetBackpackOnly(value)
+                    NotifyOptionsChange()
+                end,
+            },
+            backpackScaleEnabled = {
+                type = "toggle", name = "ui.action_bars.backpack_scale_enabled", order = 1.6,
+                width = "full", disabled = Combat,
+                hidden = BackpackHidden,
+                get = function() return TextDB().backpackScaleEnabled == true end,
+                set = function(_, value)
+                    Bars():SetBackpackScale(value)
+                    NotifyOptionsChange()
+                end,
+            },
+            backpackScale = {
+                type = "range", name = "ui.scale_e037e967", order = 1.7,
+                min = 0.5, max = 2, step = 0.05, isPercent = true,
+                width = "full", disabled = Combat,
+                hidden = function()
+                    return BackpackHidden() or TextDB().backpackScaleEnabled ~= true
+                end,
+                get = function() return TextDB().backpackScale or 1 end,
+                set = function(_, value) Bars():SetBackpackScale(nil, value) end,
+            },
+            alphaEnabled = {
+                type = "toggle", name = "ui.enable_transparency_33d8cb9a",
+                order = 2, width = "full", hidden = Hidden,
+                get = function() return TextDB()[alphaPrefix .. "AlphaEnabled"] end,
+                set = function(_, value) TextDB()[alphaPrefix .. "AlphaEnabled"] = value; Apply() end,
+            },
+            alpha = {
+                type = "range", name = "ui.transparency_94a43d8b", order = 3,
+                min = 0, max = 1, step = 0.05, width = "full", hidden = Hidden,
+                disabled = function() return not TextDB()[alphaPrefix .. "AlphaEnabled"] end,
+                get = function() return TextDB()[alphaPrefix .. "Alpha"] end,
+                set = function(_, value) TextDB()[alphaPrefix .. "Alpha"] = value; Apply() end,
+            },
+            mouseover = {
+                type = "toggle", name = "ui.text_f3cc55ce", order = 4, width = "full", hidden = Hidden,
+                disabled = function() return not TextDB()[alphaPrefix .. "AlphaEnabled"] end,
+                get = function() return TextDB()[alphaPrefix .. "ShowOnMouseover"] == true end,
+                set = function(_, value) TextDB()[alphaPrefix .. "ShowOnMouseover"] = value; Apply() end,
+            },
+            changePosition = {
+                type = "toggle", name = "ui.action_bars.change_position", order = 5,
+                width = "full", hidden = PositionHidden, disabled = Combat,
+                get = function() return Position().enabled == true end,
+                set = function(_, value)
+                    Bars():SetAuxiliaryPositionEnabled(group, value)
+                    NotifyOptionsChange()
+                end,
+            },
+            position = {
+                type = "group", name = "ui.position_a70a9ff4", order = 6, inline = true, suiTwoCol = true,
+                hidden = function() return PositionHidden() or not Position().enabled end,
+                disabled = Combat,
+                args = {
+                    x = {
+                        type = "range", name = "ui.x_offset_0b923c73", order = 1,
+                        min = -2000, max = 2000, step = 1,
+                        get = function() return Position().x or 0 end,
+                        set = function(_, value) Bars():SetAuxiliaryCoordinate(group, "x", value) end,
+                    },
+                    y = {
+                        type = "range", name = "ui.y_offset_f7f3fdd7", order = 2,
+                        min = -2000, max = 2000, step = 1,
+                        get = function() return Position().y or 0 end,
+                        set = function(_, value) Bars():SetAuxiliaryCoordinate(group, "y", value) end,
+                    },
+                    move = {
+                        type = "execute", order = 3, width = "full", suiFullRow = true,
+                        name = function()
+                            local drag = SarychUI.DragMode
+                            return SarychUI:T(drag and drag:IsPositionEditorOpen(frameId)
+                                and "ui.options_76e4992833" or "ui.options_0510004a87")
+                        end,
+                        func = function() Bars():ToggleAuxiliaryMover(group); NotifyOptionsChange() end,
+                        suiResetDefaults = function()
+                            Bars():SetAuxiliaryPositionEnabled(group, false)
+                            NotifyOptionsChange()
+                        end,
+                    },
+                },
+            },
+        },
+    }
+end
+
 local function GetOptions()
     local options = {
         name = L["MainMenuBar"],
@@ -1119,27 +1243,10 @@ local function GetOptions()
                                         },
                                     },
                                 },
-                            },
-                        },
-                        
-                        -- Transparency tab
-                        transparency = {
-                            type = "group",
-                            name = "ui.transparency_94a43d8b",
-                            order = 2,
-                            args = {
-                                preview = {
-                                    type = "description",
-                                    name = "",
-                                    order = 1,
-                                    width = "full",
-                                    suiPreview = "ActionBarTransparencyPreview",
-                                },
-
                                 borderBox = {
                                     type = "group",
                                     name = L["Button_Border_Alpha"],
-                                    order = 10,
+                                    order = 50,
                                     inline = true,
                                     disabled = InterfaceStyleActive,
                                     args = {
@@ -1158,8 +1265,8 @@ local function GetOptions()
                                                 if SarychUI.modules and SarychUI.modules.mainmenubar then
                                                     SarychUI.modules.mainmenubar:ApplyAppearanceSettings()
                                                 end
-                                                if SarychUI.ActionBarTransparencyPreview and SarychUI.ActionBarTransparencyPreview.RefreshAll then
-                                                    SarychUI.ActionBarTransparencyPreview:RefreshAll()
+                                                if SarychUI.ActionBarAppearancePreview and SarychUI.ActionBarAppearancePreview.RefreshAll then
+                                                    SarychUI.ActionBarAppearancePreview:RefreshAll()
                                                 end
                                                 NotifyOptionsChange()
                                             end,
@@ -1185,157 +1292,26 @@ local function GetOptions()
                                                 if SarychUI.modules and SarychUI.modules.mainmenubar then
                                                     SarychUI.modules.mainmenubar:ApplyAppearanceSettings()
                                                 end
-                                                if SarychUI.ActionBarTransparencyPreview and SarychUI.ActionBarTransparencyPreview.RefreshAll then
-                                                    SarychUI.ActionBarTransparencyPreview:RefreshAll()
+                                                if SarychUI.ActionBarAppearancePreview and SarychUI.ActionBarAppearancePreview.RefreshAll then
+                                                    SarychUI.ActionBarAppearancePreview:RefreshAll()
                                                 end
                                             end,
                                         },
                                     },
                                 },
 
-                                microBox = {
-                                    type = "group",
-                                    name = L["MicroMenu_Alpha"],
-                                    order = 20,
-                                    inline = true,
-                                    args = {
-                                        micro_menu_alpha_enabled = {
-                                            type = "toggle",
-                                            name = "ui.enable_transparency_33d8cb9a",
-                                            desc = L["MicroMenu_Alpha_Desc"],
-                                            order = 1,
-                                            width = "full",
-                                            get = function(info)
-                                                return SarychUI.db.profile.modules.mainmenubar.microMenuAlphaEnabled
-                                            end,
-                                            set = function(info, value)
-                                                SarychUI.db.profile.modules.mainmenubar.microMenuAlphaEnabled = value
-                                                if SarychUI.modules and SarychUI.modules.mainmenubar then
-                                                    SarychUI.modules.mainmenubar:ApplyAppearanceSettings()
-                                                end
-                                                if SarychUI.ActionBarTransparencyPreview and SarychUI.ActionBarTransparencyPreview.RefreshAll then
-                                                    SarychUI.ActionBarTransparencyPreview:RefreshAll()
-                                                end
-                                                NotifyOptionsChange()
-                                            end,
-                                        },
-                                        micro_menu_alpha = {
-                                            type = "range",
-                                            name = "ui.micro_menu_transparency_de97cb0a",
-                                            desc = "ui.micro_menu_button_transparency_0_invisible_1_ful_404986db",
-                                            order = 2,
-                                            min = 0,
-                                            max = 1,
-                                            step = 0.05,
-                                            width = "full",
-                                            disabled = function()
-                                                return not SarychUI.db.profile.modules.mainmenubar.microMenuAlphaEnabled
-                                            end,
-                                            get = function(info)
-                                                return SarychUI.db.profile.modules.mainmenubar.microMenuAlpha
-                                            end,
-                                            set = function(info, value)
-                                                SarychUI.db.profile.modules.mainmenubar.microMenuAlpha = value
-                                                if SarychUI.modules and SarychUI.modules.mainmenubar then
-                                                    SarychUI.modules.mainmenubar:ApplyAppearanceSettings()
-                                                end
-                                                if SarychUI.ActionBarTransparencyPreview and SarychUI.ActionBarTransparencyPreview.RefreshAll then
-                                                    SarychUI.ActionBarTransparencyPreview:RefreshAll()
-                                                end
-                                            end,
-                                        },
-                                        micro_menu_show_on_mouseover = {
-                                            type = "toggle",
-                                            name = "ui.text_f3cc55ce",
-                                            desc = "ui.1_e57d364e",
-                                            order = 3,
-                                            width = "full",
-                                            disabled = function()
-                                                return not SarychUI.db.profile.modules.mainmenubar.microMenuAlphaEnabled
-                                            end,
-                                            get = function()
-                                                return SarychUI.db.profile.modules.mainmenubar.microMenuShowOnMouseover == true
-                                            end,
-                                            set = function(_, value)
-                                                SarychUI.db.profile.modules.mainmenubar.microMenuShowOnMouseover = value and true or false
-                                                local bars = SarychUI.modules and SarychUI.modules.mainmenubar
-                                                if bars then bars:ApplyAppearanceSettings() end
-                                            end,
-                                        },
-                                    },
-                                },
-
-                                bagBox = {
-                                    type = "group",
-                                    name = L["Bags_Alpha"],
-                                    order = 30,
-                                    inline = true,
-                                    args = {
-                                        bag_alpha_enabled = {
-                                            type = "toggle",
-                                            name = "ui.enable_transparency_33d8cb9a",
-                                            desc = L["Bags_Alpha_Desc"],
-                                            order = 1,
-                                            width = "full",
-                                            get = function(info)
-                                                return SarychUI.db.profile.modules.mainmenubar.bagAlphaEnabled
-                                            end,
-                                            set = function(info, value)
-                                                SarychUI.db.profile.modules.mainmenubar.bagAlphaEnabled = value
-                                                if SarychUI.modules and SarychUI.modules.mainmenubar then
-                                                    SarychUI.modules.mainmenubar:ApplyAppearanceSettings()
-                                                end
-                                                if SarychUI.ActionBarTransparencyPreview and SarychUI.ActionBarTransparencyPreview.RefreshAll then
-                                                    SarychUI.ActionBarTransparencyPreview:RefreshAll()
-                                                end
-                                                NotifyOptionsChange()
-                                            end,
-                                        },
-                                        bag_alpha = {
-                                            type = "range",
-                                            name = "ui.bag_button_transparency_e844ea66",
-                                            desc = "ui.bag_button_transparency_0_invisible_1_fully_visi_e03a0265",
-                                            order = 2,
-                                            min = 0,
-                                            max = 1,
-                                            step = 0.05,
-                                            width = "full",
-                                            disabled = function()
-                                                return not SarychUI.db.profile.modules.mainmenubar.bagAlphaEnabled
-                                            end,
-                                            get = function(info)
-                                                return SarychUI.db.profile.modules.mainmenubar.bagAlpha
-                                            end,
-                                            set = function(info, value)
-                                                SarychUI.db.profile.modules.mainmenubar.bagAlpha = value
-                                                if SarychUI.modules and SarychUI.modules.mainmenubar then
-                                                    SarychUI.modules.mainmenubar:ApplyAppearanceSettings()
-                                                end
-                                                if SarychUI.ActionBarTransparencyPreview and SarychUI.ActionBarTransparencyPreview.RefreshAll then
-                                                    SarychUI.ActionBarTransparencyPreview:RefreshAll()
-                                                end
-                                            end,
-                                        },
-                                        bag_show_on_mouseover = {
-                                            type = "toggle",
-                                            name = "ui.text_f3cc55ce",
-                                            desc = "ui.1_f239bfa5",
-                                            order = 3,
-                                            width = "full",
-                                            disabled = function()
-                                                return not SarychUI.db.profile.modules.mainmenubar.bagAlphaEnabled
-                                            end,
-                                            get = function()
-                                                return SarychUI.db.profile.modules.mainmenubar.bagShowOnMouseover == true
-                                            end,
-                                            set = function(_, value)
-                                                SarychUI.db.profile.modules.mainmenubar.bagShowOnMouseover = value and true or false
-                                                local bars = SarychUI.modules and SarychUI.modules.mainmenubar
-                                                if bars then bars:ApplyAppearanceSettings() end
-                                            end,
-                                        },
-                                    },
-                                },
+                            },
+                        },
+                        -- Micro menu and bags tab
+                        transparency = {
+                            type = "group",
+                            name = "ui.action_bars.micro_and_bags",
+                            order = 2,
+                            args = {
+                                microBox = AuxiliaryOptions("micro", "ui.action_bars.micro_settings", 10,
+                                    "microMenuShown", "microMenu", "ActionBarMicroMenu"),
+                                bagBox = AuxiliaryOptions("bags", "ui.action_bars.bags_settings", 20,
+                                    "bagsShown", "bag", "ActionBarBags"),
                             },
                         },
                         

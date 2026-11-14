@@ -113,10 +113,12 @@ function module:Enable()
 		self.DragonStyle:Enable()
 	end
 	self:ApplyBarVisibilitySettings()
+	if self.EnableAuxiliaryControls then self:EnableAuxiliaryControls() end
 end
 
 -- Disable module - COORDINATOR FUNCTION
 function module:Disable()
+    if self.DisableAuxiliaryControls then self:DisableAuxiliaryControls() end
     self:DisableAltFPS()
 	self:DisableBarVisibility()
 	if self.RestoreClassicXpGeometry then self:RestoreClassicXpGeometry() end

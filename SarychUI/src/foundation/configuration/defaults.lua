@@ -726,9 +726,16 @@ SarychUI.defaults = {
 				microMenuAlphaEnabled = true,
 				microMenuAlpha = 0.95,
 				microMenuShowOnMouseover = false,
+				microMenuShown = true,
+				microMenuPosition = { enabled = false },
 				bagAlphaEnabled = true,
 				bagAlpha = 0.95,
 				bagShowOnMouseover = false,
+				bagsShown = true,
+				backpackOnly = false,
+				backpackScaleEnabled = false,
+				backpackScale = 1,
+				bagPosition = { enabled = false },
 				-- classic | dragonflight (только текстуры микроменю)
 				microMenuStyle = "dragonflight",
 				-- DF only: hide latency pip while green; show on yellow/red
@@ -1406,7 +1413,7 @@ SarychUI.defaults = {
 	
 	-- Global settings (not per character)
 	global = {
-        version = "1.4.1A",
+        version = SarychUI.version,
 		general = {
 			-- Saved size of the config window (matches ElvUI / ElvUI_NamePlates_Standalone defaults).
 			AceGUI = {

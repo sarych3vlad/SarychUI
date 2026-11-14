@@ -254,6 +254,7 @@ local function CreateAuxiliaryVisibility(group, field, actionID)
 		local extension = SarychUI.extensions and SarychUI.extensions.visibility_control
 		self.enabled = (not extension or extension:IsEnabled())
 			and db and IsOn(db.enabled) and settings and IsOn(settings.enabled) and key ~= nil
+			and db[group == "bags" and "bagsShown" or "microMenuShown"] ~= false
 		if not self.enabled then self.wantedHidden = false end
 		self:ApplyWanted()
 		if not bindings then return end

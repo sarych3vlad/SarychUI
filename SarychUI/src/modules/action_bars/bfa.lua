@@ -142,7 +142,8 @@ local function PositionPlayerMicroMenu()
 	if InCombatLockdown() and CharacterMicroButton.IsProtected and CharacterMicroButton:IsProtected() then
 		return false
 	end
-	SetPoint(CharacterMicroButton, "BOTTOMLEFT", MainMenuBarBackpackButton, "CENTER", -233, -62.9)
+	module:SetAuxiliaryLayoutPoint("micro", CharacterMicroButton,
+		"BOTTOMLEFT", MainMenuBarBackpackButton, "CENTER", -233, -62.9)
 	return true
 end
 
@@ -301,6 +302,23 @@ local function IsVehicleLayoutBlocked()
 	return false
 end
 
+function BFA:LayoutBagsAndMicroMenu()
+	if not self.active or InCombatLockdown() or IsVehicleLayoutBlocked() then return end
+	for _, bag in ipairs({ CharacterBag0Slot, CharacterBag1Slot, CharacterBag2Slot, CharacterBag3Slot }) do
+		if bag then bag:SetScale(0.95) end
+	end
+	module:SetAuxiliaryLayoutPoint("bags", MainMenuBarBackpackButton,
+		"BOTTOMRIGHT", MainMenuBar, "BOTTOM", GetRightTrayOffset(), 46)
+	if CharacterBag0Slot and MainMenuBarBackpackButton then
+		SetPoint(CharacterBag0Slot, module:GetBackpackSlotPoint(CharacterBag0Slot, "BOTTOMLEFT", "CENTER", -55.7, -20))
+	end
+	SetPoint(CharacterBag1Slot, "CENTER", CharacterBag0Slot, "CENTER", -33.5, 0)
+	SetPoint(CharacterBag2Slot, "CENTER", CharacterBag0Slot, "CENTER", -67, 0)
+	SetPoint(CharacterBag3Slot, "CENTER", CharacterBag0Slot, "CENTER", -101, 0)
+	PositionPlayerMicroMenu()
+
+end
+
 function BFA:ApplyPlayerLayout()
 	if not self.active or not MainMenuBar or not MainMenuBarArtFrame then return false end
 	if self._applyingLayout then return true end
@@ -343,16 +361,7 @@ function BFA:ApplyPlayerLayout()
 	SetPoint(ActionBarUpButton, "CENTER", MainMenuBar, "BOTTOMLEFT", 521.9, 31.2)
 	SetPoint(ActionBarDownButton, "CENTER", MainMenuBar, "BOTTOMLEFT", 521.9, 12)
 
-	SetPoint(MainMenuBarBackpackButton, "BOTTOMRIGHT", MainMenuBar, "BOTTOM", GetRightTrayOffset(), 46)
-	SetPoint(CharacterBag0Slot, "BOTTOMLEFT", MainMenuBarBackpackButton, "CENTER", -55.7, -20)
-	SetPoint(CharacterBag1Slot, "CENTER", CharacterBag0Slot, "CENTER", -33.5, 0)
-	SetPoint(CharacterBag2Slot, "CENTER", CharacterBag0Slot, "CENTER", -67, 0)
-	SetPoint(CharacterBag3Slot, "CENTER", CharacterBag0Slot, "CENTER", -101, 0)
-	PositionPlayerMicroMenu()
-
-	for _, bag in ipairs({ CharacterBag0Slot, CharacterBag1Slot, CharacterBag2Slot, CharacterBag3Slot }) do
-		if bag then bag:SetScale(0.95) end
-	end
+	self:LayoutBagsAndMicroMenu()
 
 	SetPoint(self.artwork.endcap, "BOTTOMRIGHT", MainMenuBarArtFrame, "BOTTOMRIGHT", 2, 0)
 	SetPoint(self.artwork.left, "BOTTOM", MainMenuBarArtFrame, "BOTTOM", -275, 0)

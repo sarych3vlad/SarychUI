@@ -750,3 +750,13 @@ SarychUI.RegisterUIMap("ruRU", {
     ["ui.chat.data_bar.right"] = "Справа",
     ["ui.chat.data_bar.desc"] = "Три настраиваемых показателя под окном чата.",
 })
+
+SarychUI.RegisterUIMap("ruRU", {
+    ["ui.action_bars.micro_and_bags"] = "Микроменю и сумки",
+    ["ui.action_bars.micro_settings"] = "Настройки кнопок микроменю",
+    ["ui.action_bars.bags_settings"] = "Настройки сумок",
+    ["ui.action_bars.backpack_only"] = "Оставить только рюкзак",
+    ["ui.action_bars.backpack_scale_enabled"] = "Изменить масштаб рюкзака",
+    ["ui.action_bars.backpack_only_desc"] = "Скрывает кнопки четырёх сумок и связки ключей, оставляя только кнопку рюкзака. Сами сумки остаются доступны.",
+    ["ui.action_bars.change_position"] = "Изменить расположение",
+})

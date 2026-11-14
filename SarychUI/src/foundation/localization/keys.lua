@@ -1,5 +1,12 @@
 -- Stable localization keys for native settings and previews.
 SarychUI.TextKeys = {
+    ["ui.action_bars.micro_and_bags"] = "Микроменю и сумки",
+    ["ui.action_bars.micro_settings"] = "Настройки кнопок микроменю",
+    ["ui.action_bars.bags_settings"] = "Настройки сумок",
+    ["ui.action_bars.backpack_only"] = "Оставить только рюкзак",
+    ["ui.action_bars.backpack_scale_enabled"] = "Изменить масштаб рюкзака",
+    ["ui.action_bars.backpack_only_desc"] = "Скрывает кнопки четырёх сумок и связки ключей, оставляя только кнопку рюкзака. Сами сумки остаются доступны.",
+    ["ui.action_bars.change_position"] = "Изменить расположение",
     ["ui.chat.data_bar.alt_enabled"] = "Дополнительно при {SUI_MODIFIER}",
     ["ui.chat.data_bar.alt_desc"] = "Пока активен режим {SUI_MODIFIER}, показывает выбранный дополнительный показатель. После отпускания возвращает основной. Настройки текста и подсказки общие для этой области.",
     ["ui.chat.data_bar.alt_content"] = "Показатель при {SUI_MODIFIER}",

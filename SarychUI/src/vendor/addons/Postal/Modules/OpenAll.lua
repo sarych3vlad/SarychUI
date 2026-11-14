@@ -17,6 +17,7 @@ local lastItem, lastNumAttach, lastNumGold
 local wait
 local waitMode -- "autoloot" | "take" | "money" | "delete"
 local lastAttOnMail
+local lastInboxCount
 local button
 local Postal_OpenAllMenuButton
 local skipFlag
@@ -160,11 +161,12 @@ function Postal_OpenAll:ProcessNext()
 		-- vs default Shift-click (one AutoLoot, then done).
 		if wait then
 			local numMails = GetInboxNumItems() or 0
-			if mailIndex > numMails then
-				-- Mail auto-deleted after full loot
+			if mailIndex > numMails or numMails < (lastInboxCount or numMails) then
+				-- A removed mail shifts later entries into this index, including
+				-- skipped mail. Never inspect that replacement as the pending mail.
 				wait = false
 				waitMode = nil
-				mailIndex = numMails
+				mailIndex = math.min(mailIndex - 1, numMails)
 				attachIndex = ATTACHMENTS_MAX_RECEIVE
 				return self:ProcessNext()
 			end
@@ -209,7 +211,7 @@ function Postal_OpenAll:ProcessNext()
 				attachIndex = ATTACHMENTS_MAX_RECEIVE
 				return self:ProcessNext()
 			elseif waitMode == "delete" then
-				-- DeleteInboxItem in flight; mailIndex > numMails handled above
+				-- DeleteInboxItem in flight; inbox removal is handled above
 				local moneyLeft = select(5, GetInboxHeaderInfo(mailIndex)) or 0
 				local attLeft = Postal:CountInboxAttachments(mailIndex)
 				if moneyLeft == 0 and attLeft == 0 then
@@ -229,6 +231,7 @@ function Postal_OpenAll:ProcessNext()
 			end
 		end
 
+		lastInboxCount = GetInboxNumItems() or 0
 		local sender, msgSubject, msgMoney, msgCOD, _, msgItem, _, _, msgText, _, isGM = select(3, GetInboxHeaderInfo(mailIndex))
 
 		-- Skip mail if it contains a CoD or if its from a GM
@@ -347,6 +350,7 @@ end
 
 function Postal_OpenAll:Reset(event)
 	updateFrame:Hide()
+	lastInboxCount = nil
 	wait = false
 	waitMode = nil
 	self:UnregisterEvent("UI_ERROR_MESSAGE")

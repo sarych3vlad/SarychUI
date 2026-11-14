@@ -2924,3 +2924,13 @@ SarychUI.RegisterUIMap("enUS", {
     ["ui.chat.data_bar.right"] = "Right",
     ["ui.chat.data_bar.desc"] = "Three configurable data texts below the chat window.",
 })
+
+SarychUI.RegisterUIMap("enUS", {
+    ["ui.action_bars.micro_and_bags"] = "Micro menu and bags",
+    ["ui.action_bars.micro_settings"] = "Micro menu button settings",
+    ["ui.action_bars.bags_settings"] = "Bag settings",
+    ["ui.action_bars.backpack_only"] = "Keep only the backpack",
+    ["ui.action_bars.backpack_scale_enabled"] = "Change backpack scale",
+    ["ui.action_bars.backpack_only_desc"] = "Hides the four bag buttons and the keyring, leaving only the backpack button. Your bags remain accessible.",
+    ["ui.action_bars.change_position"] = "Change position",
+})

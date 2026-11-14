@@ -24,6 +24,7 @@ local lastItem, lastNumAttach, lastNumGold
 local wait
 local waitMode -- "autoloot" | "take" | "money" | "delete"
 local lastAttOnMail
+local lastInboxCount
 local skipFlag
 local invFull
 local lastCheck
@@ -232,11 +233,12 @@ function Postal_Select:ProcessNext()
 			-- Wait until THIS mail finishes — same as OpenAll / default Shift-click AutoLoot.
 			if wait then
 				local numMails = GetInboxNumItems() or 0
-				if mailIndex > numMails then
+				if mailIndex > numMails or numMails < (lastInboxCount or numMails) then
+					-- Later unselected mail can shift into the removed mail's slot.
 					wait = false
 					waitMode = nil
 					selectedMail[mailIndex] = nil
-					mailIndex = numMails
+					mailIndex = math.min(mailIndex - 1, numMails)
 					attachIndex = ATTACHMENTS_MAX_RECEIVE
 					return self:ProcessNext()
 				end
@@ -299,6 +301,7 @@ function Postal_Select:ProcessNext()
 				end
 			end
 
+			lastInboxCount = GetInboxNumItems() or 0
 			-- Print message on next mail
 			if Postal.db.settings.Select.SpamChat and attachIndex == ATTACHMENTS_MAX_RECEIVE then
 				local moneyString = msgMoney > 0 and " ["..Postal:GetMoneyString(msgMoney).."]" or ""
@@ -422,6 +425,7 @@ function Postal_Select:Reset(event)
 	if not self:IsHooked("InboxFrame_Update") then self:RawHook("InboxFrame_Update", true) end
 
 	updateFrame:Hide()
+	lastInboxCount = nil
 	wait = false
 	waitMode = nil
 	self:UnregisterEvent("UI_ERROR_MESSAGE")

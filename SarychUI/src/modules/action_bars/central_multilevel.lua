@@ -450,28 +450,30 @@ function style:Layout()
 end
 
 function style:LayoutBagsAndMicroMenu()
-    -- BFA bag and micro-menu anchors, with the Blizzard button chain intact.
-    -- BFA's right-tray art is deliberately omitted; this style uses stock art.
-    if MainMenuBarBackpackButton then
-        local width = GetScreenWidth and GetScreenWidth()
-            or (UIParent and UIParent:GetWidth()) or 1024
-        Place(MainMenuBarBackpackButton, "BOTTOMRIGHT", MainMenuBar or UIParent,
-            "BOTTOM", width/2 - 6, 46)
-    end
-    if CharacterBag0Slot and MainMenuBarBackpackButton then
-        Place(CharacterBag0Slot, "BOTTOMLEFT", MainMenuBarBackpackButton, "CENTER", -55.7, -20)
-    end
-    for index, x in ipairs({ -33.5, -67, -101 }) do
-        local bag = _G["CharacterBag" .. index .. "Slot"]
-        if bag and CharacterBag0Slot then
-            Place(bag, "CENTER", CharacterBag0Slot, "CENTER", x, 0)
-        end
-    end
+    if not self.active or InCombatLockdown() or VehicleLayoutBlocked() then return end
     for index = 0, 3 do
         local bag = _G["CharacterBag" .. index .. "Slot"]
         if bag then
             Save(bag)
             bag:SetScale(0.95)
+        end
+    end
+    -- BFA bag and micro-menu anchors, with the Blizzard button chain intact.
+    -- BFA's right-tray art is deliberately omitted; this style uses stock art.
+    if MainMenuBarBackpackButton then
+        local width = GetScreenWidth and GetScreenWidth()
+            or (UIParent and UIParent:GetWidth()) or 1024
+        Save(MainMenuBarBackpackButton)
+        module:SetAuxiliaryLayoutPoint("bags", MainMenuBarBackpackButton,
+            "BOTTOMRIGHT", MainMenuBar or UIParent, "BOTTOM", width/2 - 6, 46)
+    end
+    if CharacterBag0Slot and MainMenuBarBackpackButton then
+        Place(CharacterBag0Slot, module:GetBackpackSlotPoint(CharacterBag0Slot, "BOTTOMLEFT", "CENTER", -55.7, -20))
+    end
+    for index, x in ipairs({ -33.5, -67, -101 }) do
+        local bag = _G["CharacterBag" .. index .. "Slot"]
+        if bag and CharacterBag0Slot then
+            Place(bag, "CENTER", CharacterBag0Slot, "CENTER", x, 0)
         end
     end
     if CharacterMicroButton and MainMenuBarBackpackButton then
@@ -487,9 +489,8 @@ function style:PositionPlayerMicroMenu()
     if not CharacterMicroButton or not MainMenuBarBackpackButton then return false end
     if InCombatLockdown() and CharacterMicroButton.IsProtected
         and CharacterMicroButton:IsProtected() then return false end
-    CharacterMicroButton:ClearAllPoints()
-    CharacterMicroButton:SetPoint("BOTTOMLEFT", MainMenuBarBackpackButton,
-        "CENTER", -233, -62.9)
+    module:SetAuxiliaryLayoutPoint("micro", CharacterMicroButton,
+        "BOTTOMLEFT", MainMenuBarBackpackButton, "CENTER", -233, -62.9)
     return true
 end
 
