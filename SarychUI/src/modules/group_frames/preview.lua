@@ -451,7 +451,7 @@ local function PaintSample(frame, index)
     SetTestHealth(frame, health)
     SarychUI.UnitFrameLayers:SetBarColor(frame, frame.healthBar, color and color.r or 0, color and color.g or 0.8,
         color and color.b or 0)
-    frame.name:SetText(sample[1])
+    if module.SetNameText then module:SetNameText(frame, sample[1]) else frame.name:SetText(sample[1]) end
     frame.name:Show()
     if frame.powerBar and DefaultCompactUnitFrameSetupOptions.displayPowerBar then
         local power = 25 + (index * 13) % 70
@@ -526,7 +526,8 @@ local function PaintPet(frame, index)
     SetTestHealth(frame, 100)
     SarychUI.UnitFrameLayers:SetBarColor(frame, frame.healthBar, 0.25, 0.75, 0.35)
     CompactUnitFrame_UpdateHealPrediction(frame)
-    frame.name:SetText(SarychUI:T("ui.options_0c0cd4d7e2") .. index)
+    local name = SarychUI:T("ui.options_0c0cd4d7e2") .. index
+    if module.SetNameText then module:SetNameText(frame, name) else frame.name:SetText(name) end
     frame.name:Show()
     frame.statusText:Hide()
     frame.roleIcon:Hide()

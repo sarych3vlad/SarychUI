@@ -245,7 +245,7 @@ function module:SetRaidStylePartyFrames(enabled)
     end
 end
 
-local presetFields = { "enabled", "showQuickControls", "castbarEnabled", "castbarHidePlayer", "muteFullHealth",
+local presetFields = { "enabled", "showQuickControls", "castbarEnabled", "castbarHidePlayer", "muteFullHealth", "nameFontSize", "nameFontSizeEnabled",
     "auraBlacklistEnabled", "groupBuffBlacklist", "groupDebuffBlacklist", "groupDispelExceptions" }
 local allyFields = { "enabled", "showPlayer", "displayMode", "contexts", "layouts" }
 local function AllySettingsDB()
@@ -322,6 +322,20 @@ function module:SavePreset(name)
     return true
 end
 
+function module:SaveNameTextSettings()
+    local db = DB()
+    local preset = db and db.presets and db.presets[db.activePreset]
+    if not preset then return end
+    -- Name controls apply immediately. Keep their active preset in sync without
+    -- implicitly saving unrelated edits to frame size, auras or ally abilities.
+    if not preset.moduleSettings then
+        preset.moduleSettings = {}
+        for _, key in ipairs(presetFields) do preset.moduleSettings[key] = Copy(db[key]) end
+    end
+    preset.moduleSettings.nameFontSize = tonumber(db.nameFontSize) or 10
+    preset.moduleSettings.nameFontSizeEnabled = db.nameFontSizeEnabled == true
+end
+
 function module:DeletePreset(name)
     local db = DB()
     if not db or not db.presets or not name or not db.presets[name] then return false end
@@ -365,6 +379,8 @@ function module:ApplyPreset(name)
     local wasEnabled = db.enabled ~= false
     -- Upgrade presets created before the complete tab was included.
     if preset.moduleSettings.enabled == nil then preset.moduleSettings.enabled = db.enabled ~= false end
+    if preset.moduleSettings.nameFontSize == nil then preset.moduleSettings.nameFontSize = 10 end
+    if preset.moduleSettings.nameFontSizeEnabled == nil then preset.moduleSettings.nameFontSizeEnabled = false end
     if preset.allySettings == nil then preset.allySettings = Copy(current.allySettings) end
     for _, key in ipairs(presetFields) do db[key] = Copy(preset.moduleSettings[key]) end
     local allyDB = AllySettingsDB()
@@ -391,6 +407,7 @@ function module:ApplyPreset(name)
     self:RefreshRange()
     self:ApplyAuraBlacklist()
     if self.ApplyHeaderCastbars then self:ApplyHeaderCastbars() end
+    if self.RefreshNameTexts then self:RefreshNameTexts() end
     if self.testCount and self.RefreshTest then self:RefreshTest() end
     local tracker = SarychUI.extensions and SarychUI.extensions.party_abilities
     if tracker and tracker.RefreshConfig then tracker:RefreshConfig() end
@@ -400,6 +417,15 @@ function module:ApplyPreset(name)
     end
     self:RefreshPresetButtons()
     return true
+end
+
+function module:RestoreActivePreset()
+    local db = DB()
+    if not db or self._presetDB == db or not db.presets or not db.presets[db.activePreset] then return end
+    -- On login/profile activation the profile contains the latest saved controls.
+    -- Older active snapshots can predate those edits; do not roll names back.
+    self:SaveNameTextSettings()
+    self:ApplyPreset(db.activePreset)
 end
 
 function module:AutoPreset()
@@ -438,6 +464,7 @@ function module:AutoPreset()
 end
 
 function module:Enable()
+    if self.RefreshNameTexts then self:RefreshNameTexts() end
     if self.ApplyHeaderCastbars then self:ApplyHeaderCastbars() end
     local db = DB()
     if not db or db.enabled == false then return end
@@ -506,9 +533,7 @@ function module:Enable()
         end)
         self.partyLayersHooked = true
     end
-    if self._presetDB ~= db and db.activePreset and db.presets and db.presets[db.activePreset] then
-        self:ApplyPreset(db.activePreset)
-    end
+    self:RestoreActivePreset()
     self:ApplySort()
     self:AutoPreset()
     self:ApplyQuickControls()
@@ -563,9 +588,7 @@ events:SetScript("OnEvent", function(_, event)
     end
     local db = DB()
     if not db or db.enabled == false then return end
-    if module._presetDB ~= db and db.activePreset and db.presets and db.presets[db.activePreset] then
-        module:ApplyPreset(db.activePreset)
-    end
+    module:RestoreActivePreset()
     if event == "PLAYER_REGEN_ENABLED" then
         if module.pendingPreset then
             local preset = module.pendingPreset

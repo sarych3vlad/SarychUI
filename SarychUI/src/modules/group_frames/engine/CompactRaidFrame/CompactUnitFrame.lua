@@ -606,7 +606,12 @@ function CompactUnitFrame_UpdateName(frame)
         frame.overlay.name:Hide();
     else
         local name = GetUnitName(frame.unit, true);
-        frame.overlay.name:SetText(name);
+        local groupFrames = SarychUI.modules and SarychUI.modules.group_frames;
+        if groupFrames and groupFrames.SetNameText then
+            groupFrames:SetNameText(frame, name or "");
+        else
+            frame.overlay.name:SetText(name);
+        end
         if ( CompactUnitFrame_IsTapDenied(frame) ) then
             -- Use grey if not a player and can't get tap on unit
             SarychUI.UnitFrameLayers:SetTextColor(frame, frame.overlay.name, 0.5, 0.5, 0.5, nil, true);
@@ -943,6 +948,8 @@ function CompactUnitFrame_UpdateRoleIcon(frame)
             frame.roleIcon:SetSize(1, size);
         end
     end
+    local groupFrames = SarychUI.modules and SarychUI.modules.group_frames;
+    if groupFrames and groupFrames.SetNameText then groupFrames:SetNameText(frame); end
 end
 
 function CompactUnitFrame_UpdateReadyCheck(frame)
@@ -1584,6 +1591,7 @@ end
 
 function DefaultCompactUnitFrameSetup(frame)
     local options = DefaultCompactUnitFrameSetupOptions;
+    frame._suiMiniName = false;
     local componentScale = min(options.height / NATIVE_UNIT_FRAME_HEIGHT, options.width / NATIVE_UNIT_FRAME_WIDTH); 
 
     frame:SetAlpha(1);
@@ -1679,6 +1687,8 @@ function DefaultCompactUnitFrameSetup(frame)
     frame.name:SetPoint("TOPLEFT", frame.roleIcon, "TOPRIGHT", 0, -1);
     frame.name:SetPoint("TOPRIGHT", -3, -3);
     frame.name:SetJustifyH("LEFT");
+    local groupFrames = SarychUI.modules and SarychUI.modules.group_frames;
+    if groupFrames and groupFrames.SetNameText then groupFrames:SetNameText(frame); end
 
     local NATIVE_FONT_SIZE = 12;
     local fontName, fontSize, fontFlags = frame.statusText:GetFont();
@@ -1807,6 +1817,7 @@ DefaultCompactMiniFrameSetUpOptions = {
 
 function DefaultCompactMiniFrameSetup(frame)
     local options = DefaultCompactMiniFrameSetUpOptions;
+    frame._suiMiniName = true;
 
     frame:SetAlpha(1);
     frame:SetSize(options.width, options.height);
@@ -1873,6 +1884,8 @@ function DefaultCompactMiniFrameSetup(frame)
     frame.name:SetPoint("RIGHT", -3, 1);
     frame.name:SetHeight(12);
     frame.name:SetJustifyH("LEFT");
+    local groupFrames = SarychUI.modules and SarychUI.modules.group_frames;
+    if groupFrames and groupFrames.SetNameText then groupFrames:SetNameText(frame); end
 
     frame.ignoreParentAlpha.selectionHighlight:SetTexture("Interface\\AddOns\\SarychUI\\media\\components\\modules\\group_frames\\engine\\CompactRaidFrame\\Media\\RaidFrame\\Raid-FrameHighlights");
     frame.ignoreParentAlpha.selectionHighlight:SetTexCoord(unpack(texCoords["Raid-TargetFrame"]));

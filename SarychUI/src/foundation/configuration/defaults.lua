@@ -151,6 +151,8 @@ SarychUI.defaults = {
 			focus_assignment = { enabled = true },
 			aura_tracking = { enabled = true },
 			group_frames = {
+                nameFontSizeEnabled = false,
+                nameFontSize = 10,
                 muteFullHealth = false,
                 castbarEnabled = false,
                 castbarHidePlayer = false,

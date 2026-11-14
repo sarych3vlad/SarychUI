@@ -327,6 +327,44 @@ function module:GetOptions()
                     healthText = Place(frameOpts.healthText, 18, true),
                     frameHeight = Place(frameOpts.frameHeight, 19),
                     frameWidth = Place(frameOpts.frameWidth, 20),
+                    nameFontSizeEnabled = {
+                        type = "toggle", name = "ui.group_frames.name_font_enabled", order = 20.1,
+                        desc = "ui.group_frames.name_font_enabled_desc", suiFullRow = true,
+                        get = function() return DB() and DB().nameFontSizeEnabled == true end,
+                        set = function(_, value)
+                            if not DB() then return end
+                            DB().nameFontSizeEnabled = value and true or false
+                            module:SaveNameTextSettings()
+                            module:RefreshNameTexts()
+                            module:RefreshPresetButtons()
+                        end,
+                    },
+                    nameFontSize = {
+                        type = "range", name = "ui.group_frames.name_font_size", order = 20.2,
+                        min = 6, max = 24, step = 1,
+                        hidden = function() return not DB() or not DB().nameFontSizeEnabled end,
+                        get = function() return module:GetNameFontSize() end,
+                        set = function(_, value)
+                            if not DB() then return end
+                            DB().nameFontSize = value
+                            module:SaveNameTextSettings()
+                            module:RefreshNameTexts()
+                            module:RefreshPresetButtons()
+                        end,
+                    },
+                    resetSizes = {
+                        type = "execute", name = "ui.options_469631cb16", order = 20.3,
+                        suiTrailingFit = true,
+                        hidden = function() return not DB() or not DB().nameFontSizeEnabled end,
+                        func = function()
+                            local db = DB()
+                            if not db then return end
+                            db.nameFontSize = 10
+                            module:SaveNameTextSettings()
+                            module:RefreshNameTexts()
+                            module:RefreshPresetButtons()
+                        end,
+                    },
                     quickControls = Place(frameOpts.quickControls, 21, true),
                 } },
             autoBlock = { type = "group", name = "ui.text_e159ce7c", order = 2,
