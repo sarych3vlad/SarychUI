@@ -23,6 +23,16 @@ end
 
 local module = getModule()
 
+-- Dragon keeps the native right bar as an animation frame. Mouse bounds
+-- belong to its visible child holder, which follows that native slide.
+local function SidePanelMouseFrame(frame)
+    local dragon = module.DragonStyle
+    if frame == MultiBarRight and dragon and dragon.active and dragon.rightHolder then
+        return dragon.rightHolder
+    end
+    return frame
+end
+
 local GetSetting
 local classicXpOriginal
 
@@ -1138,12 +1148,12 @@ local function EnsureMicroMenuStyleHooks()
 		end
 	end
 
-	local perfFrame = MainMenuBarPerformanceBarFrame
-	if perfFrame and not perfFrame._sarychHideGreenHook then
-		perfFrame._sarychHideGreenHook = true
-		if perfFrame.HookScript then
-			perfFrame:HookScript("OnUpdate", ApplyPerformanceBarVisibility)
-		end
+	-- In 3.3.5 the native update belongs to MainMenuMicroButton, not a
+	-- PerformanceBarFrame. Follow its colour writes instead of polling per frame.
+	local perfBar = MainMenuBarPerformanceBar
+	if perfBar and type(hooksecurefunc) == "function" and not perfBar._sarychHideGreenHook then
+		perfBar._sarychHideGreenHook = true
+		hooksecurefunc(perfBar, "SetVertexColor", ApplyPerformanceBarVisibility)
 	end
 end
 
@@ -1176,6 +1186,8 @@ ApplyMicroMenuStyle = function()
 
 	local function EachExtraMicroIcon(button, callback)
 		local keep = {}
+		-- This OVERLAY region is a live network indicator, not button chrome.
+		if MainMenuBarPerformanceBar then keep[MainMenuBarPerformanceBar] = true end
 		local normalTex = button:GetNormalTexture()
 		local pushedTex = button:GetPushedTexture()
 		local highlightTex = button:GetHighlightTexture()
@@ -1579,7 +1591,7 @@ local function ApplySidePanelsSettings()
         -- Если скрытие отключено - показываем панели
         if MultiBarRight then
             MultiBarRight:SetAlpha(1)
-            MultiBarRight:EnableMouse(true)
+            SidePanelMouseFrame(MultiBarRight):EnableMouse(true)
         end
         if MultiBarLeft then
             MultiBarLeft:SetAlpha(1)
@@ -1684,7 +1696,7 @@ function module:HideElementsOnAltRelease()
         
         -- Проверяем MultiBarRight
         if MultiBarRight and MultiBarRight:IsVisible() then
-            local left, bottom, width, height = MultiBarRight:GetRect()
+            local left, bottom, width, height = SidePanelMouseFrame(MultiBarRight):GetRect()
             if mouseX >= left and mouseX <= left + width and mouseY >= bottom and mouseY <= bottom + height then
                 mouseOverPanels = true
             end
@@ -2387,7 +2399,7 @@ function module:ShowSidePanels()
         -- Если скрытие отключено - показываем панели
         if MultiBarRight then
             MultiBarRight:SetAlpha(1)
-            MultiBarRight:EnableMouse(true)
+            SidePanelMouseFrame(MultiBarRight):EnableMouse(true)
         end
         if MultiBarLeft then
             MultiBarLeft:SetAlpha(1)
@@ -2419,7 +2431,7 @@ function module:HideSidePanels()
         -- Если скрытие отключено - показываем панели
         if MultiBarRight then
             MultiBarRight:SetAlpha(1)
-            MultiBarRight:EnableMouse(true)
+            SidePanelMouseFrame(MultiBarRight):EnableMouse(true)
         end
         if MultiBarLeft then
             MultiBarLeft:SetAlpha(1)
@@ -2449,7 +2461,7 @@ function module:UpdateSidePanels()
         -- Если скрытие отключено - показываем панели
         if MultiBarRight then
             MultiBarRight:SetAlpha(1)
-            MultiBarRight:EnableMouse(true)
+            SidePanelMouseFrame(MultiBarRight):EnableMouse(true)
         end
         if MultiBarLeft then
             MultiBarLeft:SetAlpha(1)
@@ -2508,7 +2520,7 @@ function module:SetPanelsVisibility(show)
     if MultiBarRight then
         if show then
             MultiBarRight:SetAlpha(1)
-            MultiBarRight:EnableMouse(true)
+            SidePanelMouseFrame(MultiBarRight):EnableMouse(true)
             -- Оптимизация: обновляем только видимые кнопки
             for i = 1, 12 do
                 local button = _G["MultiBarRightButton" .. i]
@@ -2606,7 +2618,7 @@ function module:SetupPanelMouseHandlers()
         
         -- Проверяем MultiBarRight
         if MultiBarRight and MultiBarRight:IsVisible() then
-            local left, bottom, width, height = MultiBarRight:GetRect()
+            local left, bottom, width, height = SidePanelMouseFrame(MultiBarRight):GetRect()
             if mouseX >= left and mouseX <= left + width and mouseY >= bottom and mouseY <= bottom + height then
                 overAnyPanel = true
             end

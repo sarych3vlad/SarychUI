@@ -12,7 +12,7 @@ local STOCK_ART = { "MainMenuBarTexture0", "MainMenuBarTexture1", "MainMenuBarTe
     "MainMenuBarTexture3", "MainMenuBarLeftEndCap", "MainMenuBarRightEndCap",
     "MainMenuBarArtFrameTexture0", "MainMenuBarArtFrameTexture1",
     "MainMenuBarArtFrameTexture2", "MainMenuBarArtFrameTexture3",
-    "MainMenuBarMaxLevelBar", "MainMenuBarPerformanceBar",
+    "MainMenuBarMaxLevelBar",
     "ReputationXPBarTexture0", "ReputationXPBarTexture1", "ReputationXPBarTexture2", "ReputationXPBarTexture3",
     "ReputationWatchBarTexture0", "ReputationWatchBarTexture1", "ReputationWatchBarTexture2", "ReputationWatchBarTexture3",
     "MainMenuXPBarTexture0", "MainMenuXPBarTexture1", "MainMenuXPBarTexture2", "MainMenuXPBarTexture3",
@@ -39,7 +39,7 @@ end
 local function Save(frame)
     if frame == style.holder or frame == style.xp or frame == style.rep
         or frame == style.petHolder or frame == style.stanceHolder
-        or frame == style.vehicleExit then return end
+        or frame == style.vehicleExit or frame == style.rightHolder then return end
     if not frame or style.original[frame] then return end
     -- Texture and FontString regions in WoW 3.3.5 do not expose every Frame
     -- method (notably GetScale/SetScale).  Save only supported properties.
@@ -113,6 +113,7 @@ local function VehicleLayoutBlocked()
     if UnitHasVehicleUI and UnitHasVehicleUI("player") then return true end
     if MainMenuBar and (MainMenuBar.busy or MainMenuBar.animating) then return true end
     if VehicleMenuBar and VehicleMenuBar.animating then return true end
+    if MultiBarRight and MultiBarRight.animating then return true end
     return false
 end
 
@@ -120,9 +121,12 @@ function style:RequestLayout(delay)
     if not self.active then return end
     self.layoutPending = true
     self.layoutDelay = math.max(self.layoutDelay or 0, delay or 0)
-    if self.controller and not InCombatLockdown()
-        and not (UnitHasVehicleUI and UnitHasVehicleUI("player")) then
-        self.controller:Show()
+    if self.controller then
+        if InCombatLockdown() or (UnitHasVehicleUI and UnitHasVehicleUI("player")) then
+            self.controller:Hide()
+        else
+            self.controller:Show()
+        end
     end
 end
 
@@ -355,11 +359,30 @@ function style:Layout()
     }) do
         local bar, prefix, x = unpack(data)
         if bar then
-            Place(bar, "RIGHT", UIParent, "RIGHT", x, -70)
+            local holder = bar
+            if bar == MultiBarRight then
+                -- FrameXML slides this frame using BOTTOMRIGHT (0,98). A RIGHT
+                -- anchor would survive SetPoint and conflict during combat.
+                -- Keep the native animation frame at its resting anchor; move
+                -- only our child holder, which inherits the native slide.
+                Place(bar, "BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", 0, 98)
+                self.rightHolder = self.rightHolder or CreateFrame("Frame",
+                    "SarychUI_DragonRightBar", bar)
+                holder = self.rightHolder
+                Place(holder, "RIGHT", bar, "BOTTOMRIGHT", x, UIParent:GetHeight()/2 - 70 - 98)
+                holder:SetFrameLevel(bar:GetFrameLevel())
+                holder:EnableMouse(true)
+                holder:Show()
+                bar:EnableMouse(false)
+            else
+                Place(bar, "RIGHT", UIParent, "RIGHT", x, -70)
+            end
             bar:SetScale(1)
-            bar:SetSize(SIZE, 12 * SIZE + 11 * spacing)
+            holder:SetSize(SIZE, 12 * SIZE + 11 * spacing)
             for i = 1, 12 do
-                Place(_G[prefix .. i], "TOPLEFT", bar, "TOPLEFT", 0, -(i-1)*rowStep)
+                local button = _G[prefix .. i]
+                -- Keep the native parent/actionpage used by secure clicks.
+                Place(button, "TOPLEFT", holder, "TOPLEFT", 0, -(i-1)*rowStep)
             end
         end
     end
@@ -520,7 +543,7 @@ function style:ApplyArt()
     if MainMenuBarMaxLevelBar then MainMenuBarMaxLevelBar:EnableMouse(false) end
     if MainMenuExpBar then MainMenuExpBar:SetAlpha(0) end
     if ReputationWatchBar then ReputationWatchBar:SetAlpha(0) end
-    for _, name in ipairs({ "ExhaustionTick", "ExhaustionLevelFillBar", "MainMenuBarPerformanceBar",
+    for _, name in ipairs({ "ExhaustionTick", "ExhaustionLevelFillBar",
         "MainMenuBarExpText", "ReputationWatchBarText" }) do
         local frame = _G[name]
         if frame then frame:Hide() end
@@ -667,7 +690,7 @@ function style:Enable()
     for _, event in ipairs({"PLAYER_ENTERING_WORLD", "PLAYER_XP_UPDATE", "UPDATE_EXHAUSTION",
         "UPDATE_FACTION", "PLAYER_LEVEL_UP", "PLAYER_REGEN_ENABLED", "ACTIONBAR_PAGE_CHANGED",
          "PET_BAR_UPDATE", "UNIT_PET", "UNIT_ENTERING_VEHICLE", "UNIT_ENTERED_VEHICLE", "UNIT_EXITED_VEHICLE",
-        "UPDATE_SHAPESHIFT_FORMS", "DISPLAY_SIZE_CHANGED"}) do
+        "UPDATE_SHAPESHIFT_FORMS", "DISPLAY_SIZE_CHANGED", "UI_SCALE_CHANGED"}) do
         self.controller:RegisterEvent(event)
     end
     self.controller:SetScript("OnEvent", function(_, event, unit)
@@ -685,7 +708,7 @@ function style:Enable()
             end
         elseif event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_REGEN_ENABLED" or
             event == "PLAYER_LEVEL_UP" or event == "UPDATE_FACTION"
-            or event == "DISPLAY_SIZE_CHANGED" or event == "UNIT_PET"
+            or event == "DISPLAY_SIZE_CHANGED" or event == "UI_SCALE_CHANGED" or event == "UNIT_PET"
             or event == "PET_BAR_UPDATE" or event == "UPDATE_SHAPESHIFT_FORMS"
             then
             style:Layout()
@@ -733,6 +756,7 @@ function style:Disable()
     if self.petHolder then self.petHolder:Hide() end
     if PetActionBarFrame then PetActionBarFrame.showgrid = self.petOriginalShowgrid end
     if self.stanceHolder then self.stanceHolder:Hide() end
+    if self.rightHolder then self.rightHolder:Hide() end
     if self.vehicleExit then
         if UnregisterStateDriver then UnregisterStateDriver(self.vehicleExit, "visibility") end
         self.vehicleExit:Hide()

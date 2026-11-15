@@ -96,11 +96,13 @@ function module:Enable()
 	end
 	self:ApplyClassicCastbarOffset()
 	self:ApplyChannelTicks()
+	if self.ApplyLatency then self:ApplyLatency() end
 	ApplyTimers()
 end
 
 function module:Disable()
 	self:ApplyClassicCastbarOffset(true)
+	if self.Latency then self.Latency:Disable() end
 	if self.Ticks then
 		self.Ticks:Disable()
 	end

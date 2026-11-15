@@ -1960,7 +1960,6 @@ function SarychUI:AddAddOnOptions()
 end
 
 local addonPurpose = {
-    InspectEquip = "ui.addon_purpose.inspectequip",
     Clique = "ui.addon_purpose.clique",
     Auctionator = "ui.addon_purpose.auctionator",
     BASpammer = "ui.addon_purpose.baspammer",

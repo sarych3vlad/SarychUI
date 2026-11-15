@@ -760,3 +760,45 @@ SarychUI.RegisterUIMap("ruRU", {
     ["ui.action_bars.backpack_only_desc"] = "Скрывает кнопки четырёх сумок и связки ключей, оставляя только кнопку рюкзака. Сами сумки остаются доступны.",
     ["ui.action_bars.change_position"] = "Изменить расположение",
 })
+
+SarychUI.RegisterUIMap("ruRU", {
+    ["ui.cc.arena_countdown_offset"] = "Смещение отсчёта (сек.)",
+    ["ui.cc.arena_countdown_offset_desc"] = "Сдвиг окончания отсчёта от −5 до +5 секунд. Отрицательное значение — раньше, положительное — позже. 0 — без поправки. Шаг 0.001 секунды (1 мс); точное значение можно ввести в поле.",
+})
+
+SarychUI.RegisterUIMap("ruRU", {
+    ["ui.gearscore.display_mode"] = "Показывать",
+    ["ui.gearscore.thousands_separator"] = "Разделитель тысяч",
+    ["ui.gearscore.thousands_separator_desc"] = "Разделять тысячи запятой в значениях GearScore: 6831 → 6,831. Действует в окне персонажа, осмотре и подсказках.",
+    ["ui.gearscore.display_mode_desc"] = "Выбор действует в окне персонажа, осмотре и подсказках. Item Level — среднее по 17 слотам надетой экипировки, включая дальнобойное оружие или реликвию, без рубашки и гербовой накидки. Пустой слот считается за 0, двуручное оружие без предмета во второй руке — за оба оружейных слота. Цвет среднего значения сохраняется по GearScore. Для подсказок вещей включается штатная настройка WoW «Уровни предметов», без дополнительной строки; при отключении аддона эта настройка сохраняется.",
+    ["ui.gearscore.item_level"] = "Item Level (средний уровень предметов)",
+    ["ui.gearscore.unit_tooltip"] = "Показывать в подсказке персонажа",
+    ["ui.gearscore.inspect"] = "Показывать в окне осмотра",
+    ["ui.gearscore.item_tooltip"] = "Показывать в подсказке предмета",
+})
+
+SarychUI:RegisterUIMap("ruRU", {
+    ["ui.equipment.title"] = "Информация о экипировке",
+    ["ui.equipment.score"] = "Отображать GearScore / Item Level",
+    ["ui.equipment.sources"] = "Показывать источники экипировки",
+    ["ui.equipment.sources_title"] = "Источники экипировки",
+    ["ui.equipment.very_rare"] = "Особо редкий предмет",
+})
+
+SarychUI:RegisterUIMap("ruRU", {
+    ["ui.tooltip.control_title"] = "Управление подсказкой",
+    ["ui.tooltip.id_title"] = "ID в подсказках",
+    ["ui.tooltip.show_ids"] = "Показывать ID",
+    ["ui.tooltip.position_title"] = "Изменить расположение подсказки",
+    ["ui.tooltip.position_desc"] = "Смещение стандартной подсказки относительно правого нижнего угла. При нулевых X/Y сохраняется штатное положение. Подсказки у курсора и возле предметов не перемещаются.",
+    ["ui.tooltip.ownership_title"] = "Информация о количествах у персонажей",
+    ["ui.castbar.player_icon_group"] = "Иконка заклинания игрока",
+    ["ui.castbar.latency_title"] = "Задержка заклинания",
+    ["ui.castbar.latency_enable"] = "Показывать зону задержки",
+    ["ui.castbar.latency_desc"] = "Красная зона на полосе игрока показывает задержку от отправки заклинания до подтверждения начала каста. Для поддерживаемых заклинаний зона находится слева. Размер ограничен полосой.",
+    ["ui.castbar.latency_text"] = "Показывать задержку в миллисекундах",
+    ["ui.castbar.latency_text_position"] = "Расположение текста",
+    ["ui.castbar.latency_above"] = "Над полосой",
+    ["ui.castbar.latency_below"] = "Под полосой",
+    ["ui.castbar.latency_text_alpha"] = "Прозрачность текста",
+})

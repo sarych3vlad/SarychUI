@@ -5,6 +5,72 @@ UFL.frames = UFL.frames or setmetatable({}, { __mode = "k" })
 UFL.healComm = LibStub:GetLibrary("LibHealComm-4.0", true)
 UFL.absorbMonitor = LibStub:GetLibrary("AbsorbsMonitor-1.0", true)
 
+-- All prediction segments use fractions of the owning status bar, never the
+-- previous texture's screen position. Clip both endpoints before drawing so
+-- overhealing, oversized costs and chained absorbs cannot leave the bar.
+function UFL:UpdatePredictionFill(realbar, bar, startFraction, sizeFraction)
+    local width, height = realbar:GetWidth(), realbar:GetHeight()
+    local first = math.max(0, math.min(1, startFraction))
+    local last = math.max(0, math.min(1, startFraction + math.max(0, sizeFraction)))
+    bar._uflPredictionEnd = last
+    if width <= 0 or height <= 0 or last <= first then
+        bar:Hide()
+        if bar.overlay then bar.overlay:Hide() end
+        return false
+    end
+
+    -- Native party overlays can live under UIParent while their bars are scaled.
+    -- Sizes and anchor offsets must be expressed in the texture parent's units.
+    local parent = bar.GetParent and bar:GetParent()
+    if parent and parent.GetEffectiveScale and realbar.GetEffectiveScale then
+        local scale = realbar:GetEffectiveScale() / parent:GetEffectiveScale()
+        width, height = width * scale, height * scale
+    end
+    local vertical = realbar.GetOrientation and realbar:GetOrientation() == "VERTICAL"
+    local reverse = realbar.GetReverseFill and realbar:GetReverseFill()
+    bar:ClearAllPoints()
+    if vertical then
+        local edge = reverse and "TOPLEFT" or "BOTTOMLEFT"
+        bar:SetPoint(edge, realbar, edge, 0, (reverse and -1 or 1) * height * first)
+        height = height * (last - first)
+    else
+        local edge = reverse and "TOPRIGHT" or "TOPLEFT"
+        bar:SetPoint(edge, realbar, edge, (reverse and -1 or 1) * width * first, 0)
+        width = width * (last - first)
+    end
+    bar:SetSize(width, height)
+    bar:Show()
+    if bar.overlay then
+        local tileSize = bar.overlay.tileSize or 32
+        if tileSize > 0 then
+            bar.overlay:SetTexCoord(0, width / tileSize, 0, height / tileSize)
+            bar.overlay:Show()
+        else
+            bar.overlay:Hide()
+        end
+    end
+    return true
+end
+
+function UFL:UpdateFillBar(realbar, previousTexture, bar, amount, offsetFraction)
+    local minimum, maximum = realbar:GetMinMaxValues()
+    local span = maximum - minimum
+    if span <= 0 or amount <= 0 then
+        self:UpdatePredictionFill(realbar, bar, 0, 0)
+        return previousTexture
+    end
+    local first
+    if previousTexture == realbar:GetStatusBarTexture() then
+        first = math.max(0, math.min(1, (realbar:GetValue() - minimum) / span))
+    else
+        first = previousTexture._uflPredictionEnd or 0
+    end
+    if self:UpdatePredictionFill(realbar, bar, first + (offsetFraction or 0), amount / span) then
+        return bar
+    end
+    return previousTexture
+end
+
 function UFL:GetRangeColorFactor(frame)
     return frame and frame._suiRangeColorFactor or 1
 end

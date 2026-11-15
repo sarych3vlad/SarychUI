@@ -299,6 +299,7 @@ local function IsVehicleLayoutBlocked()
 	if IsPlayerInVehicle() then return true end
 	if MainMenuBar and (MainMenuBar.busy or MainMenuBar.animating) then return true end
 	if VehicleMenuBar and VehicleMenuBar.animating then return true end
+	if MultiBarRight and MultiBarRight.animating then return true end
 	return false
 end
 
@@ -324,11 +325,11 @@ function BFA:ApplyPlayerLayout()
 	if self._applyingLayout then return true end
 	if InCombatLockdown() or IsVehicleLayoutBlocked() then
 		self.layoutPending = true
-		if IsVehicleLayoutBlocked() then
+		if InCombatLockdown() or IsPlayerInVehicle() then
+			controller:Hide()
+		else
 			self.layoutDelay = 0.10
 			controller:Show()
-		else
-			controller:Hide()
 		end
 		return false
 	end
@@ -392,7 +393,11 @@ function BFA:RequestLayout(delay)
 	self.layoutPending = true
 	delay = delay or 0
 	if delay > self.layoutDelay then self.layoutDelay = delay end
-	controller:Show()
+	if InCombatLockdown() or IsPlayerInVehicle() then
+		controller:Hide()
+	else
+		controller:Show()
+	end
 end
 
 function BFA:InstallHooks()

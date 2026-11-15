@@ -31,6 +31,9 @@ local EnemyData = SUI.Data.EnemyAbilities
 local resetters = AbilityData.resetters
 local shared = AbilityData.shared
 local linkedUse = AbilityData.linkedUse
+local inArena, arenaEntryTime
+local arenaPreparation = {}
+local arenaResetTimes = {}
 
 local function DB()
 	return SUI.db and SUI.db.profile and SUI.db.profile.modules and SUI.db.profile.modules.party_abilities
@@ -606,6 +609,60 @@ for _, list in pairs(AbilityData.presets or {}) do
 	for _, entry in ipairs(list) do presetCooldowns[entry[1]] = entry[2] end
 end
 
+local function ResetsInArena(id, state)
+	local rule = AbilityData.cooldownRules and AbilityData.cooldownRules[id]
+	local db = DB()
+	local data = db and db.spells and db.spells[id]
+	local base = rule and rule.base or presetCooldowns[id] or (data and tonumber(data.cooldown))
+	-- WotLK's ordinary arena reset excludes cooldowns of ten minutes or more.
+	-- Use the full duration, never remaining time, and retain unknown entries.
+	return base and base > 0 and base < 600
+		and (not state or not state.native or (state.duration or 0) < 600)
+end
+
+local function ResetArenaCooldowns(guid)
+	for memberGUID, spells in pairs(active) do
+		if not guid or guid == memberGUID then
+			for id, state in pairs(spells) do
+				if ResetsInArena(id, state) then spells[id] = nil end
+			end
+			liveAuras[memberGUID] = nil
+		end
+	end
+end
+
+local function UpdateArenaContext()
+	local arena = IsInInstance and select(2, IsInInstance()) == "arena" or false
+	if arena and not inArena then
+		arenaEntryTime = GetTime()
+		ResetArenaCooldowns()
+		wipe(arenaPreparation)
+		wipe(arenaResetTimes)
+	elseif not arena then
+		wipe(arenaPreparation)
+	end
+	inArena = arena
+end
+
+local function UpdateArenaPreparation(unit, guid)
+	if not inArena or not guid or not UnitBuff then return end
+	local preparationName = GetSpellInfo(32727)
+	local preparing = false
+	for index = 1, 40 do
+		local name, _, _, _, _, _, _, _, _, _, id = UnitBuff(unit, index)
+		if not name then break end
+		if id == 32727 or (preparationName and name == preparationName) then preparing = true; break end
+	end
+	local reset = preparing and not arenaPreparation[guid]
+	if reset then
+		-- A teammate can enter after us, without a world event on our client.
+		arenaResetTimes[guid] = GetTime()
+		ResetArenaCooldowns(guid)
+	end
+	arenaPreparation[guid] = preparing or nil
+	return reset
+end
+
 local enemySpells, enemySpellsDB
 local function EnemySpells(db)
 	if enemySpellsDB == db and enemySpells then return enemySpells end
@@ -764,25 +821,38 @@ end
 local function SyncPlayerCooldown(guid, id, data, state, now)
 	if not state or state.shared or not GetSpellCooldown or not UnitGUID
 		or guid ~= UnitGUID("player") or tonumber(data.cooldown) ~= presetCooldowns[id] then return end
-	local start, duration = GetSpellCooldown(id)
+	local start, duration, available = GetSpellCooldown(id)
 	if not start or not duration or start <= 0 or duration <= 2 then
 		local spellName = GetSpellInfo(id)
-		if spellName then start, duration = GetSpellCooldown(spellName) end
+		if spellName then start, duration, available = GetSpellCooldown(spellName) end
 	end
 	-- Ignore the global cooldown and a previous cast's timer. The game's own
 	-- active cooldown includes talents, glyphs, gear and other local modifiers.
 	if start and duration and start > 0 and duration > 2
 		and start + duration > now and start >= state.start - 3 then
+		local changed = state.start ~= start or state.duration ~= duration
 		state.start, state.duration, state.native, state.playerNative = start, duration, true, true
+		state.resetAt = nil
 		if SendAddonMessage and (state.sentDuration ~= duration or state.sentStart ~= start) then
 			local channel = (GetNumRaidMembers and GetNumRaidMembers() or 0) > 0 and "RAID" or "PARTY"
 			SendAddonMessage(cooldownCommPrefix,
 				"C|" .. guid .. "|" .. id .. "|" .. duration .. "|" .. math.max(0, now - start), channel)
 			state.sentDuration, state.sentStart = duration, start
 		end
-	elseif state.playerNative and duration == 0 and now > state.start + 0.5 then
+		return changed
+	elseif state.playerNative and duration == 0 and available ~= 0 and now > state.start + 0.5 then
 		-- A confirmed native cooldown was reset. Do not keep its old estimate.
+		-- Zero-duration C messages are backward compatible (old clients ignore
+		-- them). Include the old cast's age so a delayed reset cannot erase a recast.
+		if state.duration > 0 and now < state.start + state.duration and SendAddonMessage then
+			local channel = (GetNumRaidMembers and GetNumRaidMembers() or 0) > 0 and "RAID" or "PARTY"
+			SendAddonMessage(cooldownCommPrefix,
+				"C|" .. guid .. "|" .. id .. "|0|" .. math.max(0, now - state.start), channel)
+		end
+		local changed = state.duration > 0
 		state.duration = 0
+		state.resetAt = state.resetAt or now
+		return changed
 	end
 end
 
@@ -791,10 +861,12 @@ local function SyncOwnCooldowns(now)
 	local db = DB()
 	local spells = guid and active[guid]
 	if not spells or not db or not db.spells then return end
+	local changed = false
 	for id, state in pairs(spells) do
 		local data = db.spells[id]
-		if data then SyncPlayerCooldown(guid, id, data, state, now) end
+		if data and SyncPlayerCooldown(guid, id, data, state, now) then changed = true end
 	end
+	return changed
 end
 
 local function ReceiveCooldown(prefix, message, sender)
@@ -803,7 +875,8 @@ local function ReceiveCooldown(prefix, message, sender)
 	local id, duration, age = tonumber(idText), tonumber(durationText), tonumber(ageText)
 	local member = guid and units[guid]
 	if not member or member.enemy or member.test or not id or not duration or not age
-		or duration <= 2 or duration > 3600 or age < 0 or age > duration then return end
+		or (duration ~= 0 and duration <= 2) or duration > 3600 or age < 0
+		or age > (duration == 0 and 3600 or duration) then return end
 	local name = UnitName(member.token)
 	if not name or (sender ~= name and sender:match("^[^-]+") ~= name) then return end
 	local db = DB()
@@ -812,9 +885,21 @@ local function ReceiveCooldown(prefix, message, sender)
 		or tonumber(data.cooldown) ~= presetCooldowns[id] then return end
 	local now = GetTime()
 	local start = now - age
+	if duration == 0 then
+		local state = active[guid] and active[guid][id]
+		if state and math.abs(state.start - start) <= 1 then
+			state.duration, state.native, state.pendingUntil = 0, true, nil
+			state.resetAt = now
+			extension:Render()
+		end
+		return
+	end
+	local resetAt = arenaResetTimes[guid] or arenaEntryTime
+	if resetAt and start < resetAt - 1 and ResetsInArena(id, { duration = duration, native = true }) then return end
 	active[guid] = active[guid] or {}
 	local state = active[guid][id]
 	if state and state.start > start + 1 then return end
+	if state and state.resetAt and start < state.resetAt - 1 then return end
 	learnedDurations[guid] = learnedDurations[guid] or {}
 	learnedDurations[guid][id] = duration
 	if not state or (state.displayed and start > state.start + 3) then
@@ -825,6 +910,7 @@ local function ReceiveCooldown(prefix, message, sender)
 	-- icon has already been drawn. Do not leave this cast on a known-wrong timer.
 	state.start, state.duration, state.native = start, duration, true
 	state.pendingUntil = nil
+	state.resetAt = nil
 	extension:Render()
 end
 
@@ -1603,7 +1689,7 @@ function extension:Enable()
 	for _, name in ipairs({ "PARTY_MEMBERS_CHANGED", "RAID_ROSTER_UPDATE", "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA",
 		"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "PLAYER_TALENT_UPDATE", "UNIT_NAME_UPDATE",
 		"UNIT_FACTION", "UNIT_PET", "ARENA_OPPONENT_UPDATE", "UNIT_INVENTORY_CHANGED", "PLAYER_EQUIPMENT_CHANGED", "GET_ITEM_INFO_RECEIVED",
-		"INSPECT_TALENT_READY", "CHAT_MSG_ADDON" }) do
+		"INSPECT_TALENT_READY", "CHAT_MSG_ADDON", "SPELL_UPDATE_COOLDOWN" }) do
 		eventFrame:RegisterEvent(name)
 	end
 	if SUI.AuraTracking then
@@ -1618,6 +1704,7 @@ function extension:Enable()
 		talentLib.RegisterCallback(self, "LibGroupTalents_Update", "OnTalentUpdate")
 		talentLib.RegisterCallback(self, "LibGroupTalents_GlyphUpdate", "OnGlyphUpdate")
 	end
+	UpdateArenaContext()
 	Roster()
 	UpdateTick()
 	self:Render()
@@ -1649,6 +1736,8 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
 	if event == "CHAT_MSG_ADDON" then
 		local prefix, message, _, sender = ...
 		ReceiveCooldown(prefix, message, sender)
+	elseif event == "SPELL_UPDATE_COOLDOWN" then
+		if SyncOwnCooldowns(GetTime()) then extension:Render() end
 	elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
 		local _, subevent, sourceGUID, sourceName, sourceFlags, destGUID, _, _, spellID, spellName = ...
         if Detached() and sourceGUID and sourceFlags and bit.band(sourceFlags, COMBATLOG_OBJECT_REACTION_HOSTILE or 64) ~= 0
@@ -1690,9 +1779,12 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
 	elseif event == "UNIT_AURA" then
 		local unit = ...
 		local guid = unit and UnitGUID(unit)
+		local reset = UpdateArenaPreparation(unit, guid)
 		local member = guid and units[guid]
 		if member and AuraMatters(member) then
 			liveAuras[guid] = nil
+			extension:Render()
+		elseif reset then
 			extension:Render()
 		end
 	elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
@@ -1719,6 +1811,7 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
 		end
 	else
 		if event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" then
+			UpdateArenaContext()
 			wipe(arenaLastSeen)
             for guid, member in pairs(detachedEnemies) do active[guid] = nil end
             wipe(detachedEnemies)

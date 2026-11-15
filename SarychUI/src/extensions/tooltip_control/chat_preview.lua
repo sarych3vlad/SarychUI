@@ -1,4 +1,4 @@
--- SarychUI Chat - ItemRef tooltip icons sticky preview (item + achievement).
+-- Tooltip Control: one normal options widget containing item and achievement samples.
 
 local CreateFrame = SarychUI.OptionsPool and SarychUI.OptionsPool.CreateFrame or CreateFrame
 local ipairs = ipairs
@@ -16,7 +16,7 @@ local function Tr(s)
 	return s
 end
 
-local PREVIEW_H = 200
+local TIP_HEIGHT = 78
 
 -- Classic WotLK sample items (icon + name fallbacks if GetItemInfo not cached).
 local SAMPLE_ITEMS = {
@@ -56,8 +56,7 @@ Preview._sampleIndex = 1
 Preview._achIndex = 1
 
 local function ChatDB()
-	local mods = SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules
-	return mods and mods.chat or {}
+    return SarychUI.modules.tooltip_control:GetChatTooltipDB()
 end
 
 local function LiveOr(key, fallback)
@@ -207,7 +206,7 @@ local function MakeTooltipPreview(parent)
 	line3:SetTextColor(1, 1, 1)
 	tip.line3 = line3
 
-	-- Same placement as appearance.lua: TOPRIGHT of tip -> TOPLEFT, 0.5, -1.5
+	-- Same placement as chat_runtime.lua: TOPRIGHT of tip -> TOPLEFT, 0.5, -1.5
 	local icon = CreateFrame("Frame", nil, tip, nil, "chat.tooltip_preview:3")
 	icon:SetSize(37, 37)
 	icon:SetPoint("TOPRIGHT", tip, "TOPLEFT", 0.5, -1.5)
@@ -268,112 +267,50 @@ local function ApplyIconHighlight(tip, showIcon, active)
 end
 
 function Preview:Create(parent)
-	self:ClearStickyHosts()
-	local OW = SarychUI.OptionsWindow
-	local T = SarychUI.OptionsTheme
+    local sizes = SarychUI.OptionsTheme.sizes
+    local gap = sizes.rowGap
+    local height = TIP_HEIGHT * 2 + gap + sizes.panelPad * 2
+    -- The renderer owns this single widget's position and height. All visual
+    -- children belong to it; no sibling spacer or floating overlay participates
+    -- in the parent's layout or delayed height measurement.
+    local host, stage = SarychUI.OptionsPreviews:CreateHost(parent, height)
+    local itemTip = MakeTooltipPreview(stage)
+    local achTip = MakeTooltipPreview(stage)
+    host._itemTip, host._achTip = itemTip, achTip
+    local itemSample = PickSample(SAMPLE_ITEMS, "_sampleIndex")
+    local achievementSample = PickSample(SAMPLE_ACHIEVEMENTS, "_achIndex")
 
-	local spacer = CreateFrame("Frame", nil, parent, nil, "chat.tooltip_preview:4")
-	spacer:SetHeight(PREVIEW_H + 4)
+    local function LayoutSamples(width)
+        local showIcon = LiveFlag("itemRefIconsEnabled", true)
+        local iconSpace = showIcon and 44 or 0
+        local available = math.max(80, (width or host:GetWidth() or 0) - host._contentPad * 2)
+        local tipWidth = math.min(210, math.max(40, available - iconSpace))
+        itemTip:SetSize(tipWidth, TIP_HEIGHT)
+        achTip:SetSize(tipWidth, TIP_HEIGHT)
+        itemTip:ClearAllPoints()
+        itemTip:SetPoint("TOP", stage, "TOP", iconSpace / 2, 0)
+        achTip:ClearAllPoints()
+        achTip:SetPoint("TOP", itemTip, "BOTTOM", 0, -gap)
+        local active = Preview._activeKey == "itemRefIconsEnabled"
+        ApplyIconHighlight(itemTip, showIcon, active)
+        ApplyIconHighlight(achTip, showIcon, active)
+        if showIcon then achTip.icon.border:Show() else achTip.icon.border:Hide() end
+        itemTip.icon.border:Hide()
+    end
 
-	local stickyParent = (OW and OW.content) or parent
-	local host = CreateFrame("Frame", nil, stickyParent, nil, "chat.tooltip_preview:5", spacer)
-	host:SetHeight(PREVIEW_H)
-	host.spacer = spacer
-	host:SetFrameStrata((stickyParent.GetFrameStrata and stickyParent:GetFrameStrata()) or "DIALOG")
-	host:SetFrameLevel((stickyParent:GetFrameLevel() or 1) + 40)
-
-	if T and T.ApplyFlat then
-		T:ApplyFlat(host, T.colors.panelBg or { 0.07, 0.07, 0.09, 0.97 }, T.colors.borderSoft)
-	else
-		local bg = host:CreateTexture(nil, "BACKGROUND")
-		bg:SetAllPoints()
-		bg:SetTexture("Interface\\Buttons\\WHITE8X8")
-		bg:SetVertexColor(0.07, 0.07, 0.09, 0.97)
-	end
-
-	local stage = CreateFrame("Frame", nil, host, nil, "chat.tooltip_preview:6")
-	stage:SetPoint("TOPLEFT", 10, -8)
-	stage:SetPoint("BOTTOMRIGHT", -10, 8)
-
-	local itemTip = MakeTooltipPreview(stage)
-	local achTip = MakeTooltipPreview(stage)
-	-- Leave room on the left for hanging icons; stack vertically.
-	itemTip:SetPoint("TOP", stage, "TOP", 18, -6)
-	achTip:SetPoint("TOP", itemTip, "BOTTOM", 0, -16)
-
-	host._itemTip = itemTip
-	host._achTip = achTip
-
-	local function RefreshSamples()
-		local itemData = ResolveItem(PickSample(SAMPLE_ITEMS, "_sampleIndex"))
-		local achData = ResolveAchievement(PickSample(SAMPLE_ACHIEVEMENTS, "_achIndex"))
-		host._itemSample = itemData
-		host._achSample = achData
-		ApplyTipData(itemTip, itemData)
-		ApplyTipData(achTip, achData)
-	end
-
-	RefreshSamples()
-
-	local function Layout()
-		local showIcon = LiveFlag("itemRefIconsEnabled", true)
-		local active = Preview._activeKey == "itemRefIconsEnabled"
-		ApplyIconHighlight(itemTip, showIcon, active)
-		ApplyIconHighlight(achTip, showIcon, active)
-		-- Achievement border only when icons are on and sample wants it.
-		if showIcon and host._achSample and host._achSample.showBorder then
-			achTip.icon.border:Show()
-		else
-			achTip.icon.border:Hide()
-		end
-		itemTip.icon.border:Hide()
-	end
-
-	local function PinSticky()
-		if not spacer:GetParent() or not spacer:IsShown() then
-			host:Hide()
-			return
-		end
-		host:Show()
-		local scroll = OW and OW.contentScroll
-		if scroll and stickyParent == (OW and OW.content) then
-			host:SetParent(stickyParent)
-			host:ClearAllPoints()
-			host:SetPoint("TOPLEFT", scroll, "TOPLEFT", 0, 0)
-			host:SetPoint("TOPRIGHT", scroll, "TOPRIGHT", 0, 0)
-			host:SetHeight(PREVIEW_H)
-			host:SetFrameLevel((stickyParent:GetFrameLevel() or 1) + 40)
-		else
-			host:SetParent(parent)
-			host:ClearAllPoints()
-			host:SetPoint("TOPLEFT", spacer, "TOPLEFT", 0, 0)
-			host:SetPoint("TOPRIGHT", spacer, "TOPRIGHT", 0, 0)
-		end
-		Layout()
-	end
-
-	host.Refresh = function()
-		PinSticky()
-	end
-
-	spacer:SetScript("OnShow", function()
-		RefreshSamples()
-		PinSticky()
-	end)
-	spacer:SetScript("OnHide", function() host:Hide() end)
-
-	local scroll = OW and OW.contentScroll
-	if scroll and not scroll._suiChatTooltipPinHooked then
-		scroll._suiChatTooltipPinHooked = true
-		scroll:HookScript("OnVerticalScroll", function()
-			Preview:RefreshAll()
-		end)
-		scroll:HookScript("OnSizeChanged", function()
-			Preview:RefreshAll()
-		end)
-	end
-
-	PinSticky()
-	if SarychUI.OptionsPool then SarychUI.OptionsPool:TrackPreview(self, host) else tinsert(self._instances, host) end
-	return spacer
+    host.MeasureHeight = function(self, width)
+        LayoutSamples(width)
+        return height
+    end
+    host.Refresh = function()
+        ApplyTipData(itemTip, ResolveItem(itemSample))
+        ApplyTipData(achTip, ResolveAchievement(achievementSample))
+        LayoutSamples()
+    end
+    host:SetScript("OnShow", host.Refresh)
+    host:SetScript("OnSizeChanged", function(self, width) LayoutSamples(width) end)
+    host:Refresh()
+    if SarychUI.OptionsPool then SarychUI.OptionsPool:TrackPreview(self, host)
+    else tinsert(self._instances, host) end
+    return host
 end

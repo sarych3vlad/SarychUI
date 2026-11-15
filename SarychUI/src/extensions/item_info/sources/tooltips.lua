@@ -1,4 +1,5 @@
-local IE = SarychUI.InspectEquip
+local owner = SarychUI.modules.item_info
+local IE = owner.Sources
 local L = LibStub("AceLocale-3.0"):GetLocale("SarychUI_InspectEquip")
 local tips = {}
 local names = {"GameTooltip", "ItemRefTooltip", "ShoppingTooltip1", "ShoppingTooltip2", "ShoppingTooltip3",

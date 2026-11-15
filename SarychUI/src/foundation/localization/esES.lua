@@ -2879,3 +2879,34 @@ SarychUI.RegisterUIMap("esES", {
     ["ui.action_bars.backpack_only_desc"] = "Oculta los cuatro botones de bolsas y el llavero, dejando solo el botón de la mochila. Las bolsas siguen siendo accesibles.",
     ["ui.action_bars.change_position"] = "Cambiar posición",
 })
+
+SarychUI.RegisterUIMap("esES", {
+    ["ui.cc.arena_countdown_offset"] = "Desfase de la cuenta atrás (s)",
+    ["ui.cc.arena_countdown_offset_desc"] = "Desplaza el final entre −5 y +5 segundos. Un valor negativo termina antes; uno positivo, después. 0 no aplica corrección. Paso: 0.001 segundos (1 ms); puedes escribir el valor exacto en el campo.",
+})
+
+SarychUI:RegisterUIMap("esES", {
+    ["ui.equipment.title"] = "Información del equipo",
+    ["ui.equipment.score"] = "Mostrar GearScore / Item Level",
+    ["ui.equipment.sources"] = "Mostrar fuentes del equipo",
+    ["ui.equipment.sources_title"] = "Fuentes del equipo",
+    ["ui.equipment.very_rare"] = "Objeto excepcionalmente raro",
+})
+
+SarychUI:RegisterUIMap("esES", {
+    ["ui.tooltip.control_title"] = "Control de descripciones",
+    ["ui.tooltip.id_title"] = "ID en descripciones",
+    ["ui.tooltip.show_ids"] = "Mostrar ID",
+    ["ui.tooltip.position_title"] = "Cambiar posición de la descripción",
+    ["ui.tooltip.position_desc"] = "Desplaza la descripción predeterminada desde la esquina inferior derecha. X/Y en cero mantiene la posición original. No mueve las descripciones del cursor ni las ancladas a objetos.",
+    ["ui.tooltip.ownership_title"] = "Cantidades de objetos por personaje",
+    ["ui.castbar.player_icon_group"] = "Icono de hechizo del jugador",
+    ["ui.castbar.latency_title"] = "Latencia de hechizos",
+    ["ui.castbar.latency_enable"] = "Mostrar zona de latencia",
+    ["ui.castbar.latency_desc"] = "La zona roja en la barra del jugador muestra el tiempo entre enviar un hechizo y recibir su inicio. En hechizos canalizados aparece a la izquierda. Su tamaño se limita a la barra.",
+    ["ui.castbar.latency_text"] = "Mostrar latencia en milisegundos",
+    ["ui.castbar.latency_text_position"] = "Posición del texto",
+    ["ui.castbar.latency_above"] = "Encima de la barra",
+    ["ui.castbar.latency_below"] = "Debajo de la barra",
+    ["ui.castbar.latency_text_alpha"] = "Opacidad del texto",
+})

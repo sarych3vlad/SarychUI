@@ -635,11 +635,118 @@ function module:GetOptions()
             end
         end,
     }
-	options.args.settings.args.ticksBox = options.args.timers.args.ticksBox
-	options.args.settings.args.ticksBox.order = 3
-	options.args.timers.args.ticksBox = nil
-	options.args.timers.args.playerTimerBox = options.args.settings.args.playerTimerBox
-	options.args.timers.args.playerTimerBox.order = 2
-	options.args.settings.args.playerTimerBox = nil
+    local settings = options.args.settings
+    local current = settings.args
+    local timers = options.args.timers
+    timers.args.ticksBox = nil
+    timers.args.playerTimerBox = current.playerTimerBox
+    timers.args.playerTimerBox.order = 2
+
+    local appearance = current.appearanceBox
+    local icons = {
+        type = "group", name = "ui.castbar.player_icon_group", order = 2, inline = true,
+        hidden = appearance.hidden,
+        args = {
+            showPlayerIcon = appearance.args.showPlayerIcon,
+            iconCooldownBox = {
+                type = "group", name = "", order = 3, inline = true,
+                hidden = appearance.args.showPlayerIconCooldown.hidden,
+                args = {
+                    showPlayerIconCooldown = appearance.args.showPlayerIconCooldown,
+                },
+            },
+        },
+    }
+    appearance.args.showPlayerIcon = nil
+    appearance.args.showPlayerIconCooldown = nil
+    appearance.name = "ui.scale_e037e967"
+    tickBox.order = 1
+
+    local latencyBox = {
+        type = "group", name = "ui.castbar.latency_title", order = 3, inline = true,
+        args = {
+            enableCastbarLatency = {
+                type = "toggle", name = "ui.castbar.latency_enable", order = 1, width = "full",
+                desc = "ui.castbar.latency_desc",
+                get = function()
+                    local value = GetTimerSetting("enableCastbarLatency", false)
+                    return value == true or value == 1
+                end,
+                set = function(_, value)
+                    local db = DB()
+                    if not db then return end
+                    db.enableCastbarLatency = value and true or false
+                    module:ApplyLatency()
+                    NotifyOptionsChange()
+                end,
+            },
+            textBox = {
+                type = "group", name = "", order = 2, inline = true,
+                hidden = function()
+                    local value = GetTimerSetting("enableCastbarLatency", false)
+                    return value ~= true and value ~= 1
+                end,
+                args = {
+                    showCastbarLatencyText = {
+                        type = "toggle", name = "ui.castbar.latency_text", order = 1, width = "full",
+                        get = function() return isTimerOn("showCastbarLatencyText") end,
+                        set = function(_, value)
+                            local db = DB()
+                            if not db then return end
+                            db.showCastbarLatencyText = value and true or false
+                            module:ApplyLatency()
+                            NotifyOptionsChange()
+                        end,
+                    },
+                    castbarLatencyTextPosition = {
+                        type = "select", name = "ui.castbar.latency_text_position", order = 2, width = "full",
+                        hidden = function() return not isTimerOn("showCastbarLatencyText") end,
+                        values = {
+                            __order = { "above", "below" },
+                            above = SarychUI:T("ui.castbar.latency_above"),
+                            below = SarychUI:T("ui.castbar.latency_below"),
+                        },
+                        get = function() return GetTimerSetting("castbarLatencyTextPosition", "above") end,
+                        set = function(_, value)
+                            local db = DB()
+                            if not db then return end
+                            db.castbarLatencyTextPosition = value
+                            module:ApplyLatency()
+                        end,
+                    },
+                    castbarLatencyTextAlpha = {
+                        type = "range", name = "ui.castbar.latency_text_alpha", order = 3, width = "full",
+                        min = 0, max = 1, step = 0.05,
+                        hidden = function() return not isTimerOn("showCastbarLatencyText") end,
+                        get = function() return GetTimerSetting("castbarLatencyTextAlpha", 0.7) end,
+                        set = function(_, value)
+                            local db = DB()
+                            if not db then return end
+                            db.castbarLatencyTextAlpha = value
+                            module:ApplyLatency()
+                        end,
+                    },
+                },
+            },
+        },
+    }
+
+    settings.childGroups = "tab"
+    settings.args = {
+        position = {
+            type = "group", name = "ui.positions_and_scale_14cee8fd", order = 1,
+            args = {
+                classicCastbarBox = current.classicCastbarBox,
+                dragonflightCastbarBox = current.dragonflightCastbarBox,
+                appearanceBox = appearance,
+            },
+        },
+        additional = {
+            type = "group", name = "ui.extra_d51dd676", order = 2,
+            args = { ticksBox = tickBox, iconsBox = icons, latencyBox = latencyBox },
+        },
+        timers = timers,
+    }
+    options.args.timers = nil
 	return options
 end

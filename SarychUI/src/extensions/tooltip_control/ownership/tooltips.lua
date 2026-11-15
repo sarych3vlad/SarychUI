@@ -6,16 +6,13 @@
 SarychUI_BagnonFT_LastTooltip = SarychUI_BagnonFT_LastTooltip or {}
 
 -- Function to check if addon is enabled
+local owner = SarychUI.modules.tooltip_control
 local function IsEnabled()
-	local profile = SarychUI and SarychUI.db and SarychUI.db.profile
-	local bags = profile and profile.modules and profile.modules.bags
-	return bags and bags.ownerTrackingEnabled ~= false
+    return SarychUI.db and SarychUI.db.profile and owner:IsItemOwnershipEnabled()
 end
 
 local function GetShowOnAlt()
-	local profile = SarychUI and SarychUI.db and SarychUI.db.profile
-	local bags = profile and profile.modules and profile.modules.bags
-	return bags and bags.ownerTrackingShowOnAlt == true or false
+    return owner:GetDB().ownerTrackingShowOnAlt == true
 end
 
 local isAltPressed = false
@@ -409,24 +406,24 @@ local function InitializeAltMode()
 	end
 end
 
--- Initialize after BagnonDB is ready
-local frame = CreateFrame("Frame")
-frame:RegisterEvent("ADDON_LOADED")
-frame:RegisterEvent("PLAYER_LOGIN")
-frame:SetScript("OnEvent", function(self, event, addonName)
-    if event == "ADDON_LOADED" and addonName == "SarychUI" then
+-- Hooks are permanent; the shared modifier subscription follows extension state.
+function SarychUI_SetOwnershipTooltipRuntime(enable)
+    if enable then
         UpdateCurrentPlayer()
         HookTip(GameTooltip)
         HookTip(ItemRefTooltip)
-		InitializeAltMode()
-    elseif event == "PLAYER_LOGIN" then
-        UpdateCurrentPlayer()
-        InitializeItemInfo()
-		InitializeAltMode()
-        self:UnregisterEvent("PLAYER_LOGIN")
+        InitializeAltMode()
+    else
+        if SarychUI.AltMode then SarychUI.AltMode:UnregisterCallback("Bagnon_FT") end
+        removeOwnerLines(SarychUI_BagnonFT_LastTooltip.tooltip)
     end
-end)
-
-if SarychUI and SarychUI.AltMode then
-	InitializeAltMode()
 end
+
+local frame = CreateFrame("Frame")
+frame:RegisterEvent("PLAYER_LOGIN")
+frame:SetScript("OnEvent", function(self)
+    UpdateCurrentPlayer()
+    InitializeItemInfo()
+    SarychUI_SetOwnershipTooltipRuntime(IsEnabled())
+    self:UnregisterEvent("PLAYER_LOGIN")
+end)

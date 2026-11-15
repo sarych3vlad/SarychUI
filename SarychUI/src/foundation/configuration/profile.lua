@@ -97,10 +97,11 @@ function SarychUI:ApplySarych2KProductDefaults(profile)
 	modules.player_resources = modules.player_resources or {}
 	modules.player_resources.enabled = false
 
+	modules.tooltip_control = modules.tooltip_control or {}
+	modules.tooltip_control.enableTooltipCursor = 1
+	modules.tooltip_control.tooltipMode = "cursor"
+	modules.tooltip_control.tooltipCursorAltOnly = 1
 	modules.tools = modules.tools or {}
-	modules.tools.enableTooltipCursor = 1
-	modules.tools.tooltipMode = "cursor"
-	modules.tools.tooltipCursorAltOnly = 1
 	modules.tools.enableEasyGlyph = 1
 	modules.tools.easyGlyphSkipItems = 1
 

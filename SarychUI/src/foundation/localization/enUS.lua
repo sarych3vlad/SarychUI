@@ -2939,3 +2939,45 @@ SarychUI.RegisterUIMap("enUS", {
     ["ui.action_bars.backpack_only_desc"] = "Hides the four bag buttons and the keyring, leaving only the backpack button. Your bags remain accessible.",
     ["ui.action_bars.change_position"] = "Change position",
 })
+
+SarychUI.RegisterUIMap("enUS", {
+    ["ui.cc.arena_countdown_offset"] = "Countdown offset (sec.)",
+    ["ui.cc.arena_countdown_offset_desc"] = "Shift the countdown end by −5 to +5 seconds. Negative values finish earlier, positive values later. 0 applies no correction. Step: 0.001 seconds (1 ms); enter an exact value in the field.",
+})
+
+SarychUI.RegisterUIMap("enUS", {
+    ["ui.gearscore.display_mode"] = "Display",
+    ["ui.gearscore.thousands_separator"] = "Thousands separator",
+    ["ui.gearscore.thousands_separator_desc"] = "Separate thousands with commas in GearScore values: 6831 → 6,831. Applies to the character window, inspection and tooltips.",
+    ["ui.gearscore.display_mode_desc"] = "Applies to the character window, inspection and tooltips. Item Level averages 17 equipped slots, including ranged weapons or relics, excluding shirt and tabard. Empty slots count as 0; a two-handed weapon with an empty off-hand counts for both weapon slots. Average values retain GearScore colors. Item tooltips use the native WoW Show Item Level option, enabled without an extra line; disabling the addon leaves this shared option enabled.",
+    ["ui.gearscore.item_level"] = "Item Level (average equipped level)",
+    ["ui.gearscore.unit_tooltip"] = "Show in character tooltips",
+    ["ui.gearscore.inspect"] = "Show in the inspect window",
+    ["ui.gearscore.item_tooltip"] = "Show in item tooltips",
+})
+
+SarychUI:RegisterUIMap("enUS", {
+    ["ui.equipment.title"] = "Equipment information",
+    ["ui.equipment.score"] = "Show GearScore / Item Level",
+    ["ui.equipment.sources"] = "Show equipment sources",
+    ["ui.equipment.sources_title"] = "Equipment sources",
+    ["ui.equipment.very_rare"] = "Exceptionally rare item",
+})
+
+SarychUI:RegisterUIMap("enUS", {
+    ["ui.tooltip.control_title"] = "Tooltip control",
+    ["ui.tooltip.id_title"] = "Tooltip IDs",
+    ["ui.tooltip.show_ids"] = "Show IDs",
+    ["ui.tooltip.position_title"] = "Change tooltip position",
+    ["ui.tooltip.position_desc"] = "Offset the default tooltip from its bottom-right position. Zero X/Y keeps the default position. Cursor and item-anchored tooltips are unaffected.",
+    ["ui.tooltip.ownership_title"] = "Item quantities across characters",
+    ["ui.castbar.player_icon_group"] = "Player spell icon",
+    ["ui.castbar.latency_title"] = "Spell latency",
+    ["ui.castbar.latency_enable"] = "Show latency zone",
+    ["ui.castbar.latency_desc"] = "The red zone on the player cast bar shows the delay between sending a spell and receiving its cast start. For channeled spells the zone is on the left. Its size is limited to the bar.",
+    ["ui.castbar.latency_text"] = "Show latency in milliseconds",
+    ["ui.castbar.latency_text_position"] = "Text position",
+    ["ui.castbar.latency_above"] = "Above the bar",
+    ["ui.castbar.latency_below"] = "Below the bar",
+    ["ui.castbar.latency_text_alpha"] = "Text opacity",
+})

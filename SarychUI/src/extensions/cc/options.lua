@@ -62,7 +62,7 @@ local function timerToggleSet(key, applyFn)
         local db = SarychUI:GetModuleProfile(moduleName)
         if not db then return end
         db[key] = val and 1 or 0
-        local tools = SarychUI and SarychUI.modules and SarychUI.modules
+        local tools = SarychUI and SarychUI.modules and SarychUI.modules.cc
         if tools and applyFn and tools[applyFn] then
             tools[applyFn](tools)
         end
@@ -323,6 +323,22 @@ function module:GetOptions()
                                 width = "full",
                                 get = timerToggleGet("enableArenaCountdown"),
                                 set = timerToggleSet("enableArenaCountdown", "ApplyArenaCountdown"),
+                            },
+                            arenaCountdownOffset = {
+                                type = "range",
+                                name = "ui.cc.arena_countdown_offset",
+                                desc = "ui.cc.arena_countdown_offset_desc",
+                                order = 3,
+                                width = "full",
+                                min = -5, max = 5, step = 0.001,
+                                hidden = function() return not timerToggleGet("enableArenaCountdown")() end,
+                                get = function() return GetSetting("arenaCountdownOffset", 0) end,
+                                set = function(_, value)
+                                    local db = SarychUI:GetModuleProfile(moduleName)
+                                    if not db then return end
+                                    db.arenaCountdownOffset = value
+                                    module:ApplyArenaCountdown()
+                                end,
                             },
                         },
                     },

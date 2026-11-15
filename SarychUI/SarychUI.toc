@@ -3,8 +3,8 @@
 ## Notes: Complete UI for WotLK 3.3.5
 ## Notes-ruRU: Комплексный интерфейс для WotLK 3.3.5
 ## Author: Сарыч
-## Version: 1.4.2a
-## SavedVariables: SarychUIFlightTimeDB, SarychUIDB, CompactRaidFrameDB, InternalCooldownsDB, BagnonForeverDB, BigDebuffsDB, OmniBarDB, LootClickerDB, LootHistoryDB, MapsterDB, SarychUIElvNamePlatesDB, SarychUIElvNamePlatesPrivateDB, SarychUIElvBagsDB, SarychUIElvBagsPrivateDB, TrufiGCDGlSave, Postal3DB, PurgeatoryDB, AUCTIONATOR_SAVEDVARS, AUCTIONATOR_PRICING_HISTORY, AUCTIONATOR_SHOPPING_LISTS, AUCTIONATOR_PRICE_DATABASE, AUCTIONATOR_MEAN_PRICE_DATABASE, AUCTIONATOR_LAST_SCAN_TIME, AUCTIONATOR_TOONS, AUCTIONATOR_STACKING_PREFS, AUCTIONATOR_SCAN_MINLEVEL, InspectEquipConfig, RaidRoll_DB, RaidRoll_DBPC, TalentedDB
+## Version: 1.4.3
+## SavedVariables: SarychUIFlightTimeDB, SarychUIDB, CompactRaidFrameDB, InternalCooldownsDB, BagnonForeverDB, BigDebuffsDB, OmniBarDB, LootClickerDB, LootHistoryDB, MapsterDB, SarychUIElvNamePlatesDB, SarychUIElvNamePlatesPrivateDB, SarychUIElvBagsDB, SarychUIElvBagsPrivateDB, TrufiGCDGlSave, Postal3DB, PurgeatoryDB, AUCTIONATOR_SAVEDVARS, AUCTIONATOR_PRICING_HISTORY, AUCTIONATOR_SHOPPING_LISTS, AUCTIONATOR_PRICE_DATABASE, AUCTIONATOR_MEAN_PRICE_DATABASE, AUCTIONATOR_LAST_SCAN_TIME, AUCTIONATOR_TOONS, AUCTIONATOR_STACKING_PREFS, AUCTIONATOR_SCAN_MINLEVEL, RaidRoll_DB, RaidRoll_DBPC, TalentedDB
 ## SavedVariablesPerCharacter: SnowfallKeyPressSV, TrufiGCDChSave, AUCTIONATOR_SHOW_ST_PRICE, AUCTIONATOR_ENABLE_ALT, AUCTIONATOR_OPEN_FIRST, AUCTIONATOR_OPEN_BUY, AUCTIONATOR_OPEN_ALL_BAGS, AUCTIONATOR_DEF_DURATION, AUCTIONATOR_SHOW_TIPS, AUCTIONATOR_V_TIPS, AUCTIONATOR_A_TIPS, AUCTIONATOR_D_TIPS, AUCTIONATOR_SHIFT_TIPS, AUCTIONATOR_DE_DETAILS_TIPS, AUCTIONATOR_DEFTAB, AUCTIONATOR_CHARACTER_RECENTS, BASpammerDB, RR_Accept_All_Rolls, RR_Track_Unannounced_Rolls, RR_Roll_Tracking_Enabled, RR_AllowExtraRolls, RR_Show_Ranks, RR_RankPriority, RR_ExtraWidth, RR_ShowGroupNumber, RR_RollFrameHeight
 
 # Private compatibility and libraries
@@ -67,7 +67,7 @@ src\foundation\lifecycle\addons_registry.lua
 src\extensions\registry.lua
 src\extensions\addon_management\module.lua
 src\extensions\internal_cooldowns\module.lua
-src\extensions\id_detection\module.lua
+src\extensions\tooltip_control\module.lua
 src\extensions\item_info\module.lua
 src\extensions\modern_features\options.lua
 src\extensions\loot_management\options.lua
@@ -123,7 +123,7 @@ src\modules\chat\meme_pack_v2_data.lua
 src\modules\chat\emotions.lua
 src\modules\chat\class_mentions.lua
 src\modules\chat\appearance.lua
-src\modules\chat\tooltip_preview.lua
+src\extensions\tooltip_control\chat_preview.lua
 src\modules\chat\spam_filter.lua
 src\modules\chat\chatwheel.lua
 src\modules\chat\visibility.lua
@@ -139,17 +139,18 @@ src\extensions\player_resources\preview.lua
 src\modules\castbar\module.lua
 src\modules\castbar\ticks.lua
 src\modules\castbar\dragonflight.lua
+src\modules\castbar\latency.lua
 src\extensions\cc\module.lua
 src\extensions\cc\previews.lua
 src\modules\bags\module.lua
 src\modules\bags\bag_sort.lua
-src\modules\bags\ownership\localization\localization.lua
-src\modules\bags\ownership\localization\localization.ru.lua
-src\modules\bags\ownership\localization\localization.de.lua
-src\modules\bags\ownership\localization\localization.cn.lua
-src\modules\bags\ownership\localization\localization.tw.lua
-src\modules\bags\ownership\db.lua
-src\modules\bags\ownership\tooltips.lua
+src\extensions\tooltip_control\ownership\localization\localization.lua
+src\extensions\tooltip_control\ownership\localization\localization.ru.lua
+src\extensions\tooltip_control\ownership\localization\localization.de.lua
+src\extensions\tooltip_control\ownership\localization\localization.cn.lua
+src\extensions\tooltip_control\ownership\localization\localization.tw.lua
+src\extensions\tooltip_control\ownership\db.lua
+src\extensions\tooltip_control\ownership\tooltips.lua
 src\modules\automation\module.lua
 src\modules\automation\loot_rolls\util.lua
 src\modules\automation\loot_rolls\locale.lua
@@ -222,7 +223,7 @@ src\modules\floating_text\features.lua
 src\extensions\loot_management\roll_options.lua
 src\extensions\modern_features\quest_options.lua
 src\extensions\blizzard_improvements\features_options.lua
-src\extensions\blizzard_improvements\tooltip_options.lua
+src\extensions\tooltip_control\cursor_options.lua
 src\extensions\interactions\announcement_options.lua
 src\extensions\interactions\focus_options.lua
 
@@ -314,10 +315,10 @@ src\vendor\addons\Purgeatory\Purgeatory.lua
 src\vendor\addons\Purgeatory\config.lua
 src\vendor\addons\Purgeatory\wrapper.lua
 
-# GearScoreLite
-src\extensions\item_info\gearscore\score.lua
-src\extensions\item_info\gearscore\core.lua
-src\extensions\item_info\gearscore\control.lua
+# Equipment information: shared metadata, metrics and score views
+src\extensions\item_info\equipment.lua
+src\extensions\item_info\runtime.lua
+src\extensions\item_info\score_options.lua
 
 # pretty_lootalert
 src\extensions\loot_management\alerts\pretty_lootalert.xml
@@ -327,9 +328,14 @@ src\extensions\loot_management\alerts\control.lua
 src\extensions\blizzard_improvements\window_alerts\main.lua
 src\extensions\blizzard_improvements\window_alerts\control.lua
 
-# IdTip
-src\extensions\id_detection\engine\core.lua
-src\extensions\id_detection\engine\control.lua
+# Tooltip control
+src\extensions\tooltip_control\cursor.lua
+src\extensions\tooltip_control\position.lua
+src\extensions\tooltip_control\id_runtime.lua
+src\extensions\tooltip_control\id_options.lua
+src\extensions\tooltip_control\ownership_options.lua
+src\extensions\tooltip_control\chat_options.lua
+src\extensions\tooltip_control\chat_runtime.lua
 
 # LevelUpDisplay
 src\extensions\modern_features\level_up\LevelUpDisplay.xml
@@ -477,8 +483,8 @@ src\vendor\addons\Clique\modules\Blizzard_utils.lua
 src\vendor\addons\Clique\modules\Blizzard_wrath.lua
 src\vendor\addons\Clique\wrapper.lua
 
-# InspectEquip (registry-owned, no separate settings)
-src\vendor\addons\InspectEquip\wrapper.lua
+# Equipment information: source catalog and views (InspectEquip data)
+src\extensions\item_info\sources\module.lua
 src\vendor\addons\InspectEquip\Libs\LibBabble-Boss-3.0\LibBabble-Boss-3.0.lua
 src\vendor\addons\InspectEquip\Locales\Locale-enUS.lua
 src\vendor\addons\InspectEquip\Locales\Locale-ruRU.lua
@@ -490,6 +496,6 @@ src\vendor\addons\InspectEquip\Locales\Locale-koKR.lua
 src\vendor\addons\InspectEquip\Locales\Locale-zhCN.lua
 src\vendor\addons\InspectEquip\Locales\Locale-zhTW.lua
 src\vendor\addons\InspectEquip\ItemSources.lua
-src\vendor\addons\InspectEquip\Sources.lua
-src\vendor\addons\InspectEquip\Core.lua
-src\vendor\addons\InspectEquip\Tooltips.lua
+src\extensions\item_info\sources\catalog.lua
+src\extensions\item_info\sources\view.lua
+src\extensions\item_info\sources\tooltips.lua

@@ -1,15 +1,15 @@
 -- Native 3.3.5 inventory and tooltip integration. No inspection-ready gate,
 -- server-specific transport, replacement Blizzard methods or global GS_* state.
-local owner = SarychUI.addons.GearScoreLite
+local owner = SarychUI.modules.item_info
 local scheduler = SarychUI.UpdateScheduler
 local events = CreateFrame("Frame")
 local tips, hover, targetRequest = {}, nil, nil
-local inspectLabel, personalLabel, personalCaption
+local inspectLabel, inspectBackground, personalLabel, personalBackground
 local ticking, lastInspect = false, -10
 local Tick, SyncTicker, AttachInspect
 
 local function Setting(key)
-    return owner.GearScoreLiteRunning and owner.settings and owner.settings[key] == 1
+    return owner.running and owner:IsScoreEnabled() and owner.settings and owner.settings[key] == 1
 end
 
 local function InspectVisible()
@@ -26,21 +26,21 @@ local function ClearLine(tip)
     if state then state.line, state.text = nil, nil end
 end
 
-local function SetLine(tip, score, r, g, b)
+local function SetLine(tip, text, r, g, b)
     local state = tips[tip]
     if not state then return end
-    local text = "GearScore: " .. score
     if state.line and state.line:GetText() ~= state.text then state.line = nil end
     if not state.line then
         tip:AddLine(text, r, g, b)
         state.line = _G[tip:GetName() .. "TextLeft" .. tip:NumLines()]
-    elseif state.text ~= text then
-        state.line:SetText(text)
+    elseif state.text ~= text or state.r ~= r or state.g ~= g or state.b ~= b then
+        if state.text ~= text then state.line:SetText(text) end
         state.line:SetTextColor(r, g, b)
     else
         return
     end
     state.text = text
+    state.r, state.g, state.b = r, g, b
     -- Relayout only after a changed line, never SetUnit/SetHyperlink in a tick.
     if tip:IsShown() then tip:Show() end
 end
@@ -59,12 +59,24 @@ local function TooltipUnit(tip)
     end
 end
 
+local function UnitValue(unit)
+    local equipment = owner:GetUnitEquipment(unit)
+    if owner:IsItemLevelMode() then
+        return owner:FormatItemLevel(equipment.average), equipment.count, owner:ScoreColor(equipment.score)
+    end
+    return owner:FormatGearScore(equipment.score), equipment.scoreCount, owner:ScoreColor(equipment.score)
+end
+
+local function ValueCaption()
+    return owner:IsItemLevelMode() and "Item Level" or "GearScore"
+end
+
 local function PaintUnit(tip, unit)
     if not Setting("Player") or not UnitGUID("target") or not UnitIsUnit(unit, "target") then
         ClearLine(tip); return
     end
-    local score, count = owner:UnitScore(unit)
-    if count > 0 then SetLine(tip, score, owner:ScoreColor(score))
+    local value, count, r, g, b = UnitValue(unit)
+    if count > 0 and value then SetLine(tip, ValueCaption() .. ": " .. value, r, g, b)
     else ClearLine(tip) end
     return count
 end
@@ -115,21 +127,25 @@ local function ItemTooltip(tip)
     local _, link = tip:GetItem()
     state.kind, state.link = "item", link
     if tip == GameTooltip then hover = nil; SyncTicker() end
-    if not Setting("Item") then ClearLine(tip); return end
+    -- Individual item levels belong to the native showItemLevel tooltip line.
+    if not Setting("Item") or owner:IsItemLevelMode() then ClearLine(tip); return end
     local score, _, _, colorScore = owner:ItemScore(link)
     if score then
-        SetLine(tip, score, owner:ScoreColor(colorScore))
+        SetLine(tip, "GearScore: " .. owner:FormatGearScore(score), owner:ScoreColor(colorScore))
     else ClearLine(tip) end
 end
 
 local function PaintLabel(label, unit)
     if not label then return end
-    local score, count = owner:UnitScore(unit)
-    local text = label == personalLabel and tostring(score)
-        or (count > 0 and ("GearScore: " .. score) or "")
+    local value, count, r, g, b = UnitValue(unit)
+    local text = (label == personalLabel or count > 0) and (value or "") or ""
     if label:GetText() ~= text then
         label:SetText(text)
-        label:SetTextColor(owner:ScoreColor(score))
+    end
+    -- Equal average ilvl can still have a different GS color (e.g. quality).
+    if label.scoreR ~= r or label.scoreG ~= g or label.scoreB ~= b then
+        label:SetTextColor(r, g, b)
+        label.scoreR, label.scoreG, label.scoreB = r, g, b
     end
 end
 
@@ -139,15 +155,21 @@ local function RefreshInspect()
         inspectLabel:Show()
         if InspectVisible() then PaintLabel(inspectLabel, InspectFrame.unit) end
     else inspectLabel:Hide() end
+    local text = inspectLabel:GetText()
+    if Setting("Inspect") and InspectVisible() and text and text ~= "" then
+        inspectBackground:Show()
+    else inspectBackground:Hide() end
 end
 
 local function RefreshPersonal()
     if not personalLabel then return end
-    if owner.GearScoreLiteRunning then
+    if owner.running and owner:IsScoreEnabled() then
         personalLabel:Show()
-        personalCaption:Show()
         PaintLabel(personalLabel, "player")
-    else personalLabel:Hide(); personalCaption:Hide() end
+        local text = personalLabel:GetText()
+        if text and text ~= "" then personalBackground:Show()
+        else personalBackground:Hide() end
+    else personalLabel:Hide(); personalBackground:Hide() end
 end
 
 local function MakeLabel(parent, slot)
@@ -157,18 +179,65 @@ local function MakeLabel(parent, slot)
     return label
 end
 
+function owner:CreateEquipmentStrip(parent)
+    -- Shared gold strip for score badges and the source window header.
+    local background = parent:CreateTexture(nil, "ARTWORK")
+    background:SetTexture([[Interface\AddOns\SarychUI\media\textures\questtracker\QuestTracker]])
+    background:SetTexCoord(19/1024, 581/1024, 326/512, 382/512)
+    background:SetAlpha(0.9)
+    return background
+end
+
+local function MakeScoreBackground(parent, label)
+    local background = owner:CreateEquipmentStrip(parent)
+    background:SetSize(120, 24)
+    -- Preserve the existing badge center from the bottom-anchored number,
+    -- then align the text inside the visible gold borders.
+    local _, relativeTo, relativePoint, x, y = label:GetPoint(1)
+    label:SetText("0")
+    local textHeight = label:GetHeight()
+    label:SetText("")
+    background:SetPoint("CENTER", relativeTo, relativePoint, x, y + textHeight / 2)
+    label:ClearAllPoints()
+    -- In this 56px atlas slice the gold lines are at y=3 and y=46.
+    -- The lower shadow extends further, so centering in the whole texture
+    -- places the number below the center of the visible rectangle.
+    label:SetPoint("TOPLEFT", background, "TOPLEFT", 0, -24 * 3 / 56)
+    label:SetPoint("BOTTOMRIGHT", background, "BOTTOMRIGHT", 0, 24 * (56 - 46) / 56)
+    label:SetJustifyH("CENTER")
+    label:SetJustifyV("MIDDLE")
+    return background
+end
+
 AttachInspect = function()
     if inspectLabel or not InspectPaperDollFrame then return end
-    inspectLabel = MakeLabel(InspectPaperDollFrame, InspectSecondaryHandSlot)
+    -- Draw the entire score strip above the native inspect model/background.
+    -- A BACKGROUND texture on InspectPaperDollFrame can be covered by its art
+    -- and child frames even while an OVERLAY font string remains visible.
+    local host = CreateFrame("Frame", nil, InspectPaperDollFrame)
+    host:SetAllPoints(InspectPaperDollFrame)
+    host:EnableMouse(false)
+    local function RaiseInspectScore()
+        host:SetFrameLevel(math.max(InspectPaperDollFrame:GetFrameLevel(),
+            InspectModelFrame and InspectModelFrame:GetFrameLevel() or 0) + 1)
+    end
+    RaiseInspectScore()
+    inspectLabel = MakeLabel(host, InspectSecondaryHandSlot)
+    inspectLabel:SetJustifyH("CENTER")
+    inspectBackground = MakeScoreBackground(host, inspectLabel)
     owner.inspectLabel = inspectLabel
-    InspectPaperDollFrame:HookScript("OnShow", function() RefreshInspect(); SyncTicker() end)
+    owner.inspectBackground = inspectBackground
+    owner.inspectHost = host
+    InspectPaperDollFrame:HookScript("OnShow", function() RaiseInspectScore(); RefreshInspect(); SyncTicker() end)
     InspectPaperDollFrame:HookScript("OnHide", function() SyncTicker() end)
-    InspectFrame:HookScript("OnShow", function() RefreshInspect(); SyncTicker() end)
+    InspectFrame:HookScript("OnShow", function() RaiseInspectScore(); RefreshInspect(); SyncTicker() end)
     InspectFrame:HookScript("OnHide", function() SyncTicker() end)
     RefreshInspect()
 end
 
 Tick = function(now)
+    owner.unitSnapshots = {}
+    if owner.Sources and owner.Sources:NeedsRefresh(now) then owner.Sources:Refresh() end
     if Setting("Inspect") and InspectVisible() and InspectPaperDollFrame and InspectPaperDollFrame:IsShown() then
         RefreshInspect()
     end
@@ -187,24 +256,31 @@ Tick = function(now)
         end
     end
     SyncTicker()
+    owner.unitSnapshots = nil
 end
 
 SyncTicker = function()
-    local active = owner.GearScoreLiteRunning and (
+    local active = owner.running and (
+        (owner.Sources and owner.Sources:NeedsRefresh(GetTime()))
+        or
         (Setting("Inspect") and InspectVisible() and InspectPaperDollFrame and InspectPaperDollFrame:IsShown())
         or (Setting("Player") and hover and GameTooltip:IsShown())
         or (Setting("Player") and targetRequest and targetRequest.background and targetRequest.requests == 0
             and GetTime() < targetRequest.untilTime and UnitGUID("target") == targetRequest.guid))
     if active and not ticking then
-        scheduler:RegisterUpdate("gearScore", .25, Tick)
+        scheduler:RegisterUpdate("equipmentInfo", .25, Tick)
         ticking = true
     elseif not active and ticking then
-        scheduler:UnregisterUpdate("gearScore")
+        scheduler:UnregisterUpdate("equipmentInfo")
         ticking = false
     end
 end
 
-function owner:RefreshGearScoreViews()
+function owner:SyncEquipmentTicker() SyncTicker() end
+
+function owner:RefreshEquipmentViews()
+    self.unitSnapshots = {}
+    if self.Sources and self.Sources.enabled then self.Sources:Refresh() end
     AttachInspect()
     RefreshPersonal()
     RefreshInspect()
@@ -219,10 +295,11 @@ function owner:RefreshGearScoreViews()
         end
     end
     SyncTicker()
+    self.unitSnapshots = nil
 end
 
-function owner:SetGearScoreRuntime(enabled)
-    self.GearScoreLiteRunning = enabled and true or false
+function owner:SetEquipmentRuntime(enabled)
+    self.running = enabled and true or false
     events:UnregisterAllEvents()
     if enabled then
         for _, event in ipairs({"ADDON_LOADED", "PLAYER_ENTERING_WORLD", "PLAYER_EQUIPMENT_CHANGED",
@@ -230,14 +307,16 @@ function owner:SetGearScoreRuntime(enabled)
             "PLAYER_TARGET_CHANGED"}) do
             events:RegisterEvent(event)
         end
-    else
+    end
+    if not enabled or not self:IsScoreEnabled() then
         hover, targetRequest = nil, nil
         for tip in pairs(tips) do ClearLine(tip) end
     end
-    self:RefreshGearScoreViews()
+    self:RefreshEquipmentViews()
 end
 
 events:SetScript("OnEvent", function(_, event, unit)
+    if owner.Sources and owner.Sources.enabled then owner.Sources:OnEquipmentEvent(event, unit) end
     if event == "ADDON_LOADED" then
         if unit == "Blizzard_InspectUI" then AttachInspect(); SyncTicker() end
     elseif event == "PLAYER_TARGET_CHANGED" then
@@ -256,9 +335,10 @@ events:SetScript("OnEvent", function(_, event, unit)
             and UnitGUID(hover.unit) == hover.guid then PaintUnit(GameTooltip, hover.unit) end
     else
         -- Notifications also complete a tooltip whose short polling window ended.
-        owner:RefreshGearScoreViews()
+        owner:RefreshEquipmentViews()
     end
 end)
+owner.events = events
 
 for _, tip in ipairs({GameTooltip, ItemRefTooltip, ShoppingTooltip1, ShoppingTooltip2}) do
     tips[tip] = {}
@@ -286,18 +366,16 @@ if PaperDollFrame then
     end
     RaisePersonalScore()
     personalLabel = host:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    personalLabel:SetFont("Fonts\\FRIZQT__.TTF", 12)
-    -- Original GearScoreLite position, independent of the model's geometry.
-    personalLabel:SetPoint("BOTTOMLEFT", PaperDollFrame, "TOPLEFT", 72, -253)
-    personalCaption = host:CreateFontString(nil, "OVERLAY")
-    personalCaption:SetFont("Fonts\\FRIZQT__.TTF", 12)
-    personalCaption:SetText("GearScore")
-    personalCaption:SetTextColor(1, 1, 1)
-    personalCaption:SetPoint("BOTTOMLEFT", PaperDollFrame, "TOPLEFT", 72, -265)
-    owner.personalCaption = personalCaption
+    personalLabel:SetJustifyH("CENTER")
+    -- Center below the model, above the native character stats panel.
+    if CharacterModelFrame then
+        personalLabel:SetPoint("BOTTOM", CharacterModelFrame, "BOTTOM", 0, 30)
+    else personalLabel:SetPoint("BOTTOM", PaperDollFrame, "TOPLEFT", 181.5, -263) end
+    personalBackground = MakeScoreBackground(host, personalLabel)
+    owner.personalBackground = personalBackground
     owner.personalHost = host
     owner.personalLabel = personalLabel
     personalLabel:Hide()
-    personalCaption:Hide()
+    personalBackground:Hide()
     PaperDollFrame:HookScript("OnShow", function() RaisePersonalScore(); RefreshPersonal() end)
 end

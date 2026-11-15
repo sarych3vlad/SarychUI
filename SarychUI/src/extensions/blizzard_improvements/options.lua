@@ -9,7 +9,7 @@ end
 
 local features = {
     "BlizzMove", "EasyItemDestroy", "BadgeStackBuyer", "EscToOk",
-    "ShowFlightTimes", "TranslitAliases", "ClearChatSlash", "TooltipCursor",
+    "ShowFlightTimes", "TranslitAliases", "ClearChatSlash",
 }
 
 function extension:Enable()
@@ -29,9 +29,8 @@ end
 function extension:GetOptions()
     local args = SarychUI.modules.blizzard_improvements:GetBlizzardImprovementOptions()
     args.glyphIconsBox = nil
-    args.tooltipCursorBox = SarychUI.modules.blizzard_improvements:GetTooltipCursorOptions().tooltipCursorBox
     for order, key in ipairs({ "blizzMoveBox", "quickActionsBox", "interfaceBox",
-        "travelBox", "chatExtraBox", "tooltipCursorBox" }) do
+        "travelBox", "chatExtraBox" }) do
         args[key].order = order
         args[key].suiTwoCol = true
     end

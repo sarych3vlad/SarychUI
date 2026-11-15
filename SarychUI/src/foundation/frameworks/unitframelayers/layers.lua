@@ -135,57 +135,7 @@ end
 
 
 local function UnitFrameUtil_UpdateFillBarBase(frame, realbar, previousTexture, bar, amount, barOffsetXPercent)
-	if ( amount == 0 ) then
-		bar:Hide();
-		if ( bar.overlay ) then
-			bar.overlay:Hide();
-		end
-		return previousTexture;
-	end
-	local barOffsetX = 0;
-	if ( barOffsetXPercent ) then
-		local realbarSizeX = realbar:GetWidth();
-		barOffsetX = realbarSizeX * barOffsetXPercent;
-	end
-	bar:SetPoint("TOPLEFT", previousTexture, "TOPRIGHT", barOffsetX, 0);
-	bar:SetPoint("BOTTOMLEFT", previousTexture, "BOTTOMRIGHT", barOffsetX, 0);
-	local totalWidth, totalHeight = realbar:GetSize();
-	local _, totalMax = realbar:GetMinMaxValues();
-	
-	-- Validate inputs to prevent negative barSize
-	if totalMax <= 0 or amount < 0 then
-		bar:Hide();
-		if ( bar.overlay ) then
-			bar.overlay:Hide();
-		end
-		return previousTexture;
-	end
-	
-	local barSize = (amount / totalMax) * totalWidth;
-	
-	-- Ensure barSize is not negative
-	if barSize < 0 then
-		bar:Hide();
-		if ( bar.overlay ) then
-			bar.overlay:Hide();
-		end
-		return previousTexture;
-	end
-	
-	bar:SetWidth(barSize);
-	bar:Show();
-
-	if ( bar.overlay ) then
-		-- Ensure tileSize is valid and barSize is positive
-		local tileSize = bar.overlay.tileSize or 32;
-		if tileSize > 0 and barSize > 0 then
-			bar.overlay:SetTexCoord(0, barSize / tileSize, 0, totalHeight / tileSize);
-			bar.overlay:Show();
-		else
-			bar.overlay:Hide();
-		end
-	end
-	return bar;
+	return UFL:UpdateFillBar(realbar, previousTexture, bar, amount, barOffsetXPercent);
 end
 
 local function UnitFrameUtil_UpdateFillBar(frame, previousTexture, bar, amount, barOffsetXPercent)

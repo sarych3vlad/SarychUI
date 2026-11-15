@@ -763,7 +763,7 @@ local fakeSetup = {
 };
 --WARNING: This function is very similar to the function UnitFrameHealPredictionBars_Update in UnitFrame.lua.
 --If you are making changes here, it is possible you may want to make changes there as well.
-local MAX_INCOMING_HEAL_OVERFLOW = 1.05;
+local MAX_INCOMING_HEAL_OVERFLOW = 1.0;
 function CompactUnitFrame_UpdateHealPrediction(frame)
     --if not frame.fakeIndex then
     --  frame.fakeIndex = fakeIndex;
@@ -808,10 +808,11 @@ function CompactUnitFrame_UpdateHealPrediction(frame)
         frame.overHealAbsorbGlow:Hide();
     end
     local customOptions = frame.customOptions;
-    local maxHealOverflowRatio = customOptions and customOptions.maxHealOverflowRatio or MAX_INCOMING_HEAL_OVERFLOW;
+    local maxHealOverflowRatio = math.max(0, math.min(MAX_INCOMING_HEAL_OVERFLOW,
+        customOptions and customOptions.maxHealOverflowRatio or MAX_INCOMING_HEAL_OVERFLOW));
     --See how far we're going over the health bar and make sure we don't go too far out of the frame.
     if ( health - myCurrentHealAbsorb + allIncomingHeal > maxHealth * maxHealOverflowRatio ) then
-        allIncomingHeal = maxHealth * maxHealOverflowRatio - health + myCurrentHealAbsorb;
+        allIncomingHeal = math.max(0, maxHealth * maxHealOverflowRatio - health + myCurrentHealAbsorb);
     end
     local otherIncomingHeal = 0;
     --Split up incoming heals.
@@ -871,7 +872,11 @@ function CompactUnitFrame_UpdateHealPrediction(frame)
     --Show myIncomingHeal on the health bar.
     local incomingHealsTexture = CompactUnitFrameUtil_UpdateFillBar(frame, healthTexture, frame.myHealPrediction, myIncomingHeal, -myCurrentHealAbsorbPercent);
     --Append otherIncomingHeal on the health bar.
-    incomingHealsTexture = CompactUnitFrameUtil_UpdateFillBar(frame, incomingHealsTexture, frame.otherHealPrediction, otherIncomingHeal);
+    if myIncomingHeal > 0 then
+        incomingHealsTexture = CompactUnitFrameUtil_UpdateFillBar(frame, incomingHealsTexture, frame.otherHealPrediction, otherIncomingHeal);
+    else
+        incomingHealsTexture = CompactUnitFrameUtil_UpdateFillBar(frame, healthTexture, frame.otherHealPrediction, otherIncomingHeal, -myCurrentHealAbsorbPercent);
+    end
     --Appen absorbs to the correct section of the health bar.
     local appendTexture = nil;
     if ( healAbsorbTexture ) then
@@ -884,38 +889,9 @@ function CompactUnitFrame_UpdateHealPrediction(frame)
     CompactUnitFrameUtil_UpdateFillBar(frame, appendTexture, frame.totalAbsorb, totalAbsorb)
 end
 
---WARNING: This function is very similar to the function UnitFrameUtil_UpdateFillBar in UnitFrame.lua.
---If you are making changes here, it is possible you may want to make changes there as well.
+-- Share the same clipping and chaining rules as character and resource bars.
 function CompactUnitFrameUtil_UpdateFillBar(frame, previousTexture, bar, amount, barOffsetXPercent)
-    local totalWidth, totalHeight = frame.healthBar:GetSize();
-
-    if ( totalWidth == 0 or amount == 0 ) then
-        bar:Hide();
-        if ( bar.overlay ) then
-            bar.overlay:Hide();
-        end
-        return previousTexture;
-    end
-
-    local barOffsetX = 0;
-    if ( barOffsetXPercent ) then
-        barOffsetX = totalWidth * barOffsetXPercent;
-    end
-
-    bar:SetPoint("TOPLEFT", previousTexture, "TOPRIGHT", barOffsetX, 0);
-    bar:SetPoint("BOTTOMLEFT", previousTexture, "BOTTOMRIGHT", barOffsetX, 0);
-
-    local _, totalMax = frame.healthBar:GetMinMaxValues();
-
-    local barSize = (amount / totalMax) * totalWidth;
-    bar:SetWidth(barSize);
-    bar:Show();
-
-    if ( bar.overlay ) then
-        bar.overlay:SetTexCoord(0, SarychUI.Compat.ApplyCoordFix(barSize / bar.overlay.tileSize), 0, SarychUI.Compat.ApplyCoordFix(totalHeight / bar.overlay.tileSize));
-        bar.overlay:Show();
-    end
-    return bar;
+    return UFL:UpdateFillBar(frame.healthBar, previousTexture, bar, amount, barOffsetXPercent);
 end
 
 function CompactUnitFrame_UpdateRoleIcon(frame)

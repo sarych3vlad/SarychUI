@@ -142,7 +142,8 @@ SarychUI.defaults = {
 		modules = {
 			addon_management = { enabled = true },
 			internal_cooldowns = { enabled = true },
-			id_detection = { enabled = true },
+			tooltip_control = { enabled = true },
+            item_info = { enabled = true },
 			modern_features = { enabled = true },
 
 			loot_management = { enabled = true, adaptiveLootFrame = false, lootMaxItems = 12 },
@@ -356,11 +357,6 @@ SarychUI.defaults = {
                 lootRollCountFontSize = 12,
                 lootRollCountFontOutline = "OUTLINE",
 
-                -- Tooltip
-                enableTooltipCursor = 1,
-                tooltipMode = "cursor",
-                tooltipCursorAltOnly = 1,
-
                 -- Arena pointer
                 enableArenaPointer = 1,
 
@@ -481,8 +477,6 @@ SarychUI.defaults = {
             bags = {
                 enabled = true,
                 mode = "elvui", -- "default" | "elvui"
-                ownerTrackingEnabled = true,
-                ownerTrackingShowOnAlt = false,
                 enableBagSearch = true,
                 elvui = {
                     showKeyring = true,
@@ -592,6 +586,7 @@ SarychUI.defaults = {
 				-- Invite / arena countdown (castbar timers live under modules.castbar)
 				enableInviteCountdown = 1,
 				enableArenaCountdown = 1,
+				arenaCountdownOffset = 0,
 			},
 
 			-- Castbar (classic Blizzard or Dragonflight artwork)
@@ -611,6 +606,10 @@ SarychUI.defaults = {
 				enableCastbarTarget = 1,
 				enableCastbarFocus = 1,
 				enableCastbarTicks = 1,
+				enableCastbarLatency = false,
+				showCastbarLatencyText = true,
+				castbarLatencyTextPosition = "above",
+				castbarLatencyTextAlpha = 0.7,
 				enableCastbarTicksPlayer = 1,
 				enableCastbarTicksTarget = 1,
 				enableCastbarTicksFocus = 1,
@@ -1122,12 +1121,6 @@ SarychUI.defaults = {
 				chatFrameFadeTime = 0.10,
 				chatFrameFadeOutTime = 0.15,
 				
-				-- Chat Tooltip settings
-				tooltipPositionEnabled = 1,
-				tooltipBaseOffset = 20,
-				tooltipPetOffset = 60,
-				itemRefIconsEnabled = 1,
-				
 				-- Chat Abbreviation settings: empty = Blizzard default channel name (no rewrite)
 				lfgAbbrev = "[Поиск]",
 				abbrGuild = "",
@@ -1282,10 +1275,6 @@ SarychUI.defaults = {
 			Purgeatory = {
 				enabled = false,
 			},
-			-- GearScoreLite addon
-			GearScoreLite = {
-				enabled = true,
-			},
 			-- pretty_lootalert addon
 			pretty_lootalert = {
 				enabled = true,
@@ -1297,11 +1286,6 @@ SarychUI.defaults = {
 			-- FlashWindow addon
 			FlashWindow = {
 				enabled = true,
-			},
-			-- IdTip addon
-			IdTip = {
-				enabled = true,
-				showOnAlt = true,
 			},
 			-- LevelUpDisplay addon
 			LevelUpDisplay = {
@@ -1388,10 +1372,6 @@ SarychUI.defaults = {
 			},
 			-- BASpammer (embedded)
 			BASpammer = {
-				enabled = false,
-			},
-			-- InspectEquip (embedded)
-			InspectEquip = {
 				enabled = false,
 			},
 			-- RaidRoll (embedded: includes EPGP + LootTracker)

@@ -1,5 +1,5 @@
 -- InspectEquip 1.7.7 item database, restored from c4e3587. Build only on first enable.
-local IE = SarychUI.InspectEquip
+local IE = SarychUI.modules.item_info.Sources
 function IE:InitializeSources()
   if self.ItemSources then return end
 local BZ = LibStub("LibBabble-Zone-3.0"):GetUnstrictLookupTable()
@@ -11756,6 +11756,7 @@ self.ItemSources = {
     [49499] = "r_80_h_81_",
     [49500] = "r_80_h_81_",
     [49501] = "r_80_h_81_",
+    [49623] = "special",
     [49636] = "r_80_n_81_",
     [49643] = "r_80_n_81_",
     [49715] = "e",
@@ -12719,6 +12720,8 @@ self.ItemSources = {
     [51374] = "p_s8;r_139_h_574_",
     [51375] = "p_s8;r_139_h_574_",
     [51376] = "p_s8;r_139_h_574_",
+    [51377] = "p_s8",
+    [51378] = "p_s8",
     [51379] = "r_544_n_571_",
     [51380] = "r_544_n_571_",
     [51381] = "r_544_n_571_",

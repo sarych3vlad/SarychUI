@@ -393,30 +393,6 @@ function Coordinator:UpdateBlizzMoveBlocks()
 	self._state.blizzMoveBlocked = blocks
 end
 
-function Coordinator:MigrateBagnonFTDecoupling()
-	local db = Profile()
-	local modules = ModulesDB()
-	local addons = AddonsDB()
-	if not db or not modules or not addons then return end
-	modules.bags = modules.bags or {}
-	local legacy = addons.Bagnon_FT
-	if type(legacy) == "table" then
-		if legacy.enabled ~= nil then
-			modules.bags.ownerTrackingEnabled = legacy.enabled ~= false
-		end
-		if legacy.showOnAlt ~= nil then
-			modules.bags.ownerTrackingShowOnAlt = legacy.showOnAlt == true
-		end
-		addons.Bagnon_FT = nil
-	end
-	if modules.bags.ownerTrackingEnabled == nil then
-		modules.bags.ownerTrackingEnabled = true
-	end
-	if modules.bags.ownerTrackingShowOnAlt == nil then
-		modules.bags.ownerTrackingShowOnAlt = false
-	end
-end
-
 function SarychUI:ResolveFeatureConflicts()
 	if not Coordinator.ClearState then return end
 	Coordinator:ClearState()
@@ -428,7 +404,6 @@ function SarychUI:ResolveFeatureConflicts()
 	modules.loot = modules.loot or { mode = "pretty" }
 	modules.health_indicators = modules.health_indicators or { enabled = true }
 
-	Coordinator:MigrateBagnonFTDecoupling()
 	Coordinator:SyncMapModeFromDB()
 	Coordinator:SyncArenaModeFromDB()
 	Coordinator:SyncNameplateModeFromDB()
@@ -493,9 +468,6 @@ function Coordinator:ApplyAddonRuntimeFlags()
     if health and health.ApplyNamePlates then
         health:ApplyNamePlates(self:GetActiveFeatureOwner("nameplates") == "elvui")
     end
-	if SarychUI_BagOwnership_Sync then
-		SarychUI_BagOwnership_Sync()
-	end
 
 	local mailOwner = self:GetActiveFeatureOwner("mail")
 	local wantPostal = (mailOwner == "postal_embedded")

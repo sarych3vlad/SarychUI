@@ -1,5 +1,6 @@
 -- InspectEquip 1.7.7 source decoding (emelio), adapted to the SarychUI owner.
-local IE = SarychUI.InspectEquip
+local owner = SarychUI.modules.item_info
+local IE = owner.Sources
 local L = LibStub("AceLocale-3.0"):GetLocale("SarychUI_InspectEquip")
 local gmatch, tinsert = string.gmatch, table.insert
 local embJustice, embHeroism, embValor = "Badge of Justice", "Emblem of Heroism", "Emblem of Valor"
@@ -38,7 +39,9 @@ function IE:FindItem(itemLink, includeUnknown)
       local next_field = gmatch(entry, "[^_]+")
       local cat = next_field()
 
-      if cat == "r" or cat == "d" then -- Raid/Dungeon: r_ZONE_SRCTYPE_BOSS
+      if cat == "special" then
+        tinsert(sources, {SarychUI:T("ui.equipment.very_rare"), priority = 1})
+      elseif cat == "r" or cat == "d" then -- Raid/Dungeon: r_ZONE_SRCTYPE_BOSS
         local catname
         if cat == "r" then catname = L["Raid"] else catname = L["Instances"] end
         local zoneId = tonumber(next_field() or 0)
@@ -99,7 +102,8 @@ function IE:FindItem(itemLink, includeUnknown)
     end
   else
     if includeUnknown then
-      local _,_,rarity,lvl = GetItemInfo(id)
+      local item = owner:GetItemData(itemLink)
+      local rarity = item and item.quality
       if not rarity or rarity >= 2 then
         return {{L["Unknown"]}}
       end

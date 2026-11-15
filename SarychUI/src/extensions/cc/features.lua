@@ -31,8 +31,6 @@ S.startArenaCountdownFunc, S.stopArenaCountdownFunc, S.setArenaSmartTextFunc = n
 
 S.INVITE_TICK, S.INVITE_FONT_SIZE = 0.02, 14
 
-S.ARENA_DOOR_OFFSET = 0.8
-
 S.INVITE_DEFAULTS = {
     PVP   = 59.5,   -- БГ/Арена
     LFG   = 46.2,   -- ПП
@@ -475,65 +473,128 @@ end
 
 local function IsArenaCountdownEnabled()
     local db = TimersDB()
-    if not db or not db.enabled then return false end
-    return db.enableArenaCountdown == 1
+    return db and db.enabled and (db.enableArenaCountdown == 1 or db.enableArenaCountdown == true)
 end
 
-function SarychUI.modules.cc:ApplyArenaCountdown()
+local function ArenaCountdownOffset()
     local db = TimersDB()
-    if not db or not db.enabled then
-        -- Disable if module is disabled
-        if arenaCountdownInitialized then
-            SarychUI.modules.cc:DisableArenaCountdown()
-        end
+    local offset = tonumber(db and db.arenaCountdownOffset) or 0
+    if offset ~= offset then return 0 end
+    return max(-5, min(5, offset))
+end
+
+-- DBM-Warmane DBM-PvP: arena and battleground preparation announcements,
+-- including Strand of the Ancients round 2. Match both languages regardless
+-- of GetLocale(), since private servers can send English to a Russian client.
+local doorWarnings = {
+    -- en
+    ["The battle begins in 2 minutes"] = 120,
+    ["The Battle for Alterac Valley begins in 2 minutes"] = 120,
+    ["The battle for Arathi Basin begins in 2 minutes"] = 120,
+    ["The battle for Eye of the Storm begins in 2 minutes"] = 120,
+    ["The battle will begin in two minutes"] = 120,
+    ["The battle for Strand of the Ancients begins in 2 minutes"] = 120,
+    ["The battle for Warsong Gulch begins in 2 minutes"] = 120,
+    ["The battle begins in 1 minute"] = 60,
+    ["The Battle for Alterac Valley begins in 1 minute"] = 60,
+    ["1 minute until the battle for Alterac Valley begins"] = 60,
+    ["The Battle for Arathi Basin begins in 1 minute"] = 60,
+    ["The Battle for Eye of the Storm begins in 1 minute"] = 60,
+    ["The battle will begin in 1 minute"] = 60,
+    ["The battle for Strand of the Ancients begins in 1 minute"] = 60,
+    ["Round 2 of the Battle for the Strand of the Ancients begins in 1 minute"] = 60,
+    ["The battle for Warsong Gulch begins in 1 minute"] = 60,
+    ["The battle begins in 30 seconds"] = 30,
+    ["The Battle for Alterac Valley begins in 30 seconds. Prepare yourselves"] = 30,
+    ["30 seconds until the battle for Alterac Valley begins"] = 30,
+    ["The Battle for Arathi Basin begins in 30 seconds. Prepare yourselves"] = 30,
+    ["The Battle for Eye of the Storm begins in 30 seconds"] = 30,
+    ["The battle will begin in 30 seconds"] = 30,
+    ["The battle for Strand of the Ancients begins in 30 seconds. Prepare yourselves"] = 30,
+    ["Round 2 begins in 30 seconds. Prepare yourselves"] = 30,
+    ["The battle for Warsong Gulch begins in 30 seconds. Prepare yourselves"] = 30,
+    ["One minute until the Arena battle begins"] = 60,
+    ["Thirty seconds until the Arena battle begins"] = 30,
+    ["Fifteen seconds until the Arena battle begins"] = 15,
+    -- ru
+    ["Битва начнется через 2 минуты"] = 120,
+    ["Битва начнется через минуту"] = 60,
+    ["Битва начнется через 60 секунд"] = 60,
+    ["До начала сражения за Альтеракскую долину остается 1 минута"] = 60,
+    ["Сражение за Берег Древних начнется через 1 минуту"] = 60,
+    ["Второй раунд сражения за Берег Древних начнется через 1 минуту"] = 60,
+    ["Битва за Ущелье Песни Войны начнется через 1 минуту"] = 60,
+    ["Битва за Низину Арати начнется через минуту"] = 60,
+    ["Битва начнется через 30 секунд"] = 30,
+    ["30 секунд до начала битвы в Альтеракской долине"] = 30,
+    ["Сражение за Берег Древних начнется через 30 секунд. Готовьтесь"] = 30,
+    ["Второй раунд начинается через 30 секунд. Приготовьтесь"] = 30,
+    ["Битва за Ущелье Песни Войны начнется через 30 секунд. Приготовиться"] = 30,
+    ["Битва за Низину Арати начнется через 30 секунд"] = 30,
+    ["Одна минута до начала боя на арене"] = 60,
+    ["Тридцать секунд до начала боя на арене"] = 30,
+    ["Пятнадцать секунд до начала боя на арене"] = 15,
+}
+
+local function ParseDoorAnnouncement(message)
+    -- Some Russian cores put a space before '!'. Ignore terminal punctuation.
+    message = message:gsub("%s+", " "):gsub("^%s+", ""):gsub("[%s!%.]+$", "")
+    if doorWarnings[message] then return doorWarnings[message] end
+    if message == "The battle has begun" or message == "The Arena battle has begun"
+        or message == "Битва началась" or message == "Бой на арене начался" then
+        return 0
+    end
+    -- Preserve the existing generic battleground countdown announcements.
+    if message:find("The battle begins", 1, true) == 1 then
+        local minutes = message:match("in (%d+) minute")
+        local seconds = message:match("in (%d+) second")
+        if minutes then return tonumber(minutes) * 60 end
+        if seconds then return tonumber(seconds) end
+    elseif message:find("Битва начнется", 1, true) == 1 then
+        local minutes = message:match("через (%d+) минут")
+        local seconds = message:match("через (%d+) секунд")
+        if minutes then return tonumber(minutes) * 60 end
+        if seconds then return tonumber(seconds) end
+        if message:find("через минуту", 1, true) then return 60 end
+    end
+end
+
+function module:ApplyArenaCountdown()
+    if not IsArenaCountdownEnabled() then
+        self:DisableArenaCountdown()
         return
     end
-
-    if db.enableArenaCountdown == 1 then
-        -- Enable if not already enabled
-        if not arenaCountdownInitialized then
-            SarychUI.modules.cc:EnableArenaCountdown()
-        end
-    else
-        -- Disable if enabled
-        if arenaCountdownInitialized then
-            SarychUI.modules.cc:DisableArenaCountdown()
-        end
+    self:EnableArenaCountdown()
+    if S.arenaTracker.active then
+        -- Always apply to the original announcement, never accumulate corrections.
+        S.arenaTracker.deadline = S.arenaTracker.baseDeadline + ArenaCountdownOffset()
+        local left = S.arenaTracker.deadline - GetTime()
+        if left <= 0 then S.stopArenaCountdownFunc()
+        else S.setArenaSmartTextFunc(left) end
     end
 end
 
-function SarychUI.modules.cc:EnableArenaCountdown()
-    local db = TimersDB()
-    if not db or not db.enabled then return end
+function module:EnableArenaCountdown()
+    if not IsArenaCountdownEnabled() or S.arenaCountdownInitialized then return end
 
-    if arenaCountdownInitialized then return end -- Already enabled
-
-    -- Create arena countdown frame
-    S.arenaCountdownFrame = CreateFrame("Frame", nil, UIParent)
-    S.arenaCountdownFrame:SetSize(110, 24)
-    S.arenaCountdownFrame:SetFrameStrata("DIALOG")
-    S.arenaCountdownFrame:SetFrameLevel(1000)
-    S.arenaCountdownFrame:SetPoint("CENTER", 0, 240)
-    S.arenaCountdownFrame.text = S.arenaCountdownFrame:CreateFontString(nil, "OVERLAY")
+    -- Reuse the frames when toggling the feature or switching profiles.
+    if not S.arenaCountdownFrame then
+        S.arenaCountdownFrame = CreateFrame("Frame", nil, UIParent)
+        S.arenaCountdownFrame:SetSize(110, 24)
+        S.arenaCountdownFrame:SetFrameStrata("DIALOG")
+        S.arenaCountdownFrame:SetFrameLevel(1000)
+        S.arenaCountdownFrame:SetPoint("CENTER", 0, 240)
+        S.arenaCountdownFrame.text = S.arenaCountdownFrame:CreateFontString(nil, "OVERLAY")
+        S.arenaCountdownFrame.text:SetAllPoints()
+        S.arenaCountdownFrame.text:SetShadowColor(0, 0, 0, 1)
+        S.arenaCountdownFrame.text:SetShadowOffset(1, -1)
+    end
     GetInviteFontSize(S.arenaCountdownFrame.text, 18)
-    S.arenaCountdownFrame.text:SetAllPoints()
-    S.arenaCountdownFrame.text:SetShadowColor(0, 0, 0, 1)
-    S.arenaCountdownFrame.text:SetShadowOffset(1, -1)
     S.arenaCountdownFrame:Hide()
+    S.arenaTracker = { active = false, baseDeadline = 0, deadline = 0 }
+    local arenaAcc = 0
 
-    -- Arena tracker
-    S.arenaTracker = {
-        active = false,
-        deadline = 0,
-    }
-
-    -- Set text function
     S.setArenaSmartTextFunc = function(sec)
-        GetInviteFontSize(S.arenaCountdownFrame.text, 18)
-        if sec <= 0 then
-            S.arenaCountdownFrame:Hide()
-            return
-        end
         S.arenaCountdownFrame.text:SetTextColor(1, 1, 1)
         -- Spaces around the value keep the outline from jittering as digits change.
         if sec < 1 then
@@ -543,135 +604,61 @@ function SarychUI.modules.cc:EnableArenaCountdown()
         end
     end
 
-    -- Stop arena countdown
     S.stopArenaCountdownFunc = function()
         S.arenaTracker.active = false
-        S.arenaTracker.deadline = 0
+        S.arenaTracker.baseDeadline, S.arenaTracker.deadline = 0, 0
         S.arenaCountdownFrame:Hide()
+        arenaAcc = 0
     end
 
-    -- Start arena countdown
     S.startArenaCountdownFunc = function(duration)
         if not IsArenaCountdownEnabled() then return end
-        if S.arenaTracker.active then S.stopArenaCountdownFunc() end
+        S.arenaTracker.baseDeadline = GetTime() + duration
+        S.arenaTracker.deadline = S.arenaTracker.baseDeadline + ArenaCountdownOffset()
+        local left = S.arenaTracker.deadline - GetTime()
+        if left <= 0 then S.stopArenaCountdownFunc(); return end
         S.arenaTracker.active = true
-        -- Default: 15s arena warning minus door-open lead.
-        duration = duration or (15 - S.ARENA_DOOR_OFFSET)
-        S.arenaTracker.deadline = GetTime() + duration
+        arenaAcc = 0
+        S.setArenaSmartTextFunc(left)
         S.arenaCountdownFrame:Show()
     end
 
-    -- OnUpdate for arena
-    local arenaAcc = 0
     S.arenaCountdownFrame:SetScript("OnUpdate", function(self, elapsed)
-        -- ПРОВЕРЯЕМ, ВКЛЮЧЕН ЛИ МОДУЛЬ
-        if not IsArenaCountdownEnabled() then return end
+        if not IsArenaCountdownEnabled() then S.stopArenaCountdownFunc(); return end
         if not S.arenaTracker.active then return end
-
         arenaAcc = arenaAcc + elapsed
         if arenaAcc < S.INVITE_TICK then return end
         arenaAcc = 0
-
         local left = S.arenaTracker.deadline - GetTime()
-        if left <= 0 then
-            S.stopArenaCountdownFunc()
-        else
-            S.setArenaSmartTextFunc(left)
-        end
+        if left <= 0 then S.stopArenaCountdownFunc()
+        else S.setArenaSmartTextFunc(left) end
     end)
 
-    -- Event frame for arena / BG countdown (locale-aware message matching)
-    local countdownPatternsByLocale = {
-        enUS = {
-            arena15 = "Fifteen seconds until the Arena battle begins!",
-            battlePrefix = "The battle begins",
-            minutes = "in (%d+) minute",
-            seconds = "in (%d+) second",
-            oneMinute = "in 1 minute",
-            begun = {
-                "The battle has begun",
-                "The Arena battle has begun",
-            },
-        },
-        ruRU = {
-            arena15 = "Пятнадцать секунд до начала боя на арене!",
-            battlePrefix = "Битва начнется",
-            minutes = "через (%d+) минут",
-            seconds = "через (%d+) секунд",
-            oneMinute = "через минуту",
-            begun = {
-                "Битва началась!",
-                "Битва началась",
-            },
-        },
-    }
-    local function GetCountdownPatterns()
-        local locale = GetLocale and GetLocale() or "enUS"
-        return countdownPatternsByLocale[locale] or countdownPatternsByLocale.enUS
-    end
-
-    S.arenaCountdownEventFrame = CreateFrame("Frame")
+    S.arenaCountdownEventFrame = S.arenaCountdownEventFrame or CreateFrame("Frame")
     S.arenaCountdownEventFrame:RegisterEvent("CHAT_MSG_BG_SYSTEM_NEUTRAL")
+    S.arenaCountdownEventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
     S.arenaCountdownEventFrame:SetScript("OnEvent", function(self, event, message)
-        -- ПРОВЕРЯЕМ, ВКЛЮЧЕН ЛИ МОДУЛЬ
-        if not IsArenaCountdownEnabled() then return end
-        if event ~= "CHAT_MSG_BG_SYSTEM_NEUTRAL" or type(message) ~= "string" then return end
-
-        local p = GetCountdownPatterns()
-
-        local doorLead = S.ARENA_DOOR_OFFSET or 0.8
-
-        if message:find(p.arena15, 1, true) then
-            S.startArenaCountdownFunc(15 - doorLead)
-            return
-        end
-
-        if message:find(p.battlePrefix, 1, true) then
-            local minutes = message:match(p.minutes)
-            local seconds = message:match(p.seconds)
-            if minutes then
-                local min = tonumber(minutes) or 1
-                S.startArenaCountdownFunc(min * 60 - doorLead)
-            elseif seconds then
-                local sec = tonumber(seconds) or 30
-                S.startArenaCountdownFunc(sec - doorLead)
-            elseif message:find(p.oneMinute, 1, true) then
-                S.startArenaCountdownFunc(60 - doorLead)
-            end
-            return
-        end
-
-        for _, begunPat in ipairs(p.begun) do
-            if message:find(begunPat, 1, true) then
-                S.stopArenaCountdownFunc()
-                return
-            end
-        end
+        if event == "PLAYER_ENTERING_WORLD" then S.stopArenaCountdownFunc(); return end
+        if not IsArenaCountdownEnabled() or type(message) ~= "string" then return end
+        if event ~= "CHAT_MSG_BG_SYSTEM_NEUTRAL" then return end
+        local _, instanceType = IsInInstance()
+        if instanceType ~= "arena" and instanceType ~= "pvp" then return end
+        local duration = ParseDoorAnnouncement(message)
+        if duration == 0 then S.stopArenaCountdownFunc()
+        elseif duration then S.startArenaCountdownFunc(duration) end
     end)
-
-    arenaCountdownInitialized = true
+    S.arenaCountdownInitialized = true
 end
 
-function SarychUI.modules.cc:DisableArenaCountdown()
-    if not arenaCountdownInitialized then return end
-
-    -- Hide frame
-    if S.arenaCountdownFrame then
-        S.arenaCountdownFrame:Hide()
-        S.arenaCountdownFrame:SetScript("OnUpdate", nil)
-    end
-
-    -- Unregister events
-    if S.arenaCountdownEventFrame then
-        S.arenaCountdownEventFrame:UnregisterAllEvents()
-        S.arenaCountdownEventFrame:SetScript("OnEvent", nil)
-    end
-
-    -- Reset tracker and functions
+function module:DisableArenaCountdown()
+    if not S.arenaCountdownInitialized then return end
+    S.stopArenaCountdownFunc()
+    S.arenaCountdownFrame:SetScript("OnUpdate", nil)
+    S.arenaCountdownEventFrame:UnregisterAllEvents()
+    S.arenaCountdownEventFrame:SetScript("OnEvent", nil)
     S.arenaTracker = nil
     S.startArenaCountdownFunc = nil
     S.stopArenaCountdownFunc = nil
     S.setArenaSmartTextFunc = nil
-
-    arenaCountdownInitialized = false
+    S.arenaCountdownInitialized = false
 end

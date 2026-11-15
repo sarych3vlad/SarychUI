@@ -87,18 +87,22 @@ function MarkDispellablesOnFrame(frame, unit)
     local hostile = UnitCanAttack("player", unit)
 
     for idx = 1, 32 do
-        local name, _, _, _, dtype, _, _, _, isStealable = UnitBuff(unit, idx)
         local button = buffFrames and buffFrames[idx] or (frameName and _G[frameName .. "Buff" .. idx])
-        if not name or not button then break end
+        if not button then break end
 
         local border = button.__sarStealable
         if border == nil then
-            border = _G[button:GetName() .. "Stealable"] or button.Stealable or false
+            local buttonName = button.GetName and button:GetName()
+            border = button.Stealable or (buttonName and _G[buttonName .. "Stealable"]) or false
             button.__sarStealable = border
         end
 
         if border then
-            local show = hostile and CanRemoveEnemyBuff(dtype, isStealable)
+            -- Blacklists compact display slots. GetID retains the actual aura
+            -- index used by the tooltip; the visual slot can refer to another buff.
+            local auraIndex = button.GetID and button:GetID() or idx
+            local name, _, _, _, dtype, _, _, _, isStealable = UnitBuff(unit, auraIndex)
+            local show = button:IsShown() and name and hostile and CanRemoveEnemyBuff(dtype, isStealable)
             if show then
                 if not border:IsShown() then border:Show() end
             elseif border:IsShown() then
@@ -108,13 +112,20 @@ function MarkDispellablesOnFrame(frame, unit)
     end
 end
 
+function module:UpdateDispelHighlight(frame)
+    if frame and (frame == TargetFrame or frame == FocusFrame) then
+        MarkDispellablesOnFrame(frame, frame.unit or (frame == FocusFrame and "focus" or "target"))
+    end
+end
+
 local function ClearDispellableMarks(frame)
     if not frame then return end
     for idx = 1, 32 do
         local button = frame and frame.buffFrames and frame.buffFrames[idx]
                     or (frame and frame.GetName and _G[frame:GetName().."Buff"..idx])
         if not button then break end
-        local border = _G[button:GetName().."Stealable"] or button.Stealable
+        local buttonName = button.GetName and button:GetName()
+        local border = button.Stealable or (buttonName and _G[buttonName.."Stealable"])
         if border then border:Hide() end
     end
 end

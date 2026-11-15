@@ -712,7 +712,7 @@ function CastPreview:Create(parent)
 	stage:SetPoint("BOTTOMRIGHT", -8, 6)
 
 	local playerLabel = stage:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	playerLabel:SetPoint("TOP", stage, "TOP", 0, -2)
+	playerLabel:SetJustifyH("RIGHT")
 	playerLabel:SetText(Tr(SarychUI:T("ui.player_f54f58cf")))
 	playerLabel:SetTextColor(1, 0.82, 0, 1)
 
@@ -724,7 +724,7 @@ function CastPreview:Create(parent)
 	local dfPlayerTimer = AttachCastTimer(dfPlayerBar, 0, -20, 13, " 1.2 / 1.5 ")
 
 	local targetLabel = stage:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	targetLabel:SetPoint("TOP", stage, "TOP", 0, -78)
+	targetLabel:SetJustifyH("RIGHT")
 	targetLabel:SetText(Tr(SarychUI:T("ui.target_1d6ae787")))
 	targetLabel:SetTextColor(1, 0.82, 0, 1)
 
@@ -754,6 +754,12 @@ function CastPreview:Create(parent)
 		local scale = tonumber(GetCastbarSetting("scale", 1)) or 1
 		dfPlayerWrap:SetScale(scale)
 		dfTargetWrap:SetScale(scale)
+		-- Keep row labels beside the bars, clear of icons and movable timers.
+		local labelGap = dragonflight and 52 * scale or 36
+		playerLabel:ClearAllPoints()
+		playerLabel:SetPoint("RIGHT", dragonflight and dfPlayerBar or playerBar, "LEFT", -labelGap, 0)
+		targetLabel:ClearAllPoints()
+		targetLabel:SetPoint("RIGHT", dragonflight and dfTargetBar or targetBar, "LEFT", -labelGap, 0)
 		local timerY = tonumber(GetCastbarSetting("playerTimerOffsetY", 0)) or 0
 		local timerX = tonumber(GetCastbarSetting("playerTimerOffsetX", 0)) or 0
 		dfPlayerTimer:ClearAllPoints()

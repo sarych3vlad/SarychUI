@@ -249,17 +249,8 @@ function module:OnPlatePowerUpdate(bar, cur, maxP, ptype)
 	if predictedCost > 0 and maxP > 0 and costTex then
 		local shown = math.max(cur - predictedCost, 0)
 		powerBar:SetValue(shown)
-		local fill = powerBar:GetStatusBarTexture()
-		local w = (math.min(predictedCost, cur) / maxP) * (powerBar:GetWidth() or 0)
-		if fill and w >= 1 then
-			costTex:ClearAllPoints()
-			costTex:SetPoint("TOPLEFT", fill, "TOPRIGHT", 0, 0)
-			costTex:SetPoint("BOTTOMLEFT", fill, "BOTTOMRIGHT", 0, 0)
-			costTex:SetWidth(w)
-			costTex:Show()
-		else
-			costTex:Hide()
-		end
+		SarychUI.UnitFrameLayers:UpdateFillBar(powerBar, powerBar:GetStatusBarTexture(),
+			costTex, math.max(0, math.min(predictedCost, cur)))
 	elseif costTex then
 		costTex:Hide()
 	end

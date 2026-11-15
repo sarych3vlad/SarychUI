@@ -898,3 +898,34 @@ SarychUI.RegisterUIMap("ukUA", {
     ["ui.action_bars.backpack_only_desc"] = "Приховує кнопки чотирьох сумок і в'язки ключів, залишаючи лише кнопку рюкзака. Самі сумки залишаються доступними.",
     ["ui.action_bars.change_position"] = "Змінити розташування",
 })
+
+SarychUI.RegisterUIMap("ukUA", {
+    ["ui.cc.arena_countdown_offset"] = "Зсув відліку (сек.)",
+    ["ui.cc.arena_countdown_offset_desc"] = "Зсув завершення відліку від −5 до +5 секунд. Від’ємне значення — раніше, додатне — пізніше. 0 — без поправки. Крок 0.001 секунди (1 мс); точне значення можна ввести в полі.",
+})
+
+SarychUI:RegisterUIMap("ukUA", {
+    ["ui.equipment.title"] = "Інформація про спорядження",
+    ["ui.equipment.score"] = "Показувати GearScore / Item Level",
+    ["ui.equipment.sources"] = "Показувати джерела спорядження",
+    ["ui.equipment.sources_title"] = "Джерела спорядження",
+    ["ui.equipment.very_rare"] = "Особливо рідкісний предмет",
+})
+
+SarychUI:RegisterUIMap("ukUA", {
+    ["ui.tooltip.control_title"] = "Керування підказкою",
+    ["ui.tooltip.id_title"] = "ID у підказках",
+    ["ui.tooltip.show_ids"] = "Показувати ID",
+    ["ui.tooltip.position_title"] = "Змінити розташування підказки",
+    ["ui.tooltip.position_desc"] = "Зміщення стандартної підказки відносно правого нижнього кута. Нульові X/Y зберігають штатне розташування. Підказки біля курсора та предметів не переміщуються.",
+    ["ui.tooltip.ownership_title"] = "Інформація про кількість предметів у персонажів",
+    ["ui.castbar.player_icon_group"] = "Іконка заклинання гравця",
+    ["ui.castbar.latency_title"] = "Затримка заклинання",
+    ["ui.castbar.latency_enable"] = "Показувати зону затримки",
+    ["ui.castbar.latency_desc"] = "Червона зона на смузі гравця показує затримку від надсилання заклинання до підтвердження початку застосування. Для підтримуваних заклинань зона розташована ліворуч. Її розмір обмежений смугою.",
+    ["ui.castbar.latency_text"] = "Показувати затримку в мілісекундах",
+    ["ui.castbar.latency_text_position"] = "Розташування тексту",
+    ["ui.castbar.latency_above"] = "Над смугою",
+    ["ui.castbar.latency_below"] = "Під смугою",
+    ["ui.castbar.latency_text_alpha"] = "Прозорість тексту",
+})

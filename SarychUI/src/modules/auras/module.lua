@@ -992,6 +992,7 @@ function module:OnFrameAuraLayoutUpdated(frame)
 	if CustomFrameAuraLayout() and (frame == TargetFrame or frame == FocusFrame) then
 		self:LayoutFrameAuras(frame)
 	end
+	if self.UpdateDispelHighlight then self:UpdateDispelHighlight(frame) end
 end
 
 -- Run the original FrameXML function with a private aura reader. Its private

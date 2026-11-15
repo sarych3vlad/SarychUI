@@ -56,23 +56,8 @@ local function UpdateFrame(self, frame, unit, gain, maximum, current)
             frame._suiResourceGain = fill
         end
         fill:SetParent(bar)
-        local width, height = bar:GetWidth(), bar:GetHeight()
-        if width > 0 and height > 0 then
-            local vertical = bar.GetOrientation and bar:GetOrientation() == "VERTICAL"
-            local reverse = bar.GetReverseFill and bar:GetReverseFill()
-            fill:ClearAllPoints()
-            if vertical then
-                fill:SetPoint(reverse and "TOPLEFT" or "BOTTOMLEFT", bar,
-                    reverse and "TOPLEFT" or "BOTTOMLEFT", 0, (reverse and -1 or 1) * height * current / maximum)
-                fill:SetSize(width, height * gain / maximum)
-            else
-                fill:SetPoint(reverse and "TOPRIGHT" or "TOPLEFT", bar,
-                    reverse and "TOPRIGHT" or "TOPLEFT", (reverse and -1 or 1) * width * current / maximum, 0)
-                fill:SetSize(width * gain / maximum, height)
-            end
-            self:SetRangeTextureColor(frame, fill, 0.48, 0.44, 0.68, 0.3)
-            fill:Show()
-        else fill:Hide() end
+        self:UpdatePredictionFill(bar, fill, current / maximum, gain / maximum)
+        self:SetRangeTextureColor(frame, fill, 0.48, 0.44, 0.68, 0.3)
     elseif fill then fill:Hide() end
 end
 

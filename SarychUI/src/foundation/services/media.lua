@@ -20,7 +20,9 @@ end
 
 -- Register custom fonts
 local function RegisterFonts()
-	LSM:Register("font", "SarychUI Homespun", [[Interface\AddOns\SarychUI\media\fonts\Homespun.ttf]])
+	-- LSM rejects fonts without a locale mask on ruRU and silently falls back to Arial.
+	LSM:Register("font", "SarychUI Homespun", [[Interface\AddOns\SarychUI\media\fonts\Homespun.ttf]],
+		LSM.LOCALE_BIT_ruRU + LSM.LOCALE_BIT_western)
 end
 
 -- Register custom textures

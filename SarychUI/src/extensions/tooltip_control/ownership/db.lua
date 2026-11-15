@@ -3,10 +3,9 @@
 		BagnonForever's implementation of BagnonDB
 --]]
 
+local owner = SarychUI.modules.tooltip_control
 local function IsEnabled()
-	local profile = SarychUI and SarychUI.db and SarychUI.db.profile
-	local bags = profile and profile.modules and profile.modules.bags
-	return bags and bags.ownerTrackingEnabled ~= false
+    return SarychUI.db and SarychUI.db.profile and owner:IsItemOwnershipEnabled()
 end
 
 BagnonDB = CreateFrame('GameTooltip', 'BagnonDB', nil, 'GameTooltipTemplate')
@@ -535,8 +534,8 @@ function BagnonDB:RemovePlayer(player, realm)
 	end
 end
 
--- Ownership tracking belongs to the bags module in both bag display modes.
-function SarychUI_BagOwnership_Sync()
+-- Item counts are owned by Tooltip Control, independently of the bag display mode.
+function SarychUI_TooltipOwnership_Sync()
 	if not BagnonDB then return end
 	if IsEnabled() then
 		BagnonDB:Initialize()
@@ -548,5 +547,5 @@ function SarychUI_BagOwnership_Sync()
 		BagnonDB._ownerTrackingActive = false
 		BagnonDB._ownerCacheProfile = nil
 	end
-	if BagnonFT_UpdateAltState then BagnonFT_UpdateAltState() end
+	if SarychUI_SetOwnershipTooltipRuntime then SarychUI_SetOwnershipTooltipRuntime(IsEnabled()) end
 end

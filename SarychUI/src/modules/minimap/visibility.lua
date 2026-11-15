@@ -5,6 +5,7 @@ local State = {
 	enabled = false,
 	hidden = false,
 	hooked = false,
+	wasAlpha = nil,
 }
 
 local function IsEnabledValue(value)
@@ -31,7 +32,9 @@ local function EnsureClusterHook()
 	State.hooked = true
 	MinimapCluster:HookScript("OnShow", function(self)
 		if State.hidden then
-			self:Hide()
+			-- The secure binding owns Show/Hide, including its OnShow guard.
+			-- An ordinary hook must never hide a protected cluster in combat.
+			self:SetAlpha(0)
 		end
 	end)
 end
@@ -41,8 +44,9 @@ function MinimapVisibility.Hide()
 		return
 	end
 	EnsureClusterHook()
+	State.wasAlpha = MinimapCluster:GetAlpha()
 	State.hidden = true
-	MinimapCluster:Hide()
+	MinimapCluster:SetAlpha(0)
 end
 
 function MinimapVisibility.Show()
@@ -50,7 +54,8 @@ function MinimapVisibility.Show()
 		return
 	end
 	State.hidden = false
-	MinimapCluster:Show()
+	MinimapCluster:SetAlpha(State.wasAlpha or 1)
+	State.wasAlpha = nil
 end
 
 function MinimapVisibility.Toggle(silent)
@@ -67,6 +72,10 @@ function MinimapVisibility.Toggle(silent)
 		sound = "igMiniMapZoomOut"
 		if not silent and PlaySound then PlaySound(sound) end
 		MinimapVisibility.Hide()
+	end
+	local bindings = _G.SarychUI_ToggleBindings
+	if bindings and bindings.SyncSecureHidden then
+		bindings:SyncSecureHidden("minimap_visibility", State.hidden)
 	end
 	return sound
 end
@@ -93,6 +102,12 @@ function MinimapVisibility.ApplySettings()
 			bindings:SetAction("minimap_visibility", key, function()
 				return MinimapVisibility.Toggle(true)
 			end)
+			-- Register even if the cluster is not protected yet: minimap buttons
+			-- can make it protected later. Secure Hide also disables child clicks.
+			if bindings.SetSecureFrames then
+				bindings:SetSecureFrames("minimap_visibility",
+					_G.MinimapCluster and { _G.MinimapCluster } or {}, State.hidden)
+			end
 		else
 			bindings:RemoveAction("minimap_visibility")
 		end

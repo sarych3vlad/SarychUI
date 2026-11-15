@@ -1,18 +1,15 @@
 
 
 -- Global enabled state
-IdTipEnabled = IdTipEnabled or true;
+local owner = SarychUI.modules.tooltip_control
+IdTipEnabled = false
 
 -- Tooltip context cache (updated on every tooltip build)
 SarychUI_IDTip_LastTooltip = SarychUI_IDTip_LastTooltip or {}
 
 -- Function to check if addon is enabled
 local function IsEnabled()
-	if IdTipEnabled == false then return false end
-	if SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.addons and SarychUI.db.profile.addons.IdTip then
-		return SarychUI.db.profile.addons.IdTip.enabled ~= false;
-	end
-	return IdTipEnabled;
+    return owner:IsIdTipRunning()
 end
 
 -- Глобальная переменная для включения Alt-режима (для обратной совместимости)
@@ -39,10 +36,7 @@ for _, label in pairs(types) do
 end
 
 local function GetShowOnAlt()
-	if SarychUI and SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.addons and SarychUI.db.profile.addons.IdTip then
-		return SarychUI.db.profile.addons.IdTip.showOnAlt ~= false
-	end
-	return true
+    return owner:GetDB().idShowOnAlt ~= false
 end
 
 local function ShouldShowID()
@@ -160,7 +154,7 @@ local function tryCaptureContextFromMouseFocus()
 end
 
 function IdTip_RefreshCurrentTooltip()
-	if not IsEnabled() or not GetShowOnAlt() then return end
+	if not IsEnabled() then return end
 
 
 	local ctx = SarychUI_IDTip_LastTooltip
@@ -551,7 +545,7 @@ local function OnAltStateChanged(altPressed)
 
 end
 
--- Обновление состояния из владельца src/extensions/id_detection.
+-- Обновление состояния из владельца src/extensions/tooltip_control.
 function IdTip_UpdateAltState()
     if SarychUI and SarychUI.AltMode then
         local altPressed = SarychUI.AltMode:IsAltPressed()
@@ -575,6 +569,17 @@ local function InitializeAltMode()
 end
 
 function SarychUI_SetIdTipRuntime(enable)
-    if not SarychUI.AltMode then return end
-    if enable then InitializeAltMode() else SarychUI.AltMode:UnregisterCallback("IdTip") end
+    if enable then
+        InitializeAltMode()
+    else
+        if SarychUI.AltMode then SarychUI.AltMode:UnregisterCallback("IdTip") end
+        -- Remove only our ID lines; leave the tooltip and other extensions intact.
+        local activeTooltip = SarychUI_IDTip_LastTooltip.tooltip
+        for _, tooltip in ipairs({GameTooltip, ItemRefTooltip, ItemRefShoppingTooltip1,
+            ItemRefShoppingTooltip2, ShoppingTooltip1, ShoppingTooltip2}) do
+            if tooltip:IsShown() then removeIdLines(tooltip) end
+        end
+        if activeTooltip and activeTooltip:IsShown() then removeIdLines(activeTooltip) end
+        wipe(SarychUI_IDTip_LastTooltip)
+    end
 end

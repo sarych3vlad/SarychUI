@@ -211,19 +211,6 @@ function module:Disable()
     -- Disable Chat Wheel completely
     self:DisableChatWheel()
     
-    -- Disable Tooltip Position completely
-    self:ForceDisableTooltipPositioning()
-    
-    -- ПРИНУДИТЕЛЬНОЕ ОТКЛЮЧЕНИЕ ПОЗИЦИОНИРОВАНИЯ ПРЯМО ЗДЕСЬ
-    if ItemRefTooltip then
-        -- Отключаем все хуки для позиционирования
-        ItemRefTooltip:SetScript("OnShow", nil)
-        ItemRefTooltip:SetScript("OnHide", nil)
-    end
-    
-    -- Disable Tooltip Icons completely
-    self:ForceDisableTooltipIcons()
-    
     -- Disable Chat Fading completely
     self:DisableChatFading()
     
@@ -267,33 +254,6 @@ function module:Disable()
     -- ПРИНУДИТЕЛЬНОЕ ПОКАЗАНИЕ ПОДЛОЖКИ ПРИ ОТКЛЮЧЕНИИ МОДУЛЯ
     if _G.BFT_ApplyButtonFrameTextures then
         _G.BFT_ApplyButtonFrameTextures()
-    end
-    
-    -- ПРИНУДИТЕЛЬНОЕ ОТКЛЮЧЕНИЕ ИКОНОК ПРЯМО ЗДЕСЬ
-    if ItemRefTooltip then
-        -- Скрываем все иконки
-        if ItemRefTooltip.icon then
-            ItemRefTooltip.icon:Hide()
-            if ItemRefTooltip.icon.border then
-                ItemRefTooltip.icon.border:Hide()
-            end
-        end
-        
-        -- Скрываем текстуру ItemRefTooltipTexture10
-        if ItemRefTooltipTexture10 then
-            ItemRefTooltipTexture10:Hide()
-        end
-        
-        -- Восстанавливаем оригинальные позиции текста
-        if ItemRefTooltipTextLeft1 then
-            ItemRefTooltipTextLeft1:ClearAllPoints()
-            ItemRefTooltipTextLeft1:SetPoint("TOPLEFT", ItemRefTooltip, "TOPLEFT", 8, -10)
-        end
-        
-        if ItemRefTooltipTextLeft2 then
-            ItemRefTooltipTextLeft2:ClearAllPoints()
-            ItemRefTooltipTextLeft2:SetPoint("TOPLEFT", ItemRefTooltipTextLeft1, "BOTTOMLEFT", 0, -2)
-        end
     end
     
     -- Восстанавливаем оригинальное поведение кнопки меню чата при отключении модуля
@@ -355,8 +315,6 @@ function module:ApplyAllSettings()
         self:DisableForeignFactionFilter()
         self:DisableShiftHistory()
         self:DisableChatWheel()
-        self:DisableTooltipPositioning()
-        self:DisableTooltipIcons()
         self:DisableChatFading()
         self:DisableFriendsButtonHiding()
         self:DisableBottomButtonHiding()
@@ -415,11 +373,9 @@ function module:ApplyAllSettings()
     -- Apply chat visibility toggle settings
     self:ApplyChatVisibilitySettings()
     
-    -- Apply Tooltip Position settings
-    self:ApplyTooltipPositionSettings()
+
     
-    -- Apply Tooltip Icons settings
-    self:ApplyTooltipIconsSettings()
+
     
     -- Apply Chat Fading settings
     self:ApplyChatFadingSettings()
@@ -864,72 +820,6 @@ function module:UpdateChatBarVisibility()
         if _G.ChatBarFrame then
             _G.ChatBarFrame:Show()
         end
-    end
-end
-
--- Apply Tooltip Position settings
-function module:ApplyTooltipPositionSettings()
-    local db = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules and SarychUI.db.profile.modules[moduleName]
-    if not db then return end
-    
-    if db.tooltipPositionEnabled == 1 then
-        self:EnableTooltipPositioning()
-    else
-        self:DisableTooltipPositioning()
-    end
-end
-
--- Enable Tooltip Position functionality
-function module:EnableTooltipPositioning()
-    if _G.EnableTooltipPositioning then
-        _G.EnableTooltipPositioning()
-    end
-end
-
--- Disable Tooltip Position functionality
-function module:DisableTooltipPositioning()
-    if _G.DisableTooltipPositioning then
-        _G.DisableTooltipPositioning()
-    end
-end
-
--- Force Disable Tooltip Position functionality (for module disable)
-function module:ForceDisableTooltipPositioning()
-    if _G.ForceDisableTooltipPositioning then
-        _G.ForceDisableTooltipPositioning()
-    end
-end
-
--- Apply Tooltip Icons settings
-function module:ApplyTooltipIconsSettings()
-    local db = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules and SarychUI.db.profile.modules[moduleName]
-    if not db then return end
-    
-    if db.itemRefIconsEnabled == 1 then
-        self:EnableTooltipIcons()
-    else
-        self:DisableTooltipIcons()
-    end
-end
-
--- Enable Tooltip Icons functionality
-function module:EnableTooltipIcons()
-    if _G.EnableTooltipIcons then
-        _G.EnableTooltipIcons()
-    end
-end
-
--- Disable Tooltip Icons functionality
-function module:DisableTooltipIcons()
-    if _G.DisableTooltipIcons then
-        _G.DisableTooltipIcons()
-    end
-end
-
--- Force Disable Tooltip Icons functionality (for module disable)
-function module:ForceDisableTooltipIcons()
-    if _G.ForceDisableTooltipIcons then
-        _G.ForceDisableTooltipIcons()
     end
 end
 

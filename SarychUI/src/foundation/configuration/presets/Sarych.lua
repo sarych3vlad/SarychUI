@@ -1544,22 +1544,19 @@ SarychUI.BuiltinProfiles["Sarych"] = {
 						["PVPParentFrame"] = {
 						},
 					},
-					["tooltipCursorAltOnly"] = 1,
-					["enableTooltipCursor"] = 1,
-					["tooltipMode"] = "cursor",
 					["enableEasyGlyph"] = 1,
 					["easyGlyphSkipItems"] = 1,
 					["fpsExtraOffsetY"] = -20,
 					["fpsExtraOffsetX"] = -12,
 					["fpsScale"] = 0.9,
 				},
+				["tooltip_control"] = { ownerTrackingShowOnAlt = true, enabled = true, enableTooltipCursor = 1, tooltipMode = "cursor", tooltipCursorAltOnly = 1 },
 				["arena"] = SarychUI.defaults.profile.modules.arena,
 				["cursor"] = {
 					["enabled"] = true,
 				},
 				["bags"] = {
 					["mode"] = "elvui",
-					["ownerTrackingShowOnAlt"] = true,
 					["elvui"] = {
 						["splitMode"] = "adibags",
 						["dragonflightHeader"] = false,

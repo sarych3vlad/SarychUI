@@ -719,40 +719,7 @@ function module:GetOptions()
 						order = 3,
 						width = "full",
 					},
-					ownership = {
-						type = "group",
-						name = "ui.text_b3e68b98",
-						order = 4,
-						inline = true,
-						args = {
-							enabled = {
-								type = "toggle",
-								name = "ui.text_0781c0a5",
-								desc = "ui.text_3d3de752",
-								order = 1,
-								width = "full",
-								get = function() return DB().ownerTrackingEnabled ~= false end,
-								set = function(_, value)
-									DB().ownerTrackingEnabled = value and true or false
-									if SarychUI_BagOwnership_Sync then SarychUI_BagOwnership_Sync() end
-								end,
-							},
-							showOnAlt = {
-								type = "toggle",
-								name = "ui.alt_0a202e3b",
-								suiHelpIcon = SarychUI.DOTA_ALT_HELP_ICON,
-								desc = "ui.alt_b8ac4fd2",
-								order = 2,
-								width = "full",
-								disabled = function() return DB().ownerTrackingEnabled == false end,
-								get = function() return DB().ownerTrackingShowOnAlt == true end,
-								set = function(_, value)
-									DB().ownerTrackingShowOnAlt = value and true or false
-									if BagnonFT_UpdateAltState then BagnonFT_UpdateAltState() end
-								end,
-							},
-						},
-					},
+
 				},
 			},
 			defaultBags = {
@@ -1620,17 +1587,6 @@ function module:GetOptions()
 		},
 	}
     local blocks = options.args.elvuiBags.args
-    local ownership = options.args.general.args.ownership
-    options.args.general.args.ownership = nil
-    ownership.args.altDetails = {
-        type = "group", name = "", order = 2, inline = true,
-        args = { showOnAlt = ownership.args.showOnAlt },
-    }
-    ownership.args.showOnAlt = nil
-    ownership.order = 1.5
-    blocks.ownership = ownership
-    options.args.defaultBags.args.ownership = CopyTable(ownership)
-    options.args.defaultBags.args.ownership.order = 0
     local splitArgs = blocks.consumableSplitBox.args
     blocks.customCategoriesBox = splitArgs.customCategoriesBox
     blocks.sectionHeaderFontBox = splitArgs.sectionHeaderFontBox
