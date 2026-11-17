@@ -312,6 +312,10 @@ function NP:UnitClass(frame, unitType)
 	if frame.unit and not self:MatchesPlateUnit(frame, frame.unit) then
         frame.unit, frame.isGroupUnit, frame.guid = nil, nil, nil
     end
+	if unitType == "FRIENDLY_PLAYER" then
+		local classes = SarychUI.FriendlyNameplateClasses
+		return classes and classes:ResolvePlate(frame:GetParent(), frame.UnitName, frame.unit)
+	end
     local arena = self:GetArenaUnitForPlate(frame)
     if arena then self:BindNameplateUnit(frame, arena) end
     if frame.unit and self:MatchesPlateUnit(frame, frame.unit) then
@@ -328,6 +332,26 @@ function NP:UnitClass(frame, unitType)
 		local _, g = frame.oldHealthBar:GetStatusBarColor()
 		return grenColorToClass[floor(g * 100 + 0.5) / 100]
 	end
+end
+
+local function RefreshFriendlyClass(self, frame, removed)
+    if frame.UnitType == "FRIENDLY_PLAYER" then
+        local class
+        if not removed then class = self:UnitClass(frame, frame.UnitType) end
+        if class ~= frame.UnitClass then
+            frame.UnitClass = class
+            self:Update_Name(frame, true)
+            self:Update_HealthColor(frame)
+        end
+    end
+end
+
+function NP:RefreshFriendlyClasses(root, removed)
+    if root then
+        if root.UnitFrame then RefreshFriendlyClass(self, root.UnitFrame, removed) end
+    else
+        for frame in pairs(self.VisiblePlates) do RefreshFriendlyClass(self, frame, removed) end
+    end
 end
 
 function NP:UnitDetailedThreatSituation(frame)
@@ -502,7 +526,11 @@ function NP:LearnPlayerIdentity(guid, name, flags)
 
 	matched.guid = guid
 	self.GUIDList[guid] = {name = matched.UnitName, unitType = matched.UnitType, seenAt = GetTime(), active = matched}
-	matched.UnitClass = self:GetUnitClassByGUID(matched, guid) or matched.UnitClass
+	if matched.UnitType == "FRIENDLY_PLAYER" then
+		matched.UnitClass = self:UnitClass(matched, matched.UnitType)
+	else
+		matched.UnitClass = self:GetUnitClassByGUID(matched, guid) or matched.UnitClass
+	end
 	self:Update_Name(matched, true)
 	self:Update_HealthColor(matched)
 
@@ -527,7 +555,8 @@ function NP:OnShow(isConfig, dontHideHighlight)
 	frame.UnitName = gsub(frame.oldName:GetText() or "", FSPAT, "")
     frame.unit, frame.isGroupUnit, frame.guid = nil, nil, nil
 
-	local unit = self.namePlateUnitToken
+	local classes = SarychUI.FriendlyNameplateClasses
+    local unit = (classes and classes:GetPlateUnit(self)) or self.namePlateUnitToken
 	if not NP:MatchesPlateUnit({UnitName = frame.UnitName}, unit) then
 		unit = nil
 	end
@@ -1214,7 +1243,9 @@ function NP:UpdateCVars()
 	-- Keep the default nameplate castbar enabled: we use it as the trigger source
 	-- for the ElvUI castbar (patched client shows it under all casting nameplates).
 	SetCVar("showVKeyCastbar", "1")
-	SetCVar("nameplateAllowOverlap", self.db.motionType == "STACKED" and "0" or "1")
+	-- The native control and SUI's shared block own this CVar. A style refresh
+	-- must not restore a stale profile value over the user's current selection.
+	self.db.motionType = GetCVar("nameplateAllowOverlap") == "1" and "OVERLAP" or "STACKED"
 end
 
 local function CopySettings(from, to)

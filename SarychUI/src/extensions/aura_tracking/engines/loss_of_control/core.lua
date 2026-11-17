@@ -437,7 +437,7 @@ local function ShowMultipleEffects(self, effects, animate)
 		holder.Icon:SetTexture(effect.iconTexture);
 		if effect.duration and effect.duration > 0 then
 			CooldownFrame_SetTimer(holder.Cooldown, effect.startTime, effect.duration, 1);
-			if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(holder.Cooldown, effect.startTime, effect.duration, 1) end
+			if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(holder.Cooldown, effect.startTime, effect.duration, 1, "auraTracking") end
 			holder.Cooldown:Show();
 		else
 			holder.Cooldown:Hide();
@@ -864,7 +864,7 @@ function LossOfControlFrame_SetUpDisplay(self, animate, locType, spellID, text, 
 			timeRemaining = duration;
 		elseif startTime then
 			CooldownFrame_SetTimer(self.Cooldown, startTime, duration, 1);
-			if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(self.Cooldown, startTime, duration, 1) end
+			if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(self.Cooldown, startTime, duration, 1, "auraTracking") end
 		end
 		LossOfControlSetTimeLeft(timeLeftFrame, timeRemaining);
 		LayoutSingleTexts(self);
@@ -904,7 +904,7 @@ function LossOfControlFrame_UpdateDisplay(self)
 		end
 		if (not self:AnimIsPlaying() and startTime) then
 			CooldownFrame_SetTimer(self.Cooldown, startTime, duration, 1);
-			if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(self.Cooldown, startTime, duration, 1) end
+			if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(self.Cooldown, startTime, duration, 1, "auraTracking") end
 		end
 		LossOfControlSetTimeLeft(self.TimeLeft, timeRemaining);
 	else

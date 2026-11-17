@@ -63,12 +63,8 @@ end
 
 local function RestoreSarychUIMicroLayout()
 	local mmb = SarychUI and SarychUI.modules and SarychUI.modules.mainmenubar
-	if not (mmb and mmb.BFAStyle and mmb.BFAStyle.active) then
-		return
-	end
-	if mmb.BFAStyle.ApplyPlayerLayout then
-		mmb.BFAStyle:ApplyPlayerLayout()
-	end
+	local style = mmb and SarychUI.ActionBars and SarychUI.ActionBars:GetActiveStyle(mmb)
+	if style and style.runtime then style.runtime:ApplyLayout() end
 end
 
 local function ShowCoreMicroButtons()

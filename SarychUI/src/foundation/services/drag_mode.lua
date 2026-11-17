@@ -363,6 +363,12 @@ local function GridSnapOffsets(data)
     return centerX + ix * size - x, centerY + iy * size - y
 end
 
+local function PositionRelativeTo(data)
+    local relativeTo = data.settings.relativeTo
+    if type(relativeTo) == "function" then relativeTo = relativeTo() end
+    return relativeTo or UIParent
+end
+
 -- Keep currently selected frames on a grid node when its step changes.
 function DragMode:SnapVisibleFramesToGrid()
     if not gridVisible or (InCombatLockdown and InCombatLockdown()) then return end
@@ -389,7 +395,7 @@ function DragMode:SnapVisibleFramesToGrid()
                     data.justDragged = true
                     frame:ClearAllPoints()
                     local setPoint = data.originalSetPoint or frame.SetPoint
-                    setPoint(frame, point, UIParent, relativePoint, x, y)
+                    setPoint(frame, point, PositionRelativeTo(data), relativePoint, x, y)
                     if data.onPositionChanged then
                         data.onPositionChanged(point, relativePoint, x, y)
                     end
@@ -602,6 +608,16 @@ local function CreateDragFrame(frameId, frame, settings)
                 local attachmentPoint = data.attachmentPoint or "CENTER"
                 local attachmentRelativePoint = data.attachmentRelativePoint or attachmentPoint
                 local currentX, currentY = FramePointOffsets(frame, attachmentPoint)
+                if settings.relativeTo and (not currentX or not currentY or not data.startSliderPosition) then
+                    local saved = settings.getPoint and settings.getPoint()
+                    if saved then
+                        frame:ClearAllPoints()
+                        local setPoint = data.originalSetPoint or frame.SetPoint
+                        setPoint(frame, unpack(saved))
+                    end
+                    data.startFramePosition, data.startSliderPosition = nil, nil
+                    return
+                end
                 
                 -- newSlider = oldSlider + visual delta (keeps drop position, no jump).
                 if data.startFramePosition and data.startSliderPosition then
@@ -625,10 +641,10 @@ local function CreateDragFrame(frameId, frame, settings)
                         
                         if data.originalSetPoint then
                             frame:ClearAllPoints()
-                            data.originalSetPoint(frame, attachmentPoint, UIParent, attachmentRelativePoint, newSliderX, newSliderY)
+                            data.originalSetPoint(frame, attachmentPoint, PositionRelativeTo(data), attachmentRelativePoint, newSliderX, newSliderY)
                         else
                             frame:ClearAllPoints()
-                            frame:SetPoint(attachmentPoint, UIParent, attachmentRelativePoint, newSliderX, newSliderY)
+                            frame:SetPoint(attachmentPoint, PositionRelativeTo(data), attachmentRelativePoint, newSliderX, newSliderY)
                         end
                         
                         if data.onPositionChanged then
@@ -1000,7 +1016,7 @@ function DragMode:SetFramePosition(frameId, point, relativePoint, xOfs, yOfs)
     -- Use the raw setter: the intercept wrapper ignores passed offsets and
     -- re-applies getPoint(), so sliders would appear to do nothing.
     local setPoint = data.originalSetPoint or frame.SetPoint
-    setPoint(frame, point, UIParent, relativePoint, xOfs, yOfs)
+    setPoint(frame, point, PositionRelativeTo(data), relativePoint, xOfs, yOfs)
 end
 
 -- Применить масштаб к фрейму

@@ -2,6 +2,18 @@ do
 -- SarychUI English Localization (enUS) - default / fallback pack
 
 local L = {}
+L["ui.interface_style.crop_icons"] = "Apply icon style"
+L["ui.interface_style.crop_icons_desc"] = "Applies the dark style to icons by zooming the image and cropping its edges. Disabling immediately restores the original geometry and full image. Border and background settings are preserved."
+L["ui.interface_style.background"] = "Button background and shadow"
+L["ui.interface_style.background_color"] = "Background and shadow color"
+L["ui.floating_text.arena_start"] = "Arena battle start"
+L["ui.floating_text.hide_arena_start"] = "Hide the battle start announcement"
+L["ui.floating_text.hide_arena_start_desc"] = "Hide the arena battle start message in game notifications, chat and world-state rows, only inside arenas. Preparation countdowns and timers keep working. This setting belongs to Floating Text."
+L["ui.automation.duels"] = "Duels"
+L["ui.automation.decline_duels"] = "Automatically decline duel requests"
+L["ui.automation.decline_duels_desc"] = "Decline duel requests without the confirmation popup or its sound."
+L["ui.automation.duel_target_exception"] = "Allow requests from the current target"
+L["ui.automation.duel_target_exception_desc"] = "Show the normal confirmation when the challenger is your current target. The duel is not accepted automatically."
 
 -- Chat data text labels and tooltip content.
 L["ChatData_AFK"] = "AFK"
@@ -669,9 +681,37 @@ end
 do
 -- UI string map: Russian source -> enUS
 local M = {}
-M["ui.unit_frames.show_blizzard_text"] = "Show (Blizzard settings)"
-M["ui.unit_frames.hide_text"] = "Hide"
+M["ui.unit_frames.show_blizzard_text"] = "Original Blizzard settings"
+M["ui.unit_frames.hide_text"] = "SarychUI style"
+M["ui.unit_frames.bfa_text"] = "Original Blizzard BFA settings"
+M["ui.unit_frames.thousands_separator"] = "Thousands separator"
+M["ui.unit_frames.thousands_separator_desc"] = "Show full health and resource values with commas separating thousands: 1234567 → 1,234,567. BFA style only."
+M["ui.unit_frames.status_text_size"] = "Bar text size"
+M["ui.unit_frames.status_text_scale"] = "Text scale"
+M["ui.unit_frames.status_text_scale_desc"] = "Health and resource text size on bars. 100% is the original Blizzard size. Applies to all text indicator modes."
 M["Последние 5 секунд красным"] = "Last 5 seconds in red"
+M["Последние |cffff00005 секунд красными|r"] = "Last |cffff00005 seconds in red|r"
+M["Показывать десятые секунды"] = "Show tenths of a second"
+M["Показывать десятые начиная с (сек.)"] = "Show tenths below (seconds)"
+M["Исключения"] = "Exceptions"
+M["Снимите отметку, чтобы в этом месте показывались только целые секунды."] = "Uncheck a location to show only whole seconds there."
+M["Панели действий"] = "Action bars"
+M["Панель питомца"] = "Pet action bar"
+M["Панель стоек и форм"] = "Stance and shapeshift bar"
+M["Книга заклинаний"] = "Spellbook"
+M["Предметы в сумках и экипировке"] = "Bag and equipment items"
+M["Ауры игрока"] = "Player auras"
+M["Ауры на рамках персонажей"] = "Unit frame auras"
+M["Ауры группы и рейда"] = "Party and raid auras"
+M["Отслеживание аур"] = "Aura tracking"
+M["Отслеживание перезарядок"] = "Cooldown tracking"
+M["Таймеры и аксессуары арены"] = "Arena timers and trinkets"
+M["Убывающая эффективность"] = "Diminishing returns"
+M["Время существования призванных существ"] = "Summoned creature lifetime"
+M["Внутренние перезарядки"] = "Internal cooldowns"
+M["Иконки полос заклинаний"] = "Cast bar icons"
+M["Остальные круговые таймеры"] = "Other cooldown swipes"
+
 M["Смещение по горизонтали"] = "Horizontal offset"
 M["Смещение уведомлений о добыче при показе полосы заклинания. Положительные значения сдвигают вправо, отрицательные — влево."] = "Loot notification offset while the cast bar is shown. Positive values move right; negative values move left."
 M["Сверху минималистично"] = "Minimalist above"
@@ -2898,6 +2938,10 @@ SarychUI.RegisterUIMap("enUS", {
 
 SarychUI.RegisterUIMap("enUS", {
     ["ui.nameplates.indicator_size"] = "Indicator size",
+    ["ui.nameplates.level_background"] = "Level background",
+    ["ui.nameplates.friendly_names"] = "Friendly names",
+    ["ui.nameplates.friendly_class_names"] = "Class-coloured names",
+    ["ui.nameplates.friendly_class_names_desc"] = "Colours friendly player names by class. With Awesome, the class is read directly from the nameplate. The standard client uses current party, raid, guild and battleground rosters, plus the current target, focus and mouseover. Classes learned through mouseover or targeting are remembered until the location changes. The cache is not saved to disk.",
     ["ui.nameplates.mode_reload_hint"] = "|cFFFFD700Note:|r Changing this setting requires a UI reload.",
     ["ui.text_b3e68b98"] = "Item counts across characters",
     ["ui.text_0781c0a5"] = "Enable item count tracking",
@@ -2958,6 +3002,18 @@ SarychUI.RegisterUIMap("enUS", {
 
 SarychUI:RegisterUIMap("enUS", {
     ["ui.equipment.title"] = "Equipment information",
+    ["ui.action_bars.native_settings"] = "Action Bars",
+    ["ui.action_bars.bottom_left"] = "Bottom Left Bar",
+    ["ui.action_bars.bottom_right"] = "Bottom Right Bar",
+    ["ui.action_bars.right"] = "Right Bar",
+    ["ui.action_bars.right_two"] = "Right Bar 2",
+    ["ui.action_bars.lock"] = "Lock ActionBars",
+    ["ui.action_bars.always_show"] = "Always Show ActionBars",
+    ["ui.action_bars.secure_toggle"] = "Secure Ability Toggle",
+    ["ui.unit_frames.pet_names"] = "Pet names",
+    ["ui.unit_frames.pet_names_desc"] = "Show full pet names, shorten long names, or hide names entirely on the pet frame.",
+    ["ui.unit_frames.pet_names_full"] = "Full names",
+    ["ui.unit_frames.pet_names_hide"] = "Hide names",
     ["ui.equipment.score"] = "Show GearScore / Item Level",
     ["ui.equipment.sources"] = "Show equipment sources",
     ["ui.equipment.sources_title"] = "Equipment sources",
@@ -2980,4 +3036,43 @@ SarychUI:RegisterUIMap("enUS", {
     ["ui.castbar.latency_above"] = "Above the bar",
     ["ui.castbar.latency_below"] = "Below the bar",
     ["ui.castbar.latency_text_alpha"] = "Text opacity",
+    ["ui.nameplates.totems"] = "Totems",
+    ["ui.nameplates.pet.snakes"] = "Snake Trap snakes",
+    ["ui.nameplates.pet.mirrorimage"] = "Mirror Images",
+    ["ui.nameplates.pet.waterelemental"] = "Water Elemental",
+    ["ui.nameplates.pet_display"] = "Pet and summoned creature display",
+    ["ui.nameplates.pet_plates"] = "Show summoned creature nameplates",
+    ["ui.nameplates.pet_fallback_plates"] = "Show nameplate",
+    ["ui.nameplates.pet_fallback_hide"] = "Hide completely",
+    ["ui.nameplates.pet_icon_castbars"] = "Show cast bars alongside icons",
+    ["ui.nameplates.pet_plate_on_target"] = "Show nameplate for the current target",
+    ["ui.nameplates.pet_icon_lifetime"] = "Show remaining lifetime on the icon",
+    ["ui.nameplates.pet_icon_lifetime_desc"] = "Circular countdown for an identified creature after an observed summon with a known duration. Also uses available game data for your temporary pet. No timer without timing data or a creature binding. Digits and their appearance are controlled by Cooldowns and Timers. Database durations may differ on modified servers.",
+    ["ui.nameplates.pet.shadowfiend"] = "Shadowfiend",
+    ["ui.nameplates.pet.wolves"] = "Spirit Wolf",
+    ["ui.nameplates.pet.gargoyle"] = "Gargoyle",
+    ["ui.nameplates.pet.ghoul"] = "Ghoul",
+    ["ui.nameplates.pet.hunterpet"] = "Hunter pet",
+    ["ui.nameplates.pet.imp"] = "Imp",
+    ["ui.nameplates.pet.voidwalker"] = "Voidwalker",
+    ["ui.nameplates.pet.felguard"] = "Felguard",
+    ["ui.nameplates.pet.treants"] = "Treants (Force of Nature)",
+    ["ui.nameplates.pet.armyofthedead"] = "Army of the Dead",
+    ["ui.nameplates.pet.succubus"] = "Succubus",
+    ["ui.nameplates.pet.felhunter"] = "Felhunter",
+    ["ui.nameplates.totem_display"] = "Totem display",
+    ["ui.nameplates.totem_plates"] = "Show totem nameplates",
+    ["ui.nameplates.totem_icons"] = "Show icons instead of nameplates",
+    ["ui.nameplates.native_settings"] = "Nameplates",
+    ["ui.nameplates.allow_overlap"] = "Allow overlapping nameplates",
+    ["ui.nameplates.show_friends"] = "Friendly nameplates",
+    ["ui.nameplates.show_enemies"] = "Enemy nameplates",
+    ["ui.nameplates.guardians"] = "Guardians",
+    ["ui.unit_frames.target_target"] = "Target of target",
+    ["ui.unit_frames.focus_target"] = "Target of focus",
+    ["ui.unit_frames.relative_offset"] = "Offset from the default position next to the parent frame. Zero restores the default layout.",
+    ["ui.unit_frames.relative_drag"] = "Drag the frame relative to its default position.",
+    ["ui.unit_frames.reposition_desc"] = "Allow repositioning the player, target, focus, target of target and target of focus frames.",
+    ["ui.castbar.ignore_standard_offset"] = "Ignore default displacement",
+    ["ui.castbar.ignore_standard_offset_desc"] = "When positioning is enabled and Y is nonzero, do not raise the bar for the pet bar, extra action bars or other Blizzard elements. The offset is measured from the default base position.",
 })

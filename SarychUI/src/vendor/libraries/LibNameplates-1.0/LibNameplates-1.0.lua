@@ -7,7 +7,7 @@
 		LibNameplates tries to function with the default nameplates, Aloft and TidyPlates.
 	Dependencies: LibStub, CallbackHandler-1.0
 ]]
-local MAJOR, MINOR = "LibNameplates-1.0", 36
+local MAJOR, MINOR = "LibNameplates-1.0", 37
 if not LibStub then
 	error(MAJOR .. " requires LibStub.")
 	return
@@ -44,10 +44,10 @@ local fastOnFinishThrottle = 0.25 -- check combat & threat every x seconds.
 local slowOnFinishThrottle = 1 -- Check for lingering mouseover texture and for TidyPlates frame.
 local CheckForFakePlate -- checks fake frames
 
--- SarychUI classic scale reparents Blizzard art onto plate._suiClassicVisual.
--- Region/child lookups must follow that wrapper or plates go unseen.
+-- Classic rendering may move native artwork into a transparent parent. Use the
+-- original role order so masking/restoration cannot change identity lookups.
 local function GetPlateArtFrame(frame)
-	return frame and (frame._suiClassicVisual or frame) or frame
+	return frame and (frame._suiClassicArt or frame._suiClassicVisual or frame) or frame
 end
 
 local regionOrder = {
@@ -445,6 +445,7 @@ do
 	-- So I make sure lib.isOnScreen[plate] is true before working on the HP change.	--
 	--------------------------------------------------------------------------------------
 		local plate = bar:GetParent()
+		plate = plate and (plate._suiClassicRoot or plate)
 		local currentHP = ...
 
 		--strange, when a nameplate's not on screen, we still get HP changes. It's not relyable but might be of use somehow...

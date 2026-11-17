@@ -20,9 +20,20 @@ end
 
 -- Register custom fonts
 local function RegisterFonts()
-	-- LSM rejects fonts without a locale mask on ruRU and silently falls back to Arial.
-	LSM:Register("font", "SarychUI Homespun", [[Interface\AddOns\SarychUI\media\fonts\Homespun.ttf]],
-		LSM.LOCALE_BIT_ruRU + LSM.LOCALE_BIT_western)
+	-- Share the already bundled ElvUI fonts even when its nameplate engine is off.
+	local base = [[Interface\AddOns\SarychUI\media\components\modules\nameplates\engines\elvui\Media\Fonts\]]
+	local cyrillic = LSM.LOCALE_BIT_ruRU + LSM.LOCALE_BIT_western
+	LSM:Register("font", "Friz Quadrata TT", [[Fonts\FRIZQT__.TTF]], cyrillic)
+	for _, entry in ipairs({
+		{ "PT Sans Narrow", "PTSansNarrow", cyrillic },
+		{ "Homespun", "Homespun", cyrillic },
+		{ "Expressway", "Expressway", cyrillic },
+		{ "Die Die Die!", "DieDieDie", cyrillic },
+		{ "Continuum Medium", "ContinuumMedium" },
+		{ "Action Man", "ActionMan" },
+	}) do
+		LSM:Register("font", entry[1], base .. entry[2] .. ".ttf", entry[3])
+	end
 end
 
 -- Register custom textures
@@ -63,6 +74,7 @@ InitializeMedia()
 SarychUI.Media = {
 	-- Get a font
 	GetFont = function(name)
+		if name == "SarychUI Homespun" then name = "Homespun" end
 		return LSM:Fetch("font", name)
 	end,
 	

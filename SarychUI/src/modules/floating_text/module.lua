@@ -10,6 +10,7 @@ end
 function module:ApplyAll()
   local tools = Tools()
   if not tools then return end
+  if self.ApplyArenaAnnouncementFilter then self:ApplyArenaAnnouncementFilter() end
   if SarychUI.modules.floating_text.ApplyErrorFilter then SarychUI.modules.floating_text:ApplyErrorFilter() end
   if SarychUI.modules.floating_text.ApplyCombatTextAdjust then SarychUI.modules.floating_text:ApplyCombatTextAdjust() end
   if SarychUI.modules.floating_text.ApplyRaidBossEmoteReposition then SarychUI.modules.floating_text:ApplyRaidBossEmoteReposition() end
@@ -38,6 +39,7 @@ function module:Enable()
 end
 
 function module:Disable()
+  if self.DisableArenaAnnouncementFilter then self:DisableArenaAnnouncementFilter() end
   if self.StopTestMode then self:StopTestMode() end
   local panel = SarychUI and SarychUI.CombatTextDragPanel
   if panel and panel.IsOpen and panel:IsOpen() then

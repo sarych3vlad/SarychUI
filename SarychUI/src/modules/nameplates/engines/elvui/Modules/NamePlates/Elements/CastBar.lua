@@ -197,7 +197,15 @@ function NP:COMBAT_LOG_EVENT_UNFILTERED(_, _, subevent, sourceGUID, sourceName, 
 end
 
 -- Start (or refresh) the ElvUI castbar from the current default castbar state.
-function NP:StartCastBarFromDefault(frame)
+function NP:CanShowCastBar(frame)
+    if frame.VisibilityChanged then return false end
+    if frame._suiPetAction == "icons" then return frame._suiPetCastAllowed == true end
+    local db = self.db.units[frame.UnitType] and self.db.units[frame.UnitType].castbar
+    return db and db.enable == true and frame.Health:IsShown()
+        and not frame.IconOnlyChanged and not frame.NameOnlyChanged
+end
+
+function NP:StartCastBarFromDefault(frame, skipStyle)
 	local castBar = frame.CastBar
 	local blizz = frame.oldCastBar
 
@@ -205,8 +213,7 @@ function NP:StartCastBarFromDefault(frame)
 
 	HideBlizzardCastVisuals(blizz)
 
-	local db = self.db.units[frame.UnitType] and self.db.units[frame.UnitType].castbar
-	if not db or db.enable ~= true or not frame.Health:IsShown() or not blizz:IsShown() then
+	if not self:CanShowCastBar(frame) or not blizz:IsShown() then
 		resetAttributes(castBar)
 		castBar:Hide()
 		return
@@ -302,7 +309,21 @@ function NP:StartCastBarFromDefault(frame)
 
 	castBar:Show()
 
-	self:StyleFilterUpdate(frame, "FAKE_Casting")
+	if not skipStyle then self:StyleFilterUpdate(frame, "FAKE_Casting") end
+end
+
+-- Called after icon-only styling hides health. Reuse the native cast source,
+-- without re-entering StyleFilterUpdate while that style is being applied.
+function NP:Update_PetIconCastBar(frame)
+    if frame._suiPetCastAllowed then
+        self:Configure_CastBar(frame, true)
+        if not frame.CastBar:IsShown() or not (frame.oldCastBar and frame.oldCastBar:IsShown()) then
+            self:StartCastBarFromDefault(frame, true)
+        end
+    else
+        frame.CastBar:Hide()
+    end
+    SarychUI.modules.health_indicators:AnchorPetIcon(frame.IconFrame, frame:GetParent())
 end
 
 -- Hide the ElvUI castbar when the default castbar goes away.
@@ -373,8 +394,7 @@ function NP:Update_CastBar(frame)
 
 	HideBlizzardCastVisuals(blizz)
 
-	local db = self.db.units[frame.UnitType] and self.db.units[frame.UnitType].castbar
-	if not db or db.enable ~= true or not frame.Health:IsShown() then
+	if not self:CanShowCastBar(frame) then
 		resetAttributes(castBar)
 		castBar:Hide()
 		return
@@ -389,9 +409,9 @@ function NP:Update_CastBar(frame)
 end
 
 function NP:Configure_CastBarScale(frame, scale, noPlayAnimation)
-	if frame.currentScale == scale then return end
+	if frame.currentScale == scale and not noPlayAnimation then return end
 	local db = self.db.units[frame.UnitType].castbar
-	if not db.enable then return end
+	if not db.enable and not frame._suiPetCastAllowed then return end
 
 	local castBar = frame.CastBar
 
@@ -418,7 +438,14 @@ function NP:Configure_CastBar(frame, configuring)
 	local db = self.db.units[frame.UnitType].castbar
 	local castBar = frame.CastBar
 
-	castBar:SetPoint("TOP", frame.Health, "BOTTOM", db.xOffset, db.yOffset)
+    castBar:ClearAllPoints()
+    if frame._suiPetCastAllowed then
+        castBar:SetPoint("TOP", frame:GetParent(), "CENTER", db.xOffset, -12 + db.yOffset)
+        frame._suiPetCastGap = db.textPosition == "ABOVE" and (db.fontSize + 8) or 8
+    else
+        castBar:SetPoint("TOP", frame.Health, "BOTTOM", db.xOffset, db.yOffset)
+        frame._suiPetCastGap = nil
+    end
 
 	if db.showIcon then
 		castBar.Icon:ClearAllPoints()

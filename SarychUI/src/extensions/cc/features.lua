@@ -537,13 +537,10 @@ local doorWarnings = {
 }
 
 local function ParseDoorAnnouncement(message)
+    if SarychUI.ArenaAnnouncements:IsStart(message) then return 0 end
     -- Some Russian cores put a space before '!'. Ignore terminal punctuation.
     message = message:gsub("%s+", " "):gsub("^%s+", ""):gsub("[%s!%.]+$", "")
     if doorWarnings[message] then return doorWarnings[message] end
-    if message == "The battle has begun" or message == "The Arena battle has begun"
-        or message == "Битва началась" or message == "Бой на арене начался" then
-        return 0
-    end
     -- Preserve the existing generic battleground countdown announcements.
     if message:find("The battle begins", 1, true) == 1 then
         local minutes = message:match("in (%d+) minute")

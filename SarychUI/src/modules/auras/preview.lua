@@ -163,14 +163,13 @@ local function MakeAuraIcon(parent, size, iconPath, opts)
 	f._selfAura = opts.selfAura and true or false
 
 	local dark = UseStyleTextures()
+	local crop = dark and SarychUI_InterfaceStyle:GetCropIcons()
 	local icon = f:CreateTexture(nil, "BACKGROUND")
-	if dark then
-		icon:SetPoint("TOPLEFT", 1, -1)
-		icon:SetPoint("BOTTOMRIGHT", -1, 1)
-		icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+	if crop then
+		SarychUI.Frameworks.ApplyButtonIconCrop(icon, f, 1)
 	else
 		icon:SetAllPoints()
-		icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+		icon:SetTexCoord(0, 1, 0, 1)
 	end
 	icon:SetTexture(iconPath)
 
@@ -189,27 +188,16 @@ local function MakeAuraIcon(parent, size, iconPath, opts)
 			border:SetPoint("TOPLEFT", -1, 1)
 			border:SetPoint("BOTTOMRIGHT", 1, -1)
 		end
-		if dark then
-			local style = SarychUI_InterfaceStyle
-			local value = style:GetGlossBrightness()
-			local _, _, _, sa = style.GetColor()
+		local style = SarychUI_InterfaceStyle
+		if style and style.enabled then
 			if style:GetDebuffOriginalColor() then
-				border:SetVertexColor(c[1], c[2], c[3], sa)
+				local _, _, _, a = style.GetColor()
+				border:SetVertexColor(c[1], c[2], c[3], a)
 			else
-				border:SetVertexColor(value, value, value, sa)
+				border:SetVertexColor(style:GetBorderColor())
 			end
 		else
-			local style = SarychUI_InterfaceStyle
-			if style and style.enabled then
-				local sr, sg, sb, sa = style.GetColor()
-				if style:GetDebuffOriginalColor() then
-					border:SetVertexColor(c[1], c[2], c[3], sa)
-				else
-					border:SetVertexColor(sr, sg, sb, sa)
-				end
-			else
-				border:SetVertexColor(c[1], c[2], c[3])
-			end
+			border:SetVertexColor(c[1], c[2], c[3])
 		end
 		f.border = border
 	elseif dark then
@@ -218,9 +206,7 @@ local function MakeAuraIcon(parent, size, iconPath, opts)
 		border:SetTexCoord(0, 1, 0, 1)
 		border:SetAllPoints(f)
 		local style = SarychUI_InterfaceStyle
-		local _, _, _, a = style.GetColor()
-		local value = style:GetGlossBrightness()
-		border:SetVertexColor(value, value, value, a)
+		border:SetVertexColor(style:GetBorderColor())
 		f.border = border
 	end
 

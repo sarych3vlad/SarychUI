@@ -8,7 +8,7 @@ if not module then return end
 local MEDIA = "Interface\\AddOns\\SarychUI\\media\\mainmenubar\\bfa\\"
 local PLAYER_BAR_WIDTH = 806
 local PLAYER_BAR_X = 0
-local VEHICLE_ANIMATION_DELAY = 0.60
+local Framework = SarychUI.ActionBars
 
 local BFA = {
 	active = false,
@@ -296,11 +296,15 @@ function BFA:ApplyAppearance()
 end
 
 local function IsVehicleLayoutBlocked()
-	if IsPlayerInVehicle() then return true end
-	if MainMenuBar and (MainMenuBar.busy or MainMenuBar.animating) then return true end
-	if VehicleMenuBar and VehicleMenuBar.animating then return true end
-	if MultiBarRight and MultiBarRight.animating then return true end
-	return false
+	return Framework:VehicleLayoutBlocked()
+end
+
+function BFA:UpdatePetPositionValues()
+	Framework:UpdateNativePetPosition(self)
+end
+
+function BFA:EnablePetVisibility()
+	Framework:EnablePet(self, PetActionBarFrame, true)
 end
 
 function BFA:LayoutBagsAndMicroMenu()
@@ -323,16 +327,7 @@ end
 function BFA:ApplyPlayerLayout()
 	if not self.active or not MainMenuBar or not MainMenuBarArtFrame then return false end
 	if self._applyingLayout then return true end
-	if InCombatLockdown() or IsVehicleLayoutBlocked() then
-		self.layoutPending = true
-		if InCombatLockdown() or IsPlayerInVehicle() then
-			controller:Hide()
-		else
-			self.layoutDelay = 0.10
-			controller:Show()
-		end
-		return false
-	end
+	if not self.runtime:CanLayout() then return false end
 
 	self._applyingLayout = true
 
@@ -375,29 +370,25 @@ function BFA:ApplyPlayerLayout()
 	end
 
 	StyleStatusBars()
+	self:EnablePetVisibility()
+	self:UpdatePetPositionValues()
+	if PetActionBarFrame and (self.petDriverRegistered or PetActionBarFrame:IsShown()) and PETACTIONBAR_YPOS
+		and PetActionBarFrame.mode ~= "show" and PetActionBarFrame.mode ~= "hide" then
+		SetPoint(PetActionBarFrame, "TOPLEFT", MainMenuBar, "BOTTOMLEFT", PETACTIONBAR_XPOS, PETACTIONBAR_YPOS)
+	end
 	StyleAllHotkeys()
 	self:ApplyAppearance()
 	if module.ApplyPageButtonsSettings then
 		module:ApplyPageButtonsSettings()
 	end
 
-	self.layoutPending = false
-	self.layoutDelay = 0
-	controller:Hide()
+	self.runtime:FinishLayout()
 	self._applyingLayout = false
 	return true
 end
 
 function BFA:RequestLayout(delay)
-	if not self.active then return end
-	self.layoutPending = true
-	delay = delay or 0
-	if delay > self.layoutDelay then self.layoutDelay = delay end
-	if InCombatLockdown() or IsPlayerInVehicle() then
-		controller:Hide()
-	else
-		controller:Show()
-	end
+	self.runtime:RequestLayout(delay)
 end
 
 function BFA:InstallHooks()
@@ -406,26 +397,6 @@ function BFA:InstallHooks()
 
 	if ActionButton_UpdateHotkeys then hooksecurefunc("ActionButton_UpdateHotkeys", StyleHotkey) end
 	if ActionButton_ShowGrid then hooksecurefunc("ActionButton_ShowGrid", RestoreButtonBorder) end
-	if VehicleMenuBar_UpdateActionBars then hooksecurefunc("VehicleMenuBar_UpdateActionBars", RefreshVehicleHotkeys) end
-	if ReputationWatchBar_Update then
-		hooksecurefunc("ReputationWatchBar_Update", function() BFA:RequestLayout() end)
-	end
-	if ShapeshiftBar_Update then
-		hooksecurefunc("ShapeshiftBar_Update", function() BFA:RequestLayout() end)
-	end
-	if VehicleMenuBar_MoveMicroButtons then
-		hooksecurefunc("VehicleMenuBar_MoveMicroButtons", function(skinName)
-			if BFA.active and not skinName then
-				PositionPlayerMicroMenu()
-				BFA:RequestLayout(VEHICLE_ANIMATION_DELAY)
-			end
-		end)
-	end
-	if MainMenuBar_ToPlayerArt then
-		hooksecurefunc("MainMenuBar_ToPlayerArt", function()
-			BFA:RequestLayout(VEHICLE_ANIMATION_DELAY)
-		end)
-	end
 end
 
 function BFA:Enable()
@@ -434,12 +405,8 @@ function BFA:Enable()
 		self.initialized = true
 		self:CreateArtwork()
 		self:InstallHooks()
-		controller:RegisterEvent("PLAYER_ENTERING_WORLD")
-		controller:RegisterEvent("PLAYER_REGEN_ENABLED")
-		controller:RegisterEvent("UNIT_ENTERING_VEHICLE")
-		controller:RegisterEvent("UNIT_EXITED_VEHICLE")
-		controller:RegisterEvent("DISPLAY_SIZE_CHANGED")
 	end
+	self.runtime:Start()
 	StyleStatusBars()
 	RefreshVehicleHotkeys()
 	self:ApplyAppearance()
@@ -449,11 +416,12 @@ function BFA:Enable()
 end
 
 function BFA:Disable()
+	if InCombatLockdown() then return end
 	self.active = false
-	self.layoutPending = false
-	self.layoutDelay = 0
+	Framework:DisablePet(self)
+	if PetActionBar_UpdatePositionValues then PetActionBar_UpdatePositionValues() end
+	self.runtime:Stop()
 	self._applyingLayout = false
-	controller:Hide()
 	for index = 0, 3 do
 		local texture = getglobal("MainMenuBarTexture" .. index)
 		if texture and texture.SetScript then
@@ -465,35 +433,10 @@ function BFA:Disable()
 	end
 end
 
-controller:SetScript("OnEvent", function(self, event, unit)
-	if not BFA.active then return end
-	if event == "UNIT_ENTERING_VEHICLE" then
-		if unit == "player" then
-			BFA.layoutPending = false
-			BFA.layoutDelay = 0
-			self:Hide()
-		end
-	elseif event == "UNIT_EXITED_VEHICLE" then
-		if unit == "player" then BFA:RequestLayout(VEHICLE_ANIMATION_DELAY) end
-	elseif event == "PLAYER_ENTERING_WORLD" then
-		if not BFA:ApplyPlayerLayout() then
-			BFA:RequestLayout(0)
-		end
-	elseif event == "PLAYER_REGEN_ENABLED" then
-		RefreshVehicleHotkeys()
-		BFA:RequestLayout()
-	elseif event == "DISPLAY_SIZE_CHANGED" then
-		if not BFA:ApplyPlayerLayout() then
-			BFA:RequestLayout(0)
-		end
-	end
-end)
-
-controller:SetScript("OnUpdate", function(self, elapsed)
-	if not BFA.active or not BFA.layoutPending then return end
-	if BFA.layoutDelay > 0 then
-		BFA.layoutDelay = BFA.layoutDelay - elapsed
-		return
-	end
-	BFA:ApplyPlayerLayout()
-end)
+Framework:RegisterStyle(module, "bfa", BFA, {
+    controller = controller,
+    layout = "ApplyPlayerLayout",
+    refreshVehicleHotkeys = RefreshVehicleHotkeys,
+    positionMicroMenu = PositionPlayerMicroMenu,
+    petPositionValues = BFA.UpdatePetPositionValues,
+})

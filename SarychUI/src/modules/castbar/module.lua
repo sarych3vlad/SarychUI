@@ -5,7 +5,6 @@ local moduleName = "castbar"
 local module = {}
 SarychUI:RegisterModule(moduleName, module)
 
-local classicManagedY
 local deferredPositionFrame
 
 local function ManageCastbarPosition()
@@ -24,17 +23,21 @@ local function ManageCastbarPosition()
 	end
 end
 
+function module:GetPlayerPositionSettings(style)
+	return SarychUI.ManagedPosition:GetSettings(self:DB(), style .. "Castbar")
+end
+
 function module:ApplyClassicCastbarOffset(reset)
-	local positions = UIPARENT_MANAGED_FRAME_POSITIONS
-	local managed = positions and positions.CastingBarFrame
-	if not managed then return end
-	if classicManagedY == nil then classicManagedY = managed.yOffset or 0 end
-	local db = self:DB()
-	local offset = not reset and self:IsEnabled() and self:GetBarStyle() == "classic"
-		and (db and tonumber(db.classicCastbarOffsetY) or 0) or 0
-	local y = classicManagedY + offset
-	if managed.yOffset ~= y then
-		managed.yOffset = y
+	local offset, ignore = 0, false
+	if not reset and self:IsEnabled() then
+		local style = self:GetBarStyle()
+		local _, value, fixed = self:GetPlayerPositionSettings(style)
+		-- DF keeps its existing offset on the artwork container. Both styles
+		-- use the same native anchor and its dependency policy.
+		offset = style == "classic" and value or 0
+		ignore = fixed
+	end
+	if SarychUI.ManagedPosition:Apply("CastingBarFrame", offset, ignore) then
 		ManageCastbarPosition()
 	end
 end
@@ -135,6 +138,7 @@ function module:ApplyScale()
 end
 
 function module:ApplyDragonflightCastbarOffset()
+	self:ApplyClassicCastbarOffset()
 	if self.DF and self.DF.ApplyPlayerOffset then
 		self.DF:ApplyPlayerOffset()
 	end

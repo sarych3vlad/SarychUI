@@ -1,4 +1,4 @@
--- Style Blizzard artwork with the bundled Gloss black textures.
+-- Tint Blizzard artwork, optionally replacing icon borders with Gloss textures.
 SarychUI_InterfaceStyle = {}
 local Style = SarychUI_InterfaceStyle
 
@@ -10,7 +10,7 @@ Style.textures = {
 	hover = media .. "hover",
 	pushed = media .. "pushed",
 	flash = media .. "flash",
-	background = media .. "button_background",
+	background = media .. "button_background_flat",
 	shadow = media .. "outer_shadow",
 }
 Style.normalTexture = Style.textures.normal
@@ -26,20 +26,37 @@ function Style:GetGlossBrightness()
 	return math.max(0, math.min(1, value))
 end
 
-function Style.GetColor()
-	local db = Style:GetDB()
-	local color = db and db.styleColor or nil
-	local function Channel(value)
-		return math.max(0, math.min(1, tonumber(value) or 0.37))
-	end
-	local alpha = tonumber(color and color.a)
-	if alpha == nil then alpha = 1 end
-	return Channel(color and color.r), Channel(color and color.g),
-		Channel(color and color.b), math.max(0, math.min(1, alpha))
+function Style:GetCropIcons()
+	local db = self:GetDB()
+	return not db or db.cropIcons ~= false
 end
 
+function Style.GetColor()
+	local db = Style:GetDB()
+	return SarychUI.Frameworks.TextureColor(db and db.styleColor, 0.37)
+end
+
+function Style:GetBackgroundColor()
+	local db = self:GetDB()
+	return SarychUI.Frameworks.TextureColor(db and db.backgroundColor, 0)
+end
+
+function Style:GetButtonBorderAlpha()
+	local modules = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules
+	local db = modules and modules.mainmenubar
+	return SarychUI.Frameworks.ButtonBorderAlpha(db and db.buttonBorderAlphaEnabled,
+		db and db.buttonBorderAlpha)
+end
+
+-- Kept for artwork consumers; the extension now has one texture style.
 function Style:GetTextureMode()
 	return "black"
+end
+
+function Style:GetBorderColor(original)
+	local r, g, b, a = self.GetColor()
+	local brightness = self:GetGlossBrightness()
+	return SarychUI.Frameworks.ModulateTextureColor(r, g, b, a, brightness, original)
 end
 
 function Style:GetDebuffOriginalColor()
@@ -79,6 +96,8 @@ function Style:Apply()
 		self:Disable()
 		return
 	end
+	-- Retire the removed original-dark selection without losing appearance settings.
+	db.textureMode = nil
 	self.enabled = true
 	self:InstallButtonHooks()
 	self:ApplyButtons()
@@ -100,6 +119,10 @@ function Style:Disable()
 	if self.RestoreAuras then self:RestoreAuras() end
 	if self.RestoreCompactRaid then self:RestoreCompactRaid() end
 	if self.RestoreFrames then self:RestoreFrames() end
+	local menu = SarychUI.modules and SarychUI.modules.mainmenubar
+	local modules = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules
+	if menu and menu.ApplyButtonBorderAlpha and modules and modules.mainmenubar
+		and modules.mainmenubar.enabled then menu:ApplyButtonBorderAlpha() end
 	self:RefreshOtherArtwork()
 end
 

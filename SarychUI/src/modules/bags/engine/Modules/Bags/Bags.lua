@@ -1746,7 +1746,7 @@ function B:ClearEmptySlotVisuals(slot)
 
 	if slot.cooldown then
 		CooldownFrame_SetTimer(slot.cooldown, 0, 0, 0)
-		if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(slot.cooldown, 0, 0, 0) end
+		if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(slot.cooldown, 0, 0, 0, "items") end
 		slot.cooldown:Hide()
 	end
 
@@ -4547,7 +4547,7 @@ function B:UpdateSlot(frame, bagID, slotID)
 		if not useCache then
 			local start, duration, enable = GetContainerItemCooldown(bagID, slotID)
 			CooldownFrame_SetTimer(slot.cooldown, start, duration, enable)
-			if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(slot.cooldown, start, duration, enable) end
+			if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(slot.cooldown, start, duration, enable, "items") end
 			-- Unopened mid-session bags often return duration>0/enable==0 garbage.
 			-- That used to paint every icon grey from Bag1Slot1 onward.
 			if start and start > 0 and duration and duration > 0 and enable == 0 then
@@ -4701,7 +4701,7 @@ function B:UpdateCooldowns(frame)
 				B:PreferSarychUICooldown(slot.cooldown)
 				local start, duration, enable = GetContainerItemCooldown(bagID, slotID)
 				CooldownFrame_SetTimer(slot.cooldown, start, duration, enable)
-				if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(slot.cooldown, start, duration, enable) end
+				if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(slot.cooldown, start, duration, enable, "items") end
 			end
 		end
 	end
@@ -5584,7 +5584,7 @@ function B:UpdateKeySlot(slotID)
 		B:PreferSarychUICooldown(slot.cooldown)
 		local start, duration, enable = GetContainerItemCooldown(bagID, slotID)
 		CooldownFrame_SetTimer(slot.cooldown, start, duration, enable)
-		if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(slot.cooldown, start, duration, enable) end
+		if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(slot.cooldown, start, duration, enable, "items") end
 		if duration > 0 and enable == 0 then
 			SetItemButtonTextureVertexColor(slot, 0.4, 0.4, 0.4)
 		else

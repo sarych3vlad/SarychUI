@@ -122,6 +122,74 @@ local function tickToggleSet(key)
 	end
 end
 
+-- The two styles expose the same positioning policy, with separate saved values.
+local function PositionOptions(style, description)
+    local prefix = style .. "Castbar"
+    local key = prefix .. "OffsetY"
+    local function IsOn()
+        return SarychUI.ManagedPosition:GetSettings(DB(), prefix)
+    end
+    local function Hidden() return not IsOn() end
+    local function Apply()
+        if style == "classic" then module:ApplyClassicCastbarOffset()
+        else module:ApplyDragonflightCastbarOffset() end
+    end
+    local function SetOffset(_, value)
+        local db = DB(); if not db then return end
+        db[key] = value
+        Apply()
+    end
+    return {
+        type = "group", name = "ui.text_2597b987", order = 1,
+        inline = true, suiTwoCol = true,
+        hidden = function() return GetBarStyle() ~= style end,
+        args = {
+            positionEnabled = {
+                type = "toggle", name = "ui.enable_a54eaf37", order = 1,
+                width = "full", suiFullRow = true,
+                get = function() return IsOn() end,
+                set = function(_, value)
+                    local db = DB(); if not db then return end
+                    db[prefix .. "PositionEnabled"] = value and true or false
+                    Apply()
+                    NotifyOptionsChange()
+                end,
+            },
+            [key] = {
+                type = "range", name = "ui.y_offset_f7f3fdd7", desc = description,
+                min = -300, max = 300, step = 1, order = 2, hidden = Hidden,
+                get = function() local db = DB(); return db and db[key] or 0 end,
+                set = SetOffset,
+            },
+            resetPosition = {
+                type = "execute", name = "ui.options_469631cb16", order = 3,
+                suiTrailingFit = true, hidden = Hidden,
+                func = function()
+                    local defaults = SarychUI.defaults and SarychUI.defaults.profile
+                    defaults = defaults and defaults.modules and defaults.modules.castbar
+                    SetOffset(nil, defaults and defaults[key] or 0)
+                    if SarychUI.SyncOpenOptionsValues then SarychUI:SyncOpenOptionsValues()
+                    else NotifyOptionsChange() end
+                end,
+            },
+            ignoreStandardOffset = {
+                type = "toggle", name = "ui.castbar.ignore_standard_offset",
+                desc = "ui.castbar.ignore_standard_offset_desc", order = 4,
+                width = "full", suiFullRow = true, hidden = Hidden,
+                get = function()
+                    local value = GetTimerSetting(prefix .. "IgnoreStandardOffset", false)
+                    return value == true or value == 1
+                end,
+                set = function(_, value)
+                    local db = DB(); if not db then return end
+                    db[prefix .. "IgnoreStandardOffset"] = value and true or false
+                    Apply()
+                end,
+            },
+        },
+    }
+end
+
 function module:GetOptions()
 	local options = {
 		type = "group",
@@ -345,64 +413,8 @@ function module:GetOptions()
 							},
 						},
 					},
-					classicCastbarBox = {
-						type = "group",
-						name = "ui.text_2597b987",
-						order = 1,
-						inline = true,
-						hidden = IsDragonflightStyle,
-						args = {
-							classicCastbarOffsetY = {
-								type = "range",
-								name = "ui.y_offset_f7f3fdd7",
-								desc = "ui.blizzard_bcc570e6",
-								min = -300,
-								max = 300,
-								step = 1,
-								order = 1,
-								width = "full",
-								get = function()
-									local db = DB()
-									return db and db.classicCastbarOffsetY or 0
-								end,
-								set = function(_, val)
-									local db = DB()
-									if not db then return end
-									db.classicCastbarOffsetY = val
-									if module.ApplyClassicCastbarOffset then module:ApplyClassicCastbarOffset() end
-								end,
-							},
-						},
-					},
-					dragonflightCastbarBox = {
-						type = "group",
-						name = "ui.text_2597b987",
-						order = 1,
-						inline = true,
-						hidden = function() return not IsDragonflightStyle() end,
-						args = {
-							dragonflightCastbarOffsetY = {
-								type = "range",
-								name = "ui.y_offset_f7f3fdd7",
-								desc = "ui.dragonflight_blizzard_335b5722",
-								min = -300,
-								max = 300,
-								step = 1,
-								order = 1,
-								width = "full",
-								get = function()
-									local db = DB()
-									return db and db.dragonflightCastbarOffsetY or 0
-								end,
-								set = function(_, val)
-									local db = DB()
-									if not db then return end
-									db.dragonflightCastbarOffsetY = val
-									if module.ApplyDragonflightCastbarOffset then module:ApplyDragonflightCastbarOffset() end
-								end,
-							},
-						},
-					},
+                    classicCastbarBox = PositionOptions("classic", "ui.blizzard_bcc570e6"),
+                    dragonflightCastbarBox = PositionOptions("dragonflight", "ui.dragonflight_blizzard_335b5722"),
 				},
 			},
 			timers = {
@@ -587,34 +599,6 @@ function module:GetOptions()
 			},
 		},
 	}
-    -- Use the existing two-column layout: a wide slider and a compact reset
-    -- button to its right, for whichever castbar style is currently visible.
-    for _, spec in ipairs({
-        {"classicCastbarBox", "classicCastbarOffsetY"},
-        {"dragonflightCastbarBox", "dragonflightCastbarOffsetY"},
-    }) do
-        local box = options.args.settings.args[spec[1]]
-        local key = spec[2]
-        local slider = box.args[key]
-        box.suiTwoCol = true
-        slider.width = nil
-        box.args.resetPosition = {
-            type = "execute",
-            name = "ui.options_469631cb16",
-            order = 2,
-            suiTrailingFit = true,
-            func = function()
-                local defaults = SarychUI.defaults and SarychUI.defaults.profile
-                defaults = defaults and defaults.modules and defaults.modules.castbar
-                slider.set(nil, defaults and defaults[key] or 0)
-                if SarychUI.SyncOpenOptionsValues then
-                    SarychUI:SyncOpenOptionsValues()
-                else
-                    NotifyOptionsChange()
-                end
-            end,
-        }
-    end
     local tickBox = options.args.timers.args.ticksBox
     tickBox.suiTwoCol = true
     tickBox.args.enableCastbarTicks.suiFullRow = true

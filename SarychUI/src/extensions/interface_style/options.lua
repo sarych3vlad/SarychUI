@@ -27,6 +27,7 @@ local function RefreshStylePreviews()
 end
 
 function style:GetOptions()
+	local menu = SUI.modules and SUI.modules.mainmenubar
 	return {
 		type = "group",
 		name = "ui.text_afb43adf",
@@ -35,6 +36,41 @@ function style:GetOptions()
 			return not (db and db.enabled)
 		end,
 		args = {
+			borderBox = menu and menu.GetButtonBorderOptions and menu:GetButtonBorderOptions(4, function()
+				local db = style:GetDB()
+				return not (db and db.enabled)
+			end),
+			background = {
+				type = "group", name = "ui.interface_style.background", order = 5, inline = true,
+				args = {
+					color = {
+						type = "color", name = "ui.interface_style.background_color", order = 1,
+						hasAlpha = false,
+						get = function() return style:GetBackgroundColor() end,
+						set = function(_, r, g, b)
+							local db = style:GetDB()
+							if not db then return end
+							local _, _, _, a = style:GetBackgroundColor()
+							db.backgroundColor = { r = r, g = g, b = b, a = a }
+							style:RefreshBackgrounds()
+							SUI:NotifySarychUIOptionsChange()
+						end,
+					},
+					alpha = {
+						type = "range", name = "ui.transparency_94a43d8b", order = 2,
+						min = 0, max = 1, step = 0.05, width = "full",
+						get = function() local _, _, _, a = style:GetBackgroundColor(); return a end,
+						set = function(_, a)
+							local db = style:GetDB()
+							if not db then return end
+							local r, g, b = style:GetBackgroundColor()
+							db.backgroundColor = { r = r, g = g, b = b, a = a }
+							style:RefreshBackgrounds()
+							SUI:NotifySarychUIOptionsChange()
+						end,
+					},
+				},
+			},
 			enabled = {
 				type = "toggle", name = "ui.enable_a54eaf37", order = 1,
 				get = function()
@@ -52,11 +88,7 @@ function style:GetOptions()
 			textures = {
 				type = "select", name = "ui.text_0d7f9c9f", order = 2,
 				width = "full",
-				disabled = function()
-					local db = style:GetDB()
-					return not (db and db.enabled)
-				end,
-				values = { black = SarychUI:T("ui.options_d8a98a2cd2") },
+				values = { black = "ui.options_d8a98a2cd2" },
 				get = function() return style:GetTextureMode() end,
 				set = function() end,
 			},
@@ -97,8 +129,26 @@ function style:GetOptions()
 							SUI:NotifySarychUIOptionsChange()
 						end,
 					},
+				},
+			},
+			icons = {
+				type = "group", name = "ui.icons_f52d3f2f", order = 3.5, inline = true,
+				args = {
+					cropIcons = {
+						type = "toggle", name = "ui.interface_style.crop_icons", order = 1,
+						desc = "ui.interface_style.crop_icons_desc", width = "full",
+						get = function() return style:GetCropIcons() end,
+						set = function(_, value)
+							local db = style:GetDB()
+							if not db then return end
+							db.cropIcons = value == true
+							style:RefreshGloss()
+							RefreshStylePreviews()
+							SUI:NotifySarychUIOptionsChange()
+						end,
+					},
 					debuffOriginalColor = {
-						type = "toggle", name = "ui.text_5ce3cbc6", order = 3,
+						type = "toggle", name = "ui.text_5ce3cbc6", order = 2,
 						disabled = function()
 							local db = style:GetDB()
 							return not (db and db.enabled)

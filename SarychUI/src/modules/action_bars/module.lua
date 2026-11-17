@@ -23,6 +23,11 @@ end
 
 -- Register module
 SarychUI:RegisterModule(moduleName, module)
+local Framework = SarychUI.ActionBars
+Framework:RegisterStyle(module, "classic", {
+    Enable = function(self) self.active = true end,
+    Disable = function(self) self.active = false end,
+})
 
 -- Enable module - COORDINATOR FUNCTION
 function module:Enable()
@@ -107,11 +112,8 @@ function module:Enable()
 	if self.InitializeColorSystem then self:InitializeColorSystem() end     -- panelColor.lua  
 	if self.InitializeVisualSystem then self:InitializeVisualSystem() end    -- panelVisual.lua
 
-	if self._bootBarStyle == "bfa" and self.BFAStyle then
-		self.BFAStyle:Enable()
-	elseif self._bootBarStyle == "dragon" and self.DragonStyle then
-		self.DragonStyle:Enable()
-	end
+	local style = Framework:GetStyle(self)
+	if style then style:Enable() end
 	self:ApplyBarVisibilitySettings()
 	if self.EnableAuxiliaryControls then self:EnableAuxiliaryControls() end
 end
@@ -125,12 +127,8 @@ function module:Disable()
 	if self.RestoreExperienceOverlayVisibility then self:RestoreExperienceOverlayVisibility() end
 	if self.RestoreReputationOverlayVisibility then self:RestoreReputationOverlayVisibility() end
 	if self.StopTransparencyHover then self:StopTransparencyHover() end
-	if self.BFAStyle and self.BFAStyle.active then
-		self.BFAStyle:Disable()
-	end
-	if self.DragonStyle and self.DragonStyle.active then
-		self.DragonStyle:Disable()
-	end
+	local style = Framework:GetActiveStyle(self)
+	if style then style:Disable() end
 
 	-- Unregister Alt mode callback
     if SarychUI.AltMode then
@@ -324,7 +322,7 @@ function module:Disable()
     
     -- Keep the interface style's border color/opacity when its new textures are active.
     local style = _G.SarychUI_InterfaceStyle
-    local keepStyleBorder = style and style.enabled and style.UseStyleTextures and style.UseStyleTextures()
+    local keepStyleBorder = style and style.enabled
     local function ResetButtonTextures(button)
         if not button then return end
         local normal = button.GetNormalTexture and button:GetNormalTexture()

@@ -1473,5 +1473,9 @@ function module:GetOptions()
         suiImageCorner = "BOTTOMRIGHT",
     }
     -- Reload must remain reachable after the master switch hides the body.
+	local floating = SarychUI.modules.floating_text
+	if floating and floating.GetArenaAnnouncementOptions then
+		options.args.extra.args.arenaStartBox = floating:GetArenaAnnouncementOptions(999)
+	end
 	return options
 end

@@ -1279,7 +1279,7 @@ function CompactUnitFrame_UtilSetBuff(buffFrame, index, ...)
     if enabled then
         local startTime = expirationTime - duration;
         CooldownFrame_SetTimer(buffFrame.cooldown, startTime, duration, 1);
-        if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(buffFrame.cooldown, startTime, duration, 1) end
+        if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(buffFrame.cooldown, startTime, duration, 1, "groupAuras") end
     else
         SarychUI.Compat.CooldownFrame_Clear(buffFrame.cooldown);
     end
@@ -1355,7 +1355,7 @@ function CompactUnitFrame_UtilSetDebuff(debuffFrame, unit, index, filter, isBoss
     if enabled then
         local startTime = expirationTime - duration;
         CooldownFrame_SetTimer(debuffFrame.cooldown, startTime, duration, 1);
-        if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(debuffFrame.cooldown, startTime, duration, 1) end
+        if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(debuffFrame.cooldown, startTime, duration, 1, "groupAuras") end
     else
         SarychUI.Compat.CooldownFrame_Clear(debuffFrame.cooldown);
     end

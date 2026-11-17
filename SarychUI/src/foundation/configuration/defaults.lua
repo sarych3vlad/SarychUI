@@ -185,6 +185,8 @@ SarychUI.defaults = {
 			},
 			interface_style = {
 				enabled = false,
+				cropIcons = true,
+				backgroundColor = { r = 0, g = 0, b = 0, a = 1 },
 				styleColor = { r = 0, g = 0, b = 0, a = 1 },
 				glossBrightness = 1,
 				debuffOriginalColor = true,
@@ -396,8 +398,23 @@ SarychUI.defaults = {
             health_indicators = {
                 enabled = true,
                 nameplateMode = "elvui",
+                totemEnabled = {
+                    a1 = true, -- Grounding
+                    a2 = false, a3 = false, a4 = false, a5 = false,
+                    e1 = false, e2 = true, -- Earthbind
+                    e3 = false, e4 = false, e5 = false, e6 = true, -- Tremor
+                    f1 = false, f2 = false, f3 = false, f4 = false, f5 = false, f6 = false,
+                    w1 = true, -- Cleansing
+                    w2 = false, w3 = false,
+                    w4 = true, w5 = true, -- Mana Spring / Mana Tide
+                },
                 petIcons = false,
+                petIconCastBars = false,
+                petPlateOnTarget = false,
+                petIconLifetime = false,
                 scale = 1,
+                classicLevelBackground = "show",
+                friendlyClassNames = false,
             },
 
             -- Loot coordination (pretty_lootalert via mode; LootClicker/LootHistory independent)
@@ -539,6 +556,8 @@ SarychUI.defaults = {
             -- Automation module
             automation = {
                 enabled = true,
+                enableAutoDeclineDuels = 0,
+                autoDeclineDuelTargetException = 0,
                 enableAutoSellGrey = 1,
                 enableAutoSellGreyRequireKey = 0,
                 autoSellGreyKey = 1, -- 1=SHIFT, 2=ALT, 3=CONTROL
@@ -578,6 +597,9 @@ SarychUI.defaults = {
 				fontSizeLarge = 12,
 				defaultColor = { 1, 1, 1, 1 },
                 lastFiveSecondsRed = false,
+                showTenths = false,
+                tenthsThreshold = 1,
+                tenthsLocations = {},
 				-- Behaviour
 				minScale = 0.5,
 				minDuration = 3,
@@ -596,6 +618,10 @@ SarychUI.defaults = {
 				barStyle = "classic",
 				classicCastbarOffsetY = 0,
 				dragonflightCastbarOffsetY = 0,
+				-- PositionEnabled has no default: legacy nonzero offsets remain on.
+				-- New profiles (Y = 0) start with positioning disabled.
+				classicCastbarIgnoreStandardOffset = false,
+				dragonflightCastbarIgnoreStandardOffset = false,
 				scale = 1,
 				showPlayerIcon = false,
 				showPlayerIconCooldown = true,
@@ -620,6 +646,7 @@ SarychUI.defaults = {
 			-- Floating text filter (moved from tools)
 			floating_text = {
 				enabled = true,
+				hideArenaStartAnnouncement = false,
 				-- Error filter
 				enableErrorFilter = 1,
 				errorShowOriginalOnAlt = 1,
@@ -905,6 +932,12 @@ SarychUI.defaults = {
 				targetFrameY = 200,
 				focusFrameX = 350,
 				focusFrameY = -150,
+				targetTargetFrameX = 0,
+				targetTargetFrameY = 0,
+				focusTargetFrameX = 0,
+				focusTargetFrameY = 0,
+				showTargetTargetDragFrame = 0,
+				showFocusTargetDragFrame = 0,
 				changePetPosition = 0,
 				showPetDragFrame = 0,
 				-- Drag mode for positioning
@@ -937,6 +970,8 @@ SarychUI.defaults = {
 				enableFocusComboPoints = 0,
 				-- Text indicators
 				textIndicatorMode = "hide",
+				statusTextScale = 1,
+				bfaThousandsSeparator = false,
 				showOnAlt = 1,
 				showTextIndicatorsInCombat = false,
 				textIndicatorsFadeAfterCombat = false,
@@ -989,7 +1024,7 @@ SarychUI.defaults = {
 				-- Legacy key (unused)
 				enable3DPortraits = 0,
 				-- Pet name shortening (UI under Frames -> Appearance)
-				enablePetNameShortening = 1,
+				enablePetNameShortening = 1, -- 0: full names, 1: shorten, 2: hide
 			},
 
 			-- Auras module (extracted from frame)
@@ -1037,6 +1072,7 @@ SarychUI.defaults = {
 			-- Chat module
 			chat = {
 				enabled = true,
+				chatFont = "default",
 				
 			-- Chat Bar settings
 			chatBarEnabled = 1,

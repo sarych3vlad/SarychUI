@@ -385,7 +385,7 @@ function TestMod.UpdateMobilityFramesPosition(namePlate)
         local layoutMod = SarychUI and SarychUI.PlatesAurasElvUI
         if layoutMod and layoutMod.IsActive and layoutMod.IsActive() and namePlate.UnitFrame and layoutMod.ApplySlotAnchor then
             layoutMod.ApplySlotAnchor(namePlate.mobilityContainer, namePlate, "right")
-        else
+        elseif not (layoutMod and layoutMod.AnchorRightToIcon and layoutMod.AnchorRightToIcon(namePlate.mobilityContainer, namePlate)) then
             namePlate.mobilityContainer:SetPoint("LEFT", namePlate, "RIGHT", layout.RightX, layout.RightY)
         end
     end

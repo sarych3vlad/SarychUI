@@ -352,6 +352,23 @@ end
 
 -- Callback-driven names (status lines, counters, current profile) must follow a
 -- setting change without a full page rebuild.
+local function BuildToggleSelect(parent, opt, info)
+    local toggle, selectOpt = opt.args.enabled, opt.args.fallback
+    local togglePath, selectPath = {}, {}
+    for i, key in ipairs(info) do togglePath[i] = key; selectPath[i] = key end
+    tinsert(togglePath, "enabled"); tinsert(selectPath, "fallback")
+    local toggleInfo = MakeInfo(togglePath, toggle, info.handler)
+    local selectInfo = MakeInfo(selectPath, selectOpt, info.handler)
+    return W:CheckboxSelect(parent,
+        function() return ResolveName(toggle, toggleInfo) end,
+        function() return CallGet(toggle, toggleInfo) end,
+        function(value) CallSet(toggle, toggleInfo, value) end,
+        function() return ResolveValues(selectOpt, selectInfo) end,
+        function() return CallGet(selectOpt, selectInfo) end,
+        function(value) CallSet(selectOpt, selectInfo, value) end,
+        function() return IsHidden(selectOpt, selectInfo) end)
+end
+
 local function BindDynamicName(widget, opt, info)
 	if not widget or type(opt) ~= "table" or type(opt.name) ~= "function" then
 		return
@@ -847,12 +864,14 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 	local widget
 	local compactW = ResolveControlWidth(opt)
 
-	if t == "toggle" then
+	if t == "group" and opt.suiToggleSelect then
+        widget = BuildToggleSelect(parent, opt, info)
+    elseif t == "toggle" then
 		widget = W:Checkbox(parent, name, function()
 			return CallGet(opt, info)
 		end, function(value)
 			CallSet(opt, info, value)
-		end, MakeTooltip(opt, info), opt.suiHelpIcon, opt.suiPreviewKey)
+		end, MakeTooltip(opt, info), opt.suiHelpIcon, opt.suiPreviewKey, opt.suiIndent)
 		-- toggles stay readable full-row
 		compactW = nil
 	elseif t == "color" then
@@ -1425,7 +1444,7 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 							return CallGet(eOpt, eInfo)
 						end, function(value)
 							CallSet(eOpt, eInfo, value)
-						end, tipFn, eOpt.suiHelpIcon, eOpt.suiPreviewKey)
+						end, tipFn, eOpt.suiHelpIcon, eOpt.suiPreviewKey, eOpt.suiIndent)
 					elseif eOpt.type == "execute" then
 						widget = W:Button(leftPanel, eName, function()
 							ApplyConfirm(eOpt, eInfo, function()
@@ -1720,12 +1739,14 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 						end
 						widget:FitToText()
 					end
+				elseif eOpt.type == "group" and eOpt.suiToggleSelect then
+                    widget = BuildToggleSelect(panel, eOpt, eInfo)
 				elseif eOpt.type == "toggle" then
 					widget = W:Checkbox(panel, eName, function()
 						return CallGet(eOpt, eInfo)
 					end, function(value)
 						CallSet(eOpt, eInfo, value)
-					end, tipFn, eOpt.suiHelpIcon, eOpt.suiPreviewKey)
+					end, tipFn, eOpt.suiHelpIcon, eOpt.suiPreviewKey, eOpt.suiIndent)
 					if widget and eOpt.suiRowHeight then
 						widget:SetHeight(eOpt.suiRowHeight)
 					end
@@ -1942,7 +1963,7 @@ function R:RenderControl(parent, key, opt, path, y, padX, handler)
 				-- Fit-text executes pack on one content-sized row even without Two/ThreeCol.
 				local packable = eOpt and not eOpt.suiFullRow and not eOpt.suiSpanTwoCols
 					and (eOpt.type == "range" or eOpt.type == "select" or eOpt.type == "input"
-						or eOpt.type == "execute" or eOpt.type == "toggle")
+						or eOpt.type == "execute" or eOpt.type == "toggle" or eOpt.suiToggleSelect)
 					and (rowCols > 1 or eOpt.suiFitText)
 				if packable then
 					local eInfo = MakeInfo(childPath, eOpt, childHandler)

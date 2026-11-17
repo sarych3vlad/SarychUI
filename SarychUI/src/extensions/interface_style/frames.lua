@@ -158,11 +158,11 @@ function Style:StyleCastBarIcon(icon)
 	if not parent or not parent.CreateTexture then return end
 	local state = castIcons[icon]
 	if not state then
-		state = { coords = icon.GetTexCoord and { icon:GetTexCoord() } }
+		state = {}
 		state.border = parent:CreateTexture(nil, "OVERLAY")
 		castIcons[icon] = state
 	end
-	icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+	state.iconCrop = SarychUI.Frameworks.SetIconCrop(icon, state.iconCrop, self:GetCropIcons())
 	local border = state.border
 	border:SetTexture(self:GetTextureMode() == "black" and self.textures.normal
 		or [[Interface\Buttons\UI-Quickslot2]])
@@ -170,9 +170,7 @@ function Style:StyleCastBarIcon(icon)
 	border:ClearAllPoints()
 	border:SetPoint("TOPLEFT", icon, "TOPLEFT", -2, 2)
 	border:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", 2, -2)
-	local _, _, _, a = self.GetColor()
-	local value = self:GetGlossBrightness()
-	border:SetVertexColor(value, value, value, a)
+	border:SetVertexColor(self:GetBorderColor())
 	if icon.IsShown and not icon:IsShown() then border:Hide() else border:Show() end
 end
 
@@ -232,7 +230,7 @@ end
 
 function Style:RestoreFrames()
 	for icon, state in pairs(castIcons) do
-		if state.coords then icon:SetTexCoord(unpack(state.coords)) end
+		state.iconCrop = SarychUI.Frameworks.SetIconCrop(nil, state.iconCrop, false)
 		state.border:Hide()
 		castIcons[icon] = nil
 	end

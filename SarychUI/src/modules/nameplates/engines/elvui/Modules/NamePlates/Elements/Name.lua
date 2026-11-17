@@ -142,6 +142,12 @@ function NP:HookHealthBarNameSync(healthBar, unitFrame)
 end
 
 function NP:Update_Name(frame, triggered)
+	-- Identity/class and width updates can arrive after the style pass has
+	-- cleared labels. Keep icon-only text empty until that style is released.
+	if frame.IconOnlyChanged then
+		frame.Name:SetText()
+		return
+	end
 	if not triggered then
 		if not self.db.units[frame.UnitType].name.enable then return end
 	end

@@ -23,12 +23,12 @@ end
 
 local module = getModule()
 
--- Dragon keeps the native right bar as an animation frame. Mouse bounds
--- belong to its visible child holder, which follows that native slide.
+-- A style may keep the native right bar as an animation frame and provide
+-- a visible child holder for mouse bounds.
 local function SidePanelMouseFrame(frame)
-    local dragon = module.DragonStyle
-    if frame == MultiBarRight and dragon and dragon.active and dragon.rightHolder then
-        return dragon.rightHolder
+    local style = SarychUI.ActionBars and SarychUI.ActionBars:GetActiveStyle(module)
+    if frame == MultiBarRight and style and style.rightHolder then
+        return style.rightHolder
     end
     return frame
 end
@@ -752,6 +752,8 @@ end
 -- Apply secondary panels backgrounds (shapeshift, pet, possess)
 local function ApplySecondaryPanelsBackgrounds()
     local hidden = GetSetting('hideSecondaryPanelsBackgrounds', false)
+    local style = SarychUI_InterfaceStyle
+    local styledButtons = style and style.enabled
 
     if ShapeshiftBarFrame then
         for _, region in ipairs(GetBarRegions(ShapeshiftBarFrame)) do
@@ -761,7 +763,7 @@ local function ApplySecondaryPanelsBackgrounds()
         end
         for i = 1, GetNumShapeshiftFormsSafe() do
             local button = _G["ShapeshiftButton" .. i]
-            if button then
+            if button and not styledButtons then
                 local normal = button.GetNormalTexture and button:GetNormalTexture()
                 if normal then
                     if hidden then normal:SetTexture(nil)
@@ -792,7 +794,7 @@ local function ApplySecondaryPanelsBackgrounds()
         end
         for i = 1, POSSESS_SLOTS do
             local button = _G["PossessButton" .. i]
-            if button then
+            if button and not styledButtons then
                 local normal = button.GetNormalTexture and button:GetNormalTexture()
                 if normal then
                     if hidden then normal:SetTexture(nil)
@@ -806,6 +808,7 @@ local function ApplySecondaryPanelsBackgrounds()
             end
         end
     end
+    if styledButtons and style.RefreshButtonAppearance then style:RefreshButtonAppearance() end
 end
 
 
@@ -881,8 +884,8 @@ end
 
 -- Apply button border alpha
 local function ApplyButtonBorderAlpha()
-    local buttonBorderAlphaEnabled = GetSetting('buttonBorderAlphaEnabled', false)
-    local buttonBorderAlpha = GetSetting('buttonBorderAlpha', 0.4)
+    local borderAlpha = SarychUI.Frameworks.ButtonBorderAlpha(
+        GetSetting('buttonBorderAlphaEnabled', false), GetSetting('buttonBorderAlpha', 0.4))
     local style = _G.SarychUI_InterfaceStyle
     local newTextures = style and style.enabled and style.UseStyleTextures and style.UseStyleTextures()
 
@@ -893,7 +896,7 @@ local function ApplyButtonBorderAlpha()
         local name = button.GetName and button:GetName()
         local named = name and _G[name .. "NormalTexture"]
         local second = name and _G[name .. "NormalTexture2"]
-        local a = buttonBorderAlphaEnabled and (buttonBorderAlpha or 0.4) or 1
+        local a = borderAlpha
         -- NormalTexture is the button rim. Pushed, highlight and checked
         -- textures cover the button interior and must not inherit its opacity.
         if nt then nt:SetAlpha(a) end
@@ -2801,9 +2804,10 @@ function module:ApplyAppearanceSettings()
 	ApplySidePanelsSettings()
 
 	-- The generic settings above operate on the standard Blizzard frames.
-	-- Re-apply the selected BFA artwork last so the same toggles also control it.
-	if module.BFAStyle and module.BFAStyle.active then
-		module.BFAStyle:ApplyAppearance()
+	-- Re-apply the selected style's artwork after the stock-frame settings.
+	local barStyle = SarychUI.ActionBars and SarychUI.ActionBars:GetActiveStyle(module)
+	if barStyle and barStyle.ApplyAppearance then
+		barStyle:ApplyAppearance()
 	end
 	self:ApplyExperienceOverlayVisibility()
 	self:ApplyReputationOverlayVisibility()
@@ -2828,8 +2832,9 @@ function module:RefreshVisualImprovements()
     ApplyMaxLevelBarSettings()
     ApplyPageButtonsSettings()
     ApplyKeyringButtonSettings()
-    if self.BFAStyle and self.BFAStyle.active then
-        self.BFAStyle:ApplyAppearance()
+    local barStyle = SarychUI.ActionBars and SarychUI.ActionBars:GetActiveStyle(self)
+    if barStyle and barStyle.ApplyAppearance then
+        barStyle:ApplyAppearance()
         ApplyPageButtonsSettings()
     end
     self:ApplyExperienceOverlayVisibility()

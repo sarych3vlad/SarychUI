@@ -67,12 +67,14 @@ local statusTextWatcher = CreateFrame("Frame")
 statusTextWatcher:RegisterEvent("CVAR_UPDATE")
 statusTextWatcher:SetScript("OnEvent", function(_, _, name)
     if statusTextEvents[string.lower(tostring(name))] then
+        if module.RefreshStatusText then module:RefreshStatusText() end
         RefreshConfig()
     end
 end)
 -- SetCVar without its optional event argument is also used by other addons.
 hooksecurefunc("SetCVar", function(name)
     if statusTextEvents[string.lower(tostring(name))] then
+        if module.RefreshStatusText then module:RefreshStatusText() end
         RefreshConfig()
     end
 end)
@@ -155,6 +157,14 @@ local function ApplyPositionDrag()
 end
 
 local function ToggleFrameDrag(frameId, enabled)
+    if enabled then
+        local db = FrameDB()
+        for id, flag in pairs({ playerFrame = "showPlayerDragFrame", targetFrame = "showTargetDragFrame",
+            focusFrame = "showFocusDragFrame", petFrame = "showPetDragFrame",
+            targetTargetFrame = "showTargetTargetDragFrame", focusTargetFrame = "showFocusTargetDragFrame" }) do
+            if db and id ~= frameId then db[flag] = 0 end
+        end
+    end
     local panel = SarychUI and (SarychUI.PositionDragPanel or SarychUI.CombatTextDragPanel)
     if panel and panel.Toggle then
         panel:Toggle(frameId, enabled)
@@ -183,6 +193,7 @@ local function ApplyOneFramePos(frame, frameId, x, y)
 			data.isMoving = false
 		end
 	end
+	if module.SetSecondaryFramePosition and module:SetSecondaryFramePosition(frameId, x, y) then return end
 	if SarychUI.DragMode and SarychUI.DragMode.SetFramePosition then
 		SarychUI.DragMode:SetFramePosition(frameId, "CENTER", "CENTER", x, y)
 		return
@@ -238,6 +249,48 @@ local function OnCombatSetting(key, value)
             preview:RefreshAll()
         end
     end
+end
+
+-- All character-frame position controls use the same editing and reset path.
+local function PositionBox(prefix, title, frameName, dragFlag, defaultX, defaultY, order, xDesc, yDesc, dragDesc)
+    local frameId = prefix .. "Frame"
+    local args = {}
+    for index, axis in ipairs({ "X", "Y" }) do
+        local key = frameId .. axis
+        args[prefix .. "_" .. string.lower(axis)] = {
+            type = "range", name = index == 1 and "ui.x_offset_0b923c73" or "ui.y_offset_f7f3fdd7",
+            desc = index == 1 and xDesc or yDesc,
+            min = -2000, max = 2000, step = 1, order = index,
+            get = function() local db = FrameDB(); return db and db[key] or 0 end,
+            set = function(_, value)
+                local db = FrameDB(); if not db then return end
+                db[key] = value
+                local panel = SarychUI.PositionDragPanel
+                if panel and panel.SyncDraftIfOpen then
+                    panel:SyncDraftIfOpen(frameId, db[frameId .. "X"] or 0, db[frameId .. "Y"] or 0)
+                end
+                ApplyFrameSettings()
+            end,
+        }
+    end
+    args[prefix .. "Drag"] = {
+        type = "execute", order = 3, width = "full", suiFullRow = true, desc = dragDesc,
+        name = function()
+            return SarychUI:T(isOn(dragFlag) and "ui.options_76e4992833" or "ui.options_0510004a87")
+        end,
+        func = function()
+            local db = FrameDB(); if not db then return end
+            local enabled = not isOn(dragFlag)
+            db[dragFlag] = enabled and 1 or 0
+            ToggleFrameDrag(frameId, enabled)
+            RefreshConfig()
+        end,
+        suiResetDefaults = function()
+            ResetFramePos(frameId .. "X", frameId .. "Y", defaultX, defaultY, frameId, _G[frameName])
+        end,
+    }
+    return { type = "group", name = title, order = order, inline = true, suiTwoCol = true,
+        hidden = function() return not isOn("changePositions") end, args = args }
 end
 
 function module:GetOptions()
@@ -302,7 +355,7 @@ function module:GetOptions()
                             change_positions = {
                                 type = "toggle",
                                 name = "ui.enable_a54eaf37",
-                                desc = "ui.allow_repositioning_player_target_and_focus_fram_b20d754f",
+                                desc = "ui.unit_frames.reposition_desc",
                                 order = 1,
                                 width = "full",
                                 get = function() return isOn("changePositions") end,
@@ -315,6 +368,8 @@ function module:GetOptions()
                                         db.showPlayerDragFrame = 0
                                         db.showTargetDragFrame = 0
                                         db.showFocusDragFrame = 0
+                                        db.showTargetTargetDragFrame = 0
+                                        db.showFocusTargetDragFrame = 0
                                         local panel = SarychUI and (SarychUI.PositionDragPanel or SarychUI.CombatTextDragPanel)
                                         if panel and panel.IsOpen and panel:IsOpen()
                                             and (not panel.GetFrameId or panel:GetFrameId() ~= "petFrame") then
@@ -329,220 +384,21 @@ function module:GetOptions()
                         },
                     },
 
-                    playerBox = {
-                        type = "group",
-                        name = "ui.player_f54f58cf",
-                        order = 2,
-                        inline = true,
-                        suiTwoCol = true,
-                        hidden = function() return not isOn("changePositions") end,
-                        args = {
-                            player_x = {
-                                type = "range",
-                                name = "ui.x_offset_0b923c73",
-                                desc = "ui.player_frame_horizontal_offset_3f787562",
-                                min = -2000, max = 2000, step = 1,
-                                order = 1,
-                                get = function()
-                                    local db = FrameDB()
-                                    return db and db.playerFrameX or 0
-                                end,
-                                set = function(_, val)
-                                    local db = FrameDB(); if not db then return end
-                                    db.playerFrameX = val
-                                    ApplyFrameSettings()
-                                end,
-                            },
-                            player_y = {
-                                type = "range",
-                                name = "ui.y_offset_f7f3fdd7",
-                                desc = "ui.player_frame_vertical_offset_3b0c8bb6",
-                                min = -2000, max = 2000, step = 1,
-                                order = 2,
-                                get = function()
-                                    local db = FrameDB()
-                                    return db and db.playerFrameY or 0
-                                end,
-                                set = function(_, val)
-                                    local db = FrameDB(); if not db then return end
-                                    db.playerFrameY = val
-                                    ApplyFrameSettings()
-                                end,
-                            },
-                            playerDrag = {
-                                type = "execute",
-                                name = function()
-                                    if isOn("showPlayerDragFrame") then
-                                        return SarychUI:T("ui.options_76e4992833")
-                                    end
-                                    return SarychUI:T("ui.options_0510004a87")
-                                end,
-                                desc = "ui.show_a_frame_and_box_to_drag_the_player_frame_273d79c4",
-                                order = 3,
-                                width = "full",
-                                suiFullRow = true,
-                                func = function()
-                                    local db = FrameDB(); if not db then return end
-                                    local val = not (db.showPlayerDragFrame == 1)
-                                    db.showPlayerDragFrame = val and 1 or 0
-                                    if val then
-                                        db.showTargetDragFrame = 0
-                                        db.showFocusDragFrame = 0
-                                    end
-                                    ToggleFrameDrag("playerFrame", val)
-                                    RefreshConfig()
-                                end,
-                                suiResetDefaults = function()
-                                    ResetFramePos("playerFrameX", "playerFrameY", -514, 200, "playerFrame", PlayerFrame)
-                                end,
-                            },
-                        },
-                    },
-
-                    targetBox = {
-                        type = "group",
-                        name = "ui.target_1d6ae787",
-                        order = 3,
-                        inline = true,
-                        suiTwoCol = true,
-                        hidden = function() return not isOn("changePositions") end,
-                        args = {
-                            target_x = {
-                                type = "range",
-                                name = "ui.x_offset_0b923c73",
-                                desc = "ui.target_frame_horizontal_offset_b338c1be",
-                                min = -2000, max = 2000, step = 1,
-                                order = 1,
-                                get = function()
-                                    local db = FrameDB()
-                                    return db and db.targetFrameX or 0
-                                end,
-                                set = function(_, val)
-                                    local db = FrameDB(); if not db then return end
-                                    db.targetFrameX = val
-                                    ApplyFrameSettings()
-                                end,
-                            },
-                            target_y = {
-                                type = "range",
-                                name = "ui.y_offset_f7f3fdd7",
-                                desc = "ui.target_frame_vertical_offset_49088333",
-                                min = -2000, max = 2000, step = 1,
-                                order = 2,
-                                get = function()
-                                    local db = FrameDB()
-                                    return db and db.targetFrameY or 0
-                                end,
-                                set = function(_, val)
-                                    local db = FrameDB(); if not db then return end
-                                    db.targetFrameY = val
-                                    ApplyFrameSettings()
-                                end,
-                            },
-                            targetDrag = {
-                                type = "execute",
-                                name = function()
-                                    if isOn("showTargetDragFrame") then
-                                        return SarychUI:T("ui.options_76e4992833")
-                                    end
-                                    return SarychUI:T("ui.options_0510004a87")
-                                end,
-                                desc = "ui.show_a_frame_and_box_to_drag_the_target_frame_cc579683",
-                                order = 3,
-                                width = "full",
-                                suiFullRow = true,
-                                func = function()
-                                    local db = FrameDB(); if not db then return end
-                                    local val = not (db.showTargetDragFrame == 1)
-                                    db.showTargetDragFrame = val and 1 or 0
-                                    if val then
-                                        db.showPlayerDragFrame = 0
-                                        db.showFocusDragFrame = 0
-                                    end
-                                    ToggleFrameDrag("targetFrame", val)
-                                    RefreshConfig()
-                                end,
-                                suiResetDefaults = function()
-                                    ResetFramePos("targetFrameX", "targetFrameY", -240, 200, "targetFrame", TargetFrame)
-                                end,
-                            },
-                        },
-                    },
-
-                    focusBox = {
-                        type = "group",
-                        name = "ui.focus_1913a1d2",
-                        order = 4,
-                        inline = true,
-                        suiTwoCol = true,
-                        hidden = function() return not isOn("changePositions") end,
-                        args = {
-                            focus_x = {
-                                type = "range",
-                                name = "ui.x_offset_0b923c73",
-                                desc = "ui.focus_frame_horizontal_offset_e352e819",
-                                min = -2000, max = 2000, step = 1,
-                                order = 1,
-                                get = function()
-                                    local db = FrameDB()
-                                    return db and db.focusFrameX or 0
-                                end,
-                                set = function(_, val)
-                                    local db = FrameDB(); if not db then return end
-                                    db.focusFrameX = val
-                                    ApplyFrameSettings()
-                                end,
-                            },
-                            focus_y = {
-                                type = "range",
-                                name = "ui.y_offset_f7f3fdd7",
-                                desc = "ui.focus_frame_vertical_offset_28c9aa48",
-                                min = -2000, max = 2000, step = 1,
-                                order = 2,
-                                get = function()
-                                    local db = FrameDB()
-                                    return db and db.focusFrameY or 0
-                                end,
-                                set = function(_, val)
-                                    local db = FrameDB(); if not db then return end
-                                    db.focusFrameY = val
-                                    ApplyFrameSettings()
-                                end,
-                            },
-                            focusDrag = {
-                                type = "execute",
-                                name = function()
-                                    if isOn("showFocusDragFrame") then
-                                        return SarychUI:T("ui.options_76e4992833")
-                                    end
-                                    return SarychUI:T("ui.options_0510004a87")
-                                end,
-                                desc = "ui.show_a_frame_and_box_to_drag_the_focus_frame_85480b1a",
-                                order = 3,
-                                width = "full",
-                                suiFullRow = true,
-                                func = function()
-                                    local db = FrameDB(); if not db then return end
-                                    local val = not (db.showFocusDragFrame == 1)
-                                    db.showFocusDragFrame = val and 1 or 0
-                                    if val then
-                                        db.showPlayerDragFrame = 0
-                                        db.showTargetDragFrame = 0
-                                    end
-                                    ToggleFrameDrag("focusFrame", val)
-                                    RefreshConfig()
-                                end,
-                                suiResetDefaults = function()
-                                    ResetFramePos("focusFrameX", "focusFrameY", 350, -150, "focusFrame", FocusFrame)
-                                end,
-                            },
-                        },
-                    },
+                    playerBox = PositionBox("player", "ui.player_f54f58cf", "PlayerFrame", "showPlayerDragFrame", -514, 200, 2,
+                        "ui.player_frame_horizontal_offset_3f787562", "ui.player_frame_vertical_offset_3b0c8bb6", "ui.show_a_frame_and_box_to_drag_the_player_frame_273d79c4"),
+                    targetBox = PositionBox("target", "ui.target_1d6ae787", "TargetFrame", "showTargetDragFrame", -240, 200, 3,
+                        "ui.target_frame_horizontal_offset_b338c1be", "ui.target_frame_vertical_offset_49088333", "ui.show_a_frame_and_box_to_drag_the_target_frame_cc579683"),
+                    focusBox = PositionBox("focus", "ui.focus_1913a1d2", "FocusFrame", "showFocusDragFrame", 350, -150, 4,
+                        "ui.focus_frame_horizontal_offset_e352e819", "ui.focus_frame_vertical_offset_28c9aa48", "ui.show_a_frame_and_box_to_drag_the_focus_frame_85480b1a"),
+                    targetTargetBox = PositionBox("targetTarget", "ui.unit_frames.target_target", "TargetFrameToT", "showTargetTargetDragFrame", 0, 0, 5,
+                        "ui.unit_frames.relative_offset", "ui.unit_frames.relative_offset", "ui.unit_frames.relative_drag"),
+                    focusTargetBox = PositionBox("focusTarget", "ui.unit_frames.focus_target", "FocusFrameToT", "showFocusTargetDragFrame", 0, 0, 6,
+                        "ui.unit_frames.relative_offset", "ui.unit_frames.relative_offset", "ui.unit_frames.relative_drag"),
 
                     scaleBox = {
                         type = "group",
                         name = "ui.frame_scale_6bfd4954",
-                        order = 5,
+                        order = 7,
                         inline = true,
                         args = {
                             change_scale = {
@@ -1084,6 +940,7 @@ function module:GetOptions()
                         values = {
                             show = "ui.unit_frames.show_blizzard_text",
                             hide = "ui.unit_frames.hide_text",
+                            bfa = "ui.unit_frames.bfa_text",
                         },
                         get = function() return FrameDB().textIndicatorMode or "hide" end,
                         set = function(_, value)
@@ -1098,21 +955,35 @@ function module:GetOptions()
                         order = 1,
                         inline = true,
                         suiThreeCol = true,
-                        hidden = function() return FrameDB().textIndicatorMode ~= "show" end,
                         args = {
                             player = StatusTextOption("playerStatusText", "ui.player_f54f58cf", 1),
                             pet = StatusTextOption("petStatusText", "ui.pet_31cd9c45", 2),
                             party = StatusTextOption("partyStatusText", "ui.party_907efbd4", 3),
                             target = StatusTextOption("targetStatusText", "ui.target_1d6ae787", 4),
                             percent = StatusTextOption("statusTextPercentage", "ui.options_1b1725098a", 5),
+                            thousandsSeparator = {
+                                type = "toggle",
+                                name = "ui.unit_frames.thousands_separator",
+                                desc = "ui.unit_frames.thousands_separator_desc",
+                                order = 6,
+                                hidden = function() return FrameDB().textIndicatorMode ~= "bfa" end,
+                                get = function() return FrameDB().bfaThousandsSeparator == true end,
+                                set = function(_, value)
+                                    FrameDB().bfaThousandsSeparator = value and true or false
+                                    module:RefreshStatusText()
+                                end,
+                            },
                         },
                     },
                     visibilityBox = {
                         type = "group",
                         name = "ui.text_indicators_612c7caf",
-                        order = 1,
+                        order = 1.5,
                         inline = true,
-                        hidden = function() return FrameDB().textIndicatorMode == "show" end,
+                        hidden = function()
+                            local mode = FrameDB().textIndicatorMode
+                            return mode == "show" or mode == "bfa"
+                        end,
                         args = {
                             show_on_alt = {
                                 type = "toggle",
@@ -1177,9 +1048,32 @@ function module:GetOptions()
                             },
                         },
                     },
+                    textSizeBox = {
+                        type = "group",
+                        name = "ui.unit_frames.status_text_size",
+                        order = 2,
+                        inline = true,
+                        args = {
+                            scale = {
+                                type = "range",
+                                name = "ui.unit_frames.status_text_scale",
+                                desc = "ui.unit_frames.status_text_scale_desc",
+                                order = 1,
+                                min = 0.5, max = 1.5, step = 0.05,
+                                isPercent = true,
+                                width = "full",
+                                get = function() return module:GetStatusTextScale() end,
+                                set = function(_, value)
+                                    FrameDB().statusTextScale = value
+                                    module:ApplyTextIndicators()
+                                end,
+                            },
+                        },
+                    },
                     percentagesBox = {
                         type = "group",
                         name = "ui.health_percents_21a5d614",
+                        hidden = function() return FrameDB().textIndicatorMode == "bfa" end,
                         order = 3,
                         inline = true,
                         args = {
@@ -1216,6 +1110,7 @@ function module:GetOptions()
                     classBox = {
                         type = "group",
                         name = "ui.class_rules_for_percent_display_e60e5762",
+                        hidden = function() return FrameDB().textIndicatorMode == "bfa" end,
                         order = 4,
                         inline = true,
                         args = {
@@ -1799,24 +1694,29 @@ function module:GetOptions()
                         args = {
                             petsBox = {
                                 type = "group",
-                                name = " ",
+                                name = "ui.unit_frames.pet_names",
                                 order = 1,
                                 inline = true,
                                 args = {
                                     enablePetNameShortening = {
-                                        type = "toggle",
-                                        name = "ui.shorten_long_pet_names_97c879d9",
-                                        desc = "ui.shortens_overly_long_pet_names_for_readability_ae487466",
+                                        type = "select",
+                                        name = "",
+                                        desc = "ui.unit_frames.pet_names_desc",
                                         order = 1,
                                         width = "full",
+                                        values = {
+                                            [0] = SarychUI:T("ui.unit_frames.pet_names_full"),
+                                            [1] = SarychUI:T("ui.shorten_long_pet_names_97c879d9"),
+                                            [2] = SarychUI:T("ui.unit_frames.pet_names_hide"),
+                                            __order = { 0, 1, 2 },
+                                        },
                                         get = function()
-                                            return SarychUI.db.profile.modules.frame.enablePetNameShortening == 1
+                                            return SarychUI.db.profile.modules.frame.enablePetNameShortening or 0
                                         end,
                                         set = function(_, val)
-                                            SarychUI.db.profile.modules.frame.enablePetNameShortening = val and 1 or 0
-                                            local toolsModule = SarychUI.modules
-                                            if toolsModule and SarychUI.modules.frame.ApplyPetNameShortening then
-                                                SarychUI.modules.frame:ApplyPetNameShortening()
+                                            SarychUI.db.profile.modules.frame.enablePetNameShortening = val
+                                            if module.ApplyPetNameShortening then
+                                                module:ApplyPetNameShortening()
                                             end
                                         end,
                                     },

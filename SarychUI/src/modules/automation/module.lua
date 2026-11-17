@@ -208,6 +208,7 @@ end
 
 function module:Enable()
     if not IsModuleEnabled() then return end
+    self:ApplyAutoDeclineDuels()
 
     if SarychUI.LootRolls then SarychUI.LootRolls:Apply() end
     InstallMerchantStackBuyer()
@@ -823,6 +824,7 @@ function module:RefreshConfig()
 end
 
 function module:Disable()
+    self:DisableAutoDeclineDuels()
     if SarychUI.LootRolls then SarychUI.LootRolls:Stop() end
     -- Disable auto-sell
     if autoSellFrame then

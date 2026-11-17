@@ -1208,6 +1208,38 @@ function module:GetOptions()
                         name = "ui.chat_window_f5d1e5ea",
                         order = 1,
                         args = {
+                            fontBox = {
+                                type = "group",
+                                name = "ui.font_23997845",
+                                order = 0,
+                                inline = true,
+                                suiSelectWithButton = true,
+                                args = {
+                                    select = {
+                                        type = "select", name = "", order = 1, width = "full",
+                                        values = function()
+                                            local values = { default = SarychUI:T("ui.options_469631cb16") }
+                                            for _, name in ipairs(SarychUI.Media.GetFonts()) do
+                                                values[name] = name
+                                            end
+                                            return values
+                                        end,
+                                        get = function() return GetSetting("chatFont", "default") end,
+                                        set = function(_, value)
+                                            SarychUI.db.profile.modules[moduleName].chatFont = value
+                                            module:ApplyChatFontSettings()
+                                        end,
+                                    },
+                                    button = {
+                                        type = "execute", name = "ui.options_469631cb16", order = 2,
+                                        func = function()
+                                            SarychUI.db.profile.modules[moduleName].chatFont = "default"
+                                            module:ApplyChatFontSettings()
+                                            RefreshChatOptionsPanel()
+                                        end,
+                                    },
+                                },
+                            },
                             fadingBox = {
                                 type = "group",
                                 name = "ui.text_fade_out_695d55d7",

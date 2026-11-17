@@ -65,6 +65,22 @@ function module:GetOptions()
 							if val then SarychUI:EnableModule(moduleName) else SarychUI:DisableModule(moduleName) end
 						end,
 					},
+				duelsBox = {
+					type = "group", name = "ui.automation.duels", order = 80, inline = true,
+					args = {
+						enableAutoDeclineDuels = {
+							type = "toggle", name = "ui.automation.decline_duels",
+							desc = "ui.automation.decline_duels_desc", order = 1, width = "full",
+							get = toggleGetter, set = toggleSetter,
+						},
+						autoDeclineDuelTargetException = {
+							type = "toggle", name = "ui.automation.duel_target_exception",
+							desc = "ui.automation.duel_target_exception_desc", order = 2, width = "full",
+							get = toggleGetter, set = toggleSetter,
+							hidden = function() return not isOn("enableAutoDeclineDuels") end,
+						},
+					},
+				},
 				autoSellGreyBox = {
 					type = "group",
 						name = "|TInterface\\CURSOR\\LootAll.blp:15.3:15.3:0:0|t " .. SarychUI:T("ui.auto_sell_junk_at_vendors_89f0188e"),

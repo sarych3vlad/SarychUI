@@ -106,6 +106,76 @@ local function ResolveClassicAnchor(nameplate)
 	return GetClassicPlateVisual(nameplate) or nameplate
 end
 
+function Autolos.GetClassicIconAnchor(nameplate)
+	local icon = nameplate and (nameplate._suiTotemIconAnchor or nameplate._suiPetIconAnchor)
+	return icon and icon:IsShown() and icon or nil
+end
+
+function Autolos.ClearHiddenPlateDistance(nameplate)
+    if not nameplate or not SarychUI.NameplateVisibility:IsHidden(nameplate) then return false end
+    local label = nameplate.fontStringRange
+    if label and label.autolosLastText ~= "" then
+        label:SetText("")
+        label.autolosLastText = ""
+    end
+    return true
+end
+
+local function SizeIconDistanceText(host, label, profile)
+	local size = tonumber(profile.fontSize) or 12
+	local width, height = size * 8, size * 2
+	if host.textWidth ~= width or host.textHeight ~= height then
+		host:SetSize(width, height)
+		label:SetWidth(width)
+		label:SetHeight(height)
+		host.textWidth, host.textHeight = width, height
+	end
+end
+
+local function GetIconDistanceHost(nameplate, icon, label, profile)
+	local host = nameplate.autolosIconTextHost
+	if not host then
+		-- A sibling of the icon, not an icon child. Both the container and its
+		-- FontString keep fixed bounds as digits change (e.g. 9.9 -> 10.0).
+		host = CreateFrame("Frame", nil, nameplate)
+		host._suiPlateAura = true -- Exclude from the classic art wrapper.
+		host:EnableMouse(false)
+		nameplate.autolosIconTextHost = host
+	end
+	if not label.autolosIconHost then
+		label.autolosNormalJustifyH = label:GetJustifyH()
+		label.autolosNormalJustifyV = label:GetJustifyV()
+		label:SetJustifyH("RIGHT")
+		label:SetJustifyV("MIDDLE")
+		host.textWidth, host.textHeight = nil, nil
+	end
+	label.autolosIconHost = host
+	SizeIconDistanceText(host, label, profile)
+	if host.iconAnchor ~= icon then
+		host:ClearAllPoints()
+		host:SetPoint("RIGHT", icon, "LEFT", -2, 0)
+		host.iconAnchor = icon
+	end
+	local scale, level = icon:GetScale(), icon:GetFrameLevel()
+	if host:GetScale() ~= scale then host:SetScale(scale) end
+	if host:GetFrameLevel() ~= level then host:SetFrameLevel(level) end
+	if not host:IsShown() then host:Show() end
+	return host
+end
+
+local function ReleaseIconDistanceHost(nameplate, label)
+	local host = label.autolosIconHost
+	if not host then return end
+	-- Move the text before hiding its former parent, including renderer changes.
+	if label:GetParent() == host then label:SetParent(nameplate) end
+	label:SetWidth(0)
+	label:SetHeight(0)
+	label:SetJustifyH(label.autolosNormalJustifyH or "CENTER")
+	label:SetJustifyV(label.autolosNormalJustifyV or "MIDDLE")
+	label.autolosIconHost = nil
+	host:Hide()
+end
+
 function Autolos.GetDefaultProfile(mode)
 	local defaults = SarychUI and SarychUI.defaults and SarychUI.defaults.profile and SarychUI.defaults.profile.addons and SarychUI.defaults.profile.addons.autolos
 	if defaults and defaults.profiles and defaults.profiles[mode] then
@@ -296,6 +366,7 @@ function Autolos.UpdateElvUIAlpha(nameplate)
 	if not IsElvUIMode() or not nameplate or not nameplate.fontStringRange then
 		return
 	end
+    if Autolos.ClearHiddenPlateDistance(nameplate) then return end
 
 	local fontString = nameplate.fontStringRange
 	local alpha = Autolos.GetElvUIDistanceAlpha(nameplate)
@@ -343,10 +414,14 @@ function Autolos.ApplyTextStyle(fontString, profile)
 	fontString.autolosFontOutline = outline
 	fontString.autolosShadowX = shadowX
 	fontString.autolosShadowY = shadowY
+	if fontString.autolosIconHost then
+		SizeIconDistanceText(fontString.autolosIconHost, fontString, profile)
+	end
 end
 
 function Autolos.ApplyLayout(nameplate, fontString, profile)
 	if not nameplate or not fontString then return false end
+    if Autolos.ClearHiddenPlateDistance(nameplate) then return true end
 	profile = profile or Autolos.GetActiveProfile()
 
 	local offsetX = tonumber(profile.offsetX) or -95
@@ -355,8 +430,17 @@ function Autolos.ApplyLayout(nameplate, fontString, profile)
 	local point = "CENTER"
 	local relativePoint = "CENTER"
 	local anchor = nameplate
+	if mode == "elvui" then ReleaseIconDistanceHost(nameplate, fontString) end
 	if mode ~= "elvui" then
-		anchor = ResolveClassicAnchor(nameplate)
+		local icon = Autolos.GetClassicIconAnchor(nameplate)
+		if icon then
+			anchor = GetIconDistanceHost(nameplate, icon, fontString, profile)
+			point, relativePoint = "RIGHT", "RIGHT"
+			offsetX, offsetY = 0, 0
+		else
+			ReleaseIconDistanceHost(nameplate, fontString)
+			anchor = ResolveClassicAnchor(nameplate)
+		end
 		if fontString.GetParent and fontString.SetParent and fontString:GetParent() ~= anchor then
 			fontString:SetParent(anchor)
 		end
@@ -509,15 +593,16 @@ function Autolos.RefreshExistingPlate(nameplate, profile)
 	if not nameplate or not nameplate.fontStringRange then return end
 	profile = profile or Autolos.GetActiveProfile()
 
+	-- Either renderer can switch between a normal plate and an icon on reuse.
+	Autolos.ApplyLayout(nameplate, nameplate.fontStringRange, profile)
 	if IsElvUIMode() then
-		-- Always re-apply: totem icon-only can flip Health↔IconFrame while mode stays "elvui".
-		Autolos.ApplyLayout(nameplate, nameplate.fontStringRange, profile)
 		Autolos.UpdateElvUIAlpha(nameplate)
 	end
 end
 
 function Autolos.RefreshNameplate(nameplate, options)
 	if not nameplate or not nameplate.fontStringRange then return end
+    if Autolos.ClearHiddenPlateDistance(nameplate) then return end
 	options = options or {}
 	local profile = Autolos.GetActiveProfile()
 
@@ -547,6 +632,8 @@ local function IdentifyFrame(self)
 end
 
 local function ApplyClassicPlateAlpha(nameplate, range, guid)
+	local label = nameplate.fontStringRange
+	if not label then return end
 	local alpha = 1
 	if targetGuid == guid then
 		alpha = 1
@@ -559,14 +646,17 @@ local function ApplyClassicPlateAlpha(nameplate, range, guid)
 	else
 		alpha = 1
 	end
-	if nameplate.autolosLastAlpha ~= alpha then
-		nameplate:SetAlpha(alpha)
-		nameplate.autolosLastAlpha = alpha
+	-- Distance owns only its label. Writing native root alpha competes with the
+	-- client (and target detection) and makes icon-only plates flicker in motion.
+	if label.autolosSyncedAlpha ~= alpha then
+		label:SetAlpha(alpha)
+		label.autolosSyncedAlpha = alpha
 	end
 end
 
 local function nameplate_OnUpdate(self, elapsed)
 
+    if Autolos.ClearHiddenPlateDistance(self) then return end
 	if not Autolos.IsEnabled() then
 		if self.fontStringRange and self.fontStringRange.autolosLastText ~= "" then
 			self.fontStringRange:SetText("")
@@ -628,6 +718,11 @@ function Autolos.EnsurePlate(nameplate, profile)
 		justCreated = true
 
 	end
+	-- This label is an owned overlay just like its icon-text host. When it
+	-- predates the classic wrapper it can be present in visual.regions; the
+	-- pet cast mask must not treat it as native health/name artwork and zero
+	-- its alpha after it has moved beside the icon.
+	fontString._suiPlateAura = true
 
 	-- Visual: font/shadow/outline. Failure must not stop the text from rendering.
 	local okStyle = pcall(Autolos.ApplyTextStyle, fontString, profile)

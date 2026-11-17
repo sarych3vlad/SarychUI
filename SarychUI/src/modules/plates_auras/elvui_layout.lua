@@ -70,6 +70,39 @@ function Layout.GetElvUIUnitFrame(namePlate)
 	return namePlate.UnitFrame
 end
 
+-- Shared by Classic, ElvUI and the aura test renderer. Side auras follow the
+-- visible summon icon directly, without health/castbar offsets or proportional
+-- placement. SetPoint keeps this relationship when the icon moves during a cast.
+function Layout.GetIconOnlyAnchor(namePlate)
+    if not namePlate then return end
+    local frame = namePlate.UnitFrame
+    local icon
+    if frame then
+        icon = frame.IconOnlyChanged and frame.IconFrame
+    else
+        icon = namePlate._suiPetIconAnchor or namePlate._suiTotemIconAnchor
+    end
+    if icon and icon:IsShown() then return icon end
+end
+
+function Layout.AnchorRightToIcon(container, namePlate)
+    local icon = Layout.GetIconOnlyAnchor(namePlate)
+    if not container or not icon then return false end
+    container:ClearAllPoints()
+    container:SetPoint("LEFT", icon, "RIGHT", 4, 0)
+    return true
+end
+
+-- CC/cast aura centers use the same seat above summon icons in both renderers.
+-- Anchoring BOTTOM here adds half the aura container height in ElvUI.
+function Layout.AnchorCenterToIcon(container, namePlate, x, y)
+    local icon = Layout.GetIconOnlyAnchor(namePlate)
+    if not container or not icon then return false end
+    container:ClearAllPoints()
+    container:SetPoint("CENTER", icon, "TOP", x or 0, (y or 0) + 12)
+    return true
+end
+
 -- Friendly ElvUI plates may deliberately hide Health and leave only Name visible.
 -- The right aura block must follow that visible element instead of the hidden bar.
 -- Icon-only style-filter plates (totems/unique units) are handled separately and
@@ -566,9 +599,8 @@ function Layout.CalculateOffset(anchor, slot, namePlate, slotName, anchorKey)
 		end
 	end
 
-	-- Castbar's right icon only occupies space beside the health bar. When the
-	-- block is attached to a name-only plate it must start directly after Name.
-	if slotName == "right" and anchorKey ~= "name" and namePlate then
+	-- Castbar clearance belongs to ordinary bars, never to an icon-only plate.
+	if slotName == "right" and anchorKey ~= "name" and namePlate and not Layout.GetIconOnlyAnchor(namePlate) then
 		local unitFrame = Layout.GetElvUIUnitFrame(namePlate)
 		x = x + Layout.GetCastBarIconOffsetX(unitFrame)
 		y = y + Layout.GetCastBarIconOffsetY(unitFrame)
@@ -592,6 +624,12 @@ end
 
 function Layout.ApplySlotAnchor(container, namePlate, slotName, slotOverride)
 	if not container or not namePlate then return false end
+
+    if slotName == "right" and Layout.AnchorRightToIcon(container, namePlate) then
+        Layout.EnsureContainerParent(container, namePlate)
+        Layout.EnsureContainerLayer(container, namePlate)
+        return true
+    end
 
 	local profile = Layout.GetActiveLayoutProfile()
 	local slot = slotOverride or Layout.GetSlotConfig(profile, slotName)
@@ -625,6 +663,9 @@ function Layout.ApplySlotAnchor(container, namePlate, slotName, slotOverride)
 	Layout.EnsureContainerParent(container, parent)
 	Layout.EnsureContainerLayer(container, namePlate)
 	local x, y = Layout.CalculateOffset(anchor, slot, namePlate, slotName, anchorKey)
+	if slotName == "center" and Layout.AnchorCenterToIcon(container, namePlate, x, y) then
+		return true
+	end
 	container:ClearAllPoints()
     local unitFrame = Layout.GetElvUIUnitFrame(namePlate)
     if slotName ~= "right" and unitFrame and unitFrame._suiPetIconTexture

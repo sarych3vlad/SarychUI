@@ -1,6 +1,4 @@
 -- SarychUI Cooldowns and Timers extension
-local format = string.format
-local floor = math.floor
 local min, max = math.min, math.max
 
 local moduleName = "cc"
@@ -17,12 +15,6 @@ end
 -- Internal state
 local isEnabledFlag = true
 local hooksInstalled = false
-
--- Locale-dependent suffixes
-local locale = GetLocale and GetLocale() or "enUS"
-local daySuffix = (locale == "ruRU") and " д." or "d"
-local hourSuffix = (locale == "ruRU") and " ч." or "h"
-local minuteSuffix = (locale == "ruRU") and "м" or "m"
 
 -- Helpers to access settings with sane fallbacks
 local function getSetting(key, default)
@@ -51,50 +43,47 @@ local function ResolveFontPath(fontNameOrPath)
     return "Fonts\\FRIZQT__.TTF"
 end
 
-function module:GetTimerColor(seconds, baseColor)
-    local color = baseColor or getSetting("defaultColor", {1, 1, 1, 1})
-    -- Match the rounded number on screen: 5.4 seconds is already displayed as 5.
-    if getSetting("lastFiveSecondsRed", false) and seconds > 0 and floor(seconds + 0.5) <= 5 then
-        return {1, 0, 0, color[4] or 1}
-    end
-    return color
+-- Context labels and runtime routing share the same keys. A missing saved entry
+-- means enabled; disabling a location changes precision, never timer visibility.
+module.TimerContexts = {
+    "actionBars", "petBar", "forms", "spellbook", "items", "playerAuras",
+    "unitAuras", "groupAuras", "auraTracking", "trackedCooldowns", "arena",
+    "diminishings", "petLifetime", "internalCooldowns", "castbar", "other",
+}
+local timerContexts = setmetatable({}, { __mode = "k" })
+function module:SetTimerContext(frame, context)
+    if frame then timerContexts[frame] = context end
 end
 
--- Time formatting based on remaining seconds and settings
-local function formatCooldownText(seconds, appearance)
-    local defaultColor = module:GetTimerColor(seconds, appearance and appearance.baseColor)
-    local fontSizeSmall = getSetting("fontSizeSmall", 14)
-    local fontSizeMedium = getSetting("fontSizeMedium", 12)
-    local fontSizeLarge = getSetting("fontSizeLarge", 12)
-
-    -- Existing aura labels use compact units and optional tenths, while their
-    -- owner retains font, size and anchors. Both views share color and timing.
-    if appearance and appearance.compactUnits then
-        local threshold = appearance.decimalThreshold or 0
-        if seconds <= threshold then
-            return format(" %.01f ", seconds), defaultColor, 0.1, fontSizeSmall
-        elseif seconds <= 60 then
-            return format(" %d ", math.ceil(seconds)), defaultColor, 0.1, fontSizeSmall
-        elseif seconds <= 3600 then
-            return format("%d%s", math.ceil(seconds / 60), appearance.minuteSuffix or minuteSuffix), defaultColor, 1, fontSizeMedium
-        else
-            return format("%d%s", math.ceil(seconds / 3600), appearance.hourSuffix or hourSuffix), defaultColor, 60, fontSizeLarge
-        end
+function module:GetTimerContext(frame)
+    -- Side table only: never write metadata onto protected Blizzard widgets.
+    for _ = 1, 6 do
+        if not frame then break end
+        if timerContexts[frame] then return timerContexts[frame] end
+        if frame.__sary_petLifetime then return "petLifetime" end
+        if frame.__sary_arenaDR then return "diminishings" end
+        if frame.__sary_arenaTrinket then return "arena" end
+        if frame.__sary_partyAbility then return "trackedCooldowns" end
+        local name = frame.GetName and frame:GetName() or ""
+        if name:match("^PetActionButton") then return "petBar" end
+        if name:match("^ShapeshiftButton") then return "forms" end
+        if name:match("^SpellButton") then return "spellbook" end
+        if name:match("^ActionButton") or name:match("^MultiBar") or name:match("^BonusActionButton")
+            or name:match("^VehicleMenuBarActionButton") or name:match("^SarychUIActionButton") then return "actionBars" end
+        if name:match("^ContainerFrame") or name:match("^Character.*Slot") then return "items" end
+        if name:match("^BuffButton") or name:match("^DebuffButton") or name:match("^TempEnchant") then return "playerAuras" end
+        if name:match("^TargetFrame") or name:match("^FocusFrame") or name:match("^PetFrame") then return "unitAuras" end
+        frame = frame.GetParent and frame:GetParent()
     end
+    return "other"
+end
 
-    if seconds >= 86400 then
-        return format(" %d%s ", floor(seconds / 86400 + 0.5), daySuffix), defaultColor, 3600, fontSizeLarge
-    elseif seconds >= 3600 then
-        return format(" %d%s ", floor(seconds / 3600 + 0.5), hourSuffix), defaultColor, 60, fontSizeLarge
-    elseif seconds >= 600 then
-        return format(" %d%s ", floor(seconds / 60 + 0.5), minuteSuffix), defaultColor, 10, fontSizeLarge
-    elseif seconds >= 60 then
-        return format(" %d:%02d ", floor(seconds / 60), floor(seconds % 60)), defaultColor, 1, fontSizeMedium
-    elseif seconds >= 10 then
-        return format(" %02d ", floor(seconds + 0.5)), defaultColor, 0.1, fontSizeSmall
-    else
-        return format(" %d ", floor(seconds + 0.5)), defaultColor, 0.1, fontSizeSmall
-    end
+function module:GetTimerColor(seconds, baseColor)
+    return SarychUI.CooldownText.Color(seconds, DB() or {}, baseColor)
+end
+
+local function formatCooldownText(seconds, appearance, owner)
+    return SarychUI.CooldownText.Format(seconds, DB() or {}, appearance, module:GetTimerContext(owner))
 end
 
 -- Shared formatting for cooldown views (bars and icon lists).
@@ -124,14 +113,14 @@ function module:UpdateTimerText(text, remaining, duration, owner, preserveAppear
     -- final fraction of a second, while retaining the shared text settings.
     local periodic = timerOptions and timerOptions.periodic
     local allowed = isEnabledFlag and getSetting("enabled", true)
-        and remaining > (periodic and 0 or 0.5)
+        and remaining > 0
         and (periodic or duration > getSetting("minDuration", 3))
     if allowed and not PartyAbilityExempt(owner) then
         allowed = size >= getSetting("minIconSize", 23)
             and owner:GetEffectiveScale() / UIParent:GetEffectiveScale() >= getSetting("minScale", 0.5)
     end
     if not allowed then text:Hide(); return false end
-    local value, color, _, fontSize = formatCooldownText(remaining, timerOptions)
+    local value, color, _, fontSize = formatCooldownText(remaining, timerOptions, owner)
     if not preserveAppearance then
         local font = ResolveFontPath(getSetting("font", "Friz Quadrata TT"))
         local flags = getSetting("fontFlags", "OUTLINE")
@@ -215,13 +204,14 @@ local function cooldown_OnUpdate(frame, elapsed, now)
     local textObj = state and state.text
     if not state or not state.start then return end
     local remain = state.start + state.duration - now
-    if remain <= 0.5 then
+    if remain <= 0 then
         ClearCountdown(state, frame)
         return
     end
     local owner = frame:GetParent()
     if not isEnabledFlag or not (owner and owner:IsVisible())
-        or (frame.IsVisible and not frame:IsVisible()) then
+        or (frame.IsVisible and not frame:IsVisible()) or frame.__sary_cc_noCount
+        or (state.native and frame.noCooldownCount) then
         HideCountdown(state)
         state.nextUpdate = 0
         return
@@ -235,7 +225,7 @@ local function cooldown_OnUpdate(frame, elapsed, now)
     if state.nextUpdate > 0 then return end
 
     -- Short control effects (including DR) are not global cooldowns.
-    if (not frame.__sary_controlAura and state.duration <= getSetting("minDuration", 3)) or frame.__sary_cc_noCount then
+    if not frame.__sary_controlAura and state.duration <= getSetting("minDuration", 3) then
         HideCountdown(state)
         state.nextUpdate = 0
         return
@@ -263,7 +253,7 @@ local function cooldown_OnUpdate(frame, elapsed, now)
         return
     end
 
-    local displayText, color, interval, fontSize = formatCooldownText(remain)
+    local displayText, color, interval, fontSize = formatCooldownText(remain, nil, frame)
 
     local fontPath = ResolveFontPath(getSetting("font", "Friz Quadrata TT"))
     local fontFlags = getSetting("fontFlags", "OUTLINE")
@@ -304,7 +294,7 @@ ensureText = function(frame)
     -- Owned, unprotected icons carry text anchored to their cooldown. Parent
     -- it to the icon so hiding/dimming only the sweep (e.g. DR) does not dim
     -- the digits. Blizzard widgets retain the detached, non-tainting path.
-    state.attached = (frame.__sary_partyAbility or frame.__sary_arenaTrinket or frame.__sary_arenaDR)
+    state.attached = (frame.__sary_partyAbility or frame.__sary_arenaTrinket or frame.__sary_arenaDR or frame.__sary_petLifetime)
         and not (frame.IsProtected and frame:IsProtected()) or false
     local host = CreateFrame("Frame", nil, state.attached and parent or UIParent)
     host:SetAllPoints(frame)
@@ -332,11 +322,12 @@ ensureText = function(frame)
 end
 
 -- Central SetCooldown bridge
-local function handleSetCooldown(frame, start, duration, enable)
+local function handleSetCooldown(frame, start, duration, enable, native)
 	if not frame then return end
     local state = State(frame)
+    state.native = native and true or nil
     if enable == 0 or type(start) ~= "number" or type(duration) ~= "number"
-        or start <= 0 or duration <= 0 or start + duration <= GetTime() + 0.5 then
+        or start <= 0 or duration <= 0 or start + duration <= GetTime() then
         ClearCountdown(state, frame)
         return
     end
@@ -348,6 +339,25 @@ local function handleSetCooldown(frame, start, duration, enable)
     end
 end
 
+-- Observe the shared native method, not CooldownFrame_SetTimer or individual
+-- protected widgets. The hook only records data in our side table; rendering
+-- happens later on the driver, after Blizzard finishes its Show/Hide updates.
+local nativeCaptureInstalled = false
+local function InstallNativeCapture()
+    if nativeCaptureInstalled or not hooksecurefunc then return end
+    local sample = _G.ActionButton1Cooldown
+    local meta = sample and getmetatable(sample)
+    local methods = meta and meta.__index
+    if type(methods) ~= "table" or type(methods.SetCooldown) ~= "function" then return end
+    hooksecurefunc(methods, "SetCooldown", function(frame, start, duration)
+        -- Owners with their own timer can opt out. Explicit SarychUI_NotifyCooldown
+        -- calls remain authoritative for SUI views that deliberately use this flag.
+        if frame.noCooldownCount or frame.__sary_cc_noCount then return end
+        handleSetCooldown(frame, start, duration, 1, true)
+    end)
+    nativeCaptureInstalled = true
+end
+
 local BAR_PREFIXES = {
     "ActionButton",
     "MultiBarBottomLeftButton",
@@ -355,6 +365,7 @@ local BAR_PREFIXES = {
     "MultiBarLeftButton",
     "MultiBarRightButton",
     "BonusActionButton",
+    "VehicleMenuBarActionButton",
 }
 
 local INVENTORY_SLOT_NAMES = {
@@ -368,6 +379,7 @@ local inventorySlotIDs = {}
 local function CaptureActionButton(button, cooldown)
     if not cooldown then return end
     local state = State(cooldown)
+    module:SetTimerContext(cooldown, "actionBars")
     state.button = button
     actionCountdowns[cooldown] = button and state or nil
     local action = button and button.action
@@ -379,7 +391,7 @@ local function CaptureActionButton(button, cooldown)
         local start, duration, enable = GetActionCooldown(button.action)
         -- The action API is authoritative. A reset can turn a long cooldown
         -- into zero (or only the GCD) before its old end time is reached.
-        handleSetCooldown(cooldown, start, duration, enable)
+        handleSetCooldown(cooldown, start, duration, enable, true)
     else
         handleSetCooldown(cooldown, 0, 0)
     end
@@ -416,12 +428,29 @@ local function CaptureCooldownSources()
         local petCooldown = _G["PetActionButton" .. i .. "Cooldown"]
         if petCooldown and GetPetActionCooldown then
             local start, duration, enable = GetPetActionCooldown(i)
-            handleSetCooldown(petCooldown, start, duration, enable)
+            handleSetCooldown(petCooldown, start, duration, enable, true)
         end
         local formCooldown = _G["ShapeshiftButton" .. i .. "Cooldown"]
         if formCooldown and GetShapeshiftFormCooldown then
             local start, duration, enable = GetShapeshiftFormCooldown(i)
-            handleSetCooldown(formCooldown, start, duration, enable)
+            handleSetCooldown(formCooldown, start, duration, enable, true)
+        end
+    end
+    -- Reconstruct a book that was painted before CC loaded/enabled. Subsequent
+    -- page/rank/pet-book updates are covered by the shared SetCooldown hook.
+    if SpellBookFrame and SpellBookFrame:IsShown() and SpellBook_GetSpellID and GetSpellCooldown then
+        for i = 1, (SPELLS_PER_PAGE or 12) do
+            local button = _G["SpellButton" .. i]
+            local cooldown = _G["SpellButton" .. i .. "Cooldown"]
+            if button and cooldown then
+                local id = SpellBook_GetSpellID(button:GetID())
+                if id and button:IsShown() and cooldown:IsShown() then
+                    local start, duration, enable = GetSpellCooldown(id, SpellBookFrame.bookType)
+                    handleSetCooldown(cooldown, start, duration, enable, true)
+                else
+                    handleSetCooldown(cooldown, 0, 0)
+                end
+            end
         end
     end
     if GetInventoryItemCooldown and GetInventorySlotInfo then
@@ -437,7 +466,7 @@ local function CaptureCooldownSources()
                 end
                 if slotID then
                     local start, duration, enable = GetInventoryItemCooldown("player", slotID)
-                    handleSetCooldown(cooldown, start, duration, enable)
+                    handleSetCooldown(cooldown, start, duration, enable, true)
                 end
             end
         end
@@ -460,7 +489,7 @@ local function CaptureFrameAuras(frame)
                 if button and button:IsShown() then
                     local _, _, icon, _, _, duration, expirationTime = getter(unit, button:GetID())
                     if icon and duration and duration > 0 and expirationTime then
-                        handleSetCooldown(cooldown, expirationTime - duration, duration, 1)
+                        handleSetCooldown(cooldown, expirationTime - duration, duration, 1, true)
                     else
                         handleSetCooldown(cooldown, 0, 0)
                     end
@@ -505,10 +534,10 @@ driver:SetScript("OnUpdate", function(_, elapsed)
     end
 end)
 
--- Blizzard calls CooldownFrame_SetTimer before protected button updates. Hooking
--- that shared function can taint Show/Hide, so bar values are read on events.
--- Our own frames call SarychUI_NotifyCooldown directly.
-function SarychUI_NotifyCooldown(frame, start, duration, enable)
+-- Explicit notifications also support custom widgets that do not use the native
+-- Cooldown prototype. API reads recover native buttons already running at startup.
+function SarychUI_NotifyCooldown(frame, start, duration, enable, context)
+    if context then module:SetTimerContext(frame, context) end
     handleSetCooldown(frame, start, duration, enable)
 end
 
@@ -519,11 +548,13 @@ function SarychUI_ReleaseCooldown(frame)
     if not state then return end
     ClearCountdown(state, frame)
     if state.host then state.host:ClearAllPoints() end
+    timerContexts[frame] = nil
     ccState[frame] = nil
     actionCountdowns[frame] = nil
 end
 
 local function installHooks()
+    InstallNativeCapture()
     if hooksInstalled then return end
     hooksInstalled = true
     for _, event in ipairs({
@@ -531,6 +562,7 @@ local function installHooks()
         "UPDATE_BONUS_ACTIONBAR", "UPDATE_SHAPESHIFT_FORM", "UPDATE_SHAPESHIFT_COOLDOWN",
         "PET_BAR_UPDATE_COOLDOWN", "SPELL_UPDATE_COOLDOWN", "BAG_UPDATE_COOLDOWN",
         "UNIT_INVENTORY_CHANGED", "PLAYER_EQUIPMENT_CHANGED", "PLAYER_ENTERING_WORLD",
+        "PLAYER_LOGIN", "PET_BAR_UPDATE", "UNIT_PET", "UPDATE_SHAPESHIFT_FORMS", "SPELLS_CHANGED",
     }) do
         driver:RegisterEvent(event)
     end
@@ -542,6 +574,10 @@ local function installHooks()
     end
     driver:Show()
 end
+
+-- Capture initial cooldown updates before PLAYER_LOGIN enables the extension.
+-- This never creates text or modifies the Blizzard frame while CC is disabled.
+InstallNativeCapture()
 
 function module:ApplySettings()
     isEnabledFlag = DB() and DB().enabled ~= false

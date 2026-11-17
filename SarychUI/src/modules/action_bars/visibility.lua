@@ -3,10 +3,14 @@ _G.SarychUI_BarVisibility = BarVisibility
 
 local managed = {
 	{ name = "ShapeshiftBarFrame", group = "stance" },
-	{ name = "SarychUI_DragonStanceBar", group = "stance" },
 	{ name = "PetActionBarFrame", group = "pet" },
-	{ name = "SarychUI_DragonPetBar", group = "pet" },
 }
+
+local function ManagedBars()
+	local owner = SarychUI.modules and SarychUI.modules.mainmenubar
+	if owner and SarychUI.ActionBars then return SarychUI.ActionBars:GetSecondaryFrames(owner) end
+	return managed
+end
 
 local auxiliaryFrames = {
 	bags = {
@@ -73,9 +77,9 @@ local function Restore()
 	state.alphaHidden = {}
 	if (restoreStance or restorePet) and not (InCombatLockdown and InCombatLockdown()) then
 		local module = SarychUI and SarychUI.modules and SarychUI.modules.mainmenubar
-		local dragon = module and module.DragonStyle
-		if dragon and dragon.active and dragon.UpdatePetAndStance then
-			dragon:UpdatePetAndStance()
+		local style = module and SarychUI.ActionBars and SarychUI.ActionBars:GetActiveStyle(module)
+		if style and style.UpdatePetAndStance then
+			style:UpdatePetAndStance()
 		else
 			if restoreStance and _G.ShapeshiftBar_Update then
 				_G.ShapeshiftBar_Update()
@@ -96,8 +100,8 @@ local function Restore()
 end
 
 local function SelectionMatches(settings)
-	for _, entry in ipairs(managed) do
-		local frame = _G[entry.name]
+	for _, entry in ipairs(ManagedBars()) do
+		local frame = entry.frame or _G[entry.name]
 		if frame and (state.selected[frame] ~= nil) ~= IsOn(settings[entry.group]) then
 			return false
 		end
@@ -111,9 +115,9 @@ local function Hide(settings)
 	state.wasShown = {}
 	state.wasAlpha = {}
 	state.alphaHidden = {}
-	for _, entry in ipairs(managed) do
+	for _, entry in ipairs(ManagedBars()) do
 		if IsOn(settings[entry.group]) then
-			local frame = _G[entry.name]
+			local frame = entry.frame or _G[entry.name]
 			if frame then
 				Guard(frame)
 				state.selected[frame] = entry.group
@@ -314,8 +318,8 @@ function BarVisibility.ApplySettings()
 			end)
 			if bindings.SetSecureFrames then
 				local frames = {}
-				for _, entry in ipairs(managed) do
-					local frame = _G[entry.name]
+				for _, entry in ipairs(ManagedBars()) do
+					local frame = entry.frame or _G[entry.name]
 					if IsOn(settings[entry.group]) and frame and frame.IsProtected
 						and frame:IsProtected() then
 						frames[#frames + 1] = frame

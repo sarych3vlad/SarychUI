@@ -155,6 +155,7 @@ end
 
 -- Disable module
 function module:Disable()
+    self:DisableChatFont()
     if self.channelOptionsEvents then
         self.channelOptionsEvents:UnregisterAllEvents()
         self.channelOptionsEvents:SetScript("OnUpdate", nil)
@@ -296,6 +297,7 @@ end
 
 -- Apply all module settings
 function module:ApplyAllSettings()
+    self:ApplyChatFontSettings()
     local db = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules and SarychUI.db.profile.modules[moduleName]
     if not db or not db.enabled then 
         -- Если модуль отключен, принудительно отключаем все функции
@@ -408,6 +410,67 @@ function module:ApplyAllSettings()
     end
     
     -- Apply other settings will be added here
+end
+
+-- Only the message font face changes; each window keeps its size and flags.
+local originalChatFonts = {}
+local chatFontActive = false
+local chatFontEvents
+local chatFontHooksInstalled = false
+
+function module:DisableChatFont()
+    chatFontActive = false
+    if chatFontEvents then chatFontEvents:UnregisterAllEvents() end
+    for frame, original in pairs(originalChatFonts) do
+        local _, size, flags = frame:GetFont()
+        frame:SetFont(original, size, flags)
+        originalChatFonts[frame] = nil
+    end
+end
+
+function module:ApplyChatFontSettings()
+    local db = SarychUI.db and SarychUI.db.profile and SarychUI.db.profile.modules
+        and SarychUI.db.profile.modules.chat
+    if db and db.chatFont == "SarychUI Homespun" then db.chatFont = "Homespun" end
+    local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
+    local font = db and db.enabled and db.chatFont and db.chatFont ~= "default"
+        and LSM and LSM:Fetch("font", db.chatFont, true)
+    if not font then
+        self:DisableChatFont()
+        return
+    end
+
+    chatFontActive = true
+    local function Apply(frame)
+        if not frame or not frame.GetFont or not frame.SetFont then return end
+        local current, size, flags = frame:GetFont()
+        if not current or not size then return end
+        if not originalChatFonts[frame] then originalChatFonts[frame] = current end
+        if current ~= font then frame:SetFont(font, size, flags) end
+    end
+    for i = 1, (NUM_CHAT_WINDOWS or 10) do Apply(_G["ChatFrame" .. i]) end
+    -- Temporary whisper/conversation windows can exceed NUM_CHAT_WINDOWS.
+    for _, name in pairs(CHAT_FRAMES or {}) do Apply(_G[name]) end
+
+    if not chatFontEvents then
+        chatFontEvents = CreateFrame("Frame")
+        chatFontEvents:SetScript("OnEvent", function()
+            if chatFontActive then module:ApplyChatFontSettings() end
+        end)
+    end
+    chatFontEvents:RegisterEvent("PLAYER_ENTERING_WORLD")
+    chatFontEvents:RegisterEvent("UPDATE_CHAT_WINDOWS")
+    chatFontEvents:RegisterEvent("UPDATE_FLOATING_CHAT_WINDOWS")
+    if not chatFontHooksInstalled then
+        chatFontHooksInstalled = true
+        for _, name in ipairs({ "FCF_OpenNewWindow", "FCF_OpenTemporaryWindow" }) do
+            if type(_G[name]) == "function" then
+                hooksecurefunc(name, function()
+                    if chatFontActive then module:ApplyChatFontSettings() end
+                end)
+            end
+        end
+    end
 end
 
 -- Reset all module functionality

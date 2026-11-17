@@ -9,7 +9,7 @@ function NP:Update_IconFrame(frame)
 	if not db then return end
 
 	if db.enable or (frame.IconOnlyChanged or frame.IconChanged) then
-		local totem, unit, icon = self.Totems[frame.UnitName], self.UniqueUnits[frame.UnitName], frame._suiPetIconTexture
+		local totem, unit, icon = self.Totems[frame.UnitName], self.UniqueUnits[frame.UnitName], frame._suiTotemTexture or frame._suiPetIconTexture
 		if not icon then
 			if totem then
 				icon = NP.TriggerConditions.totems[totem][3]

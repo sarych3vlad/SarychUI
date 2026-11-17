@@ -546,6 +546,7 @@ local function BuildErrorFrames()
 
         local msg = ...
         if event == "SYSMSG" or event == "UI_INFO_MESSAGE" then
+            if module.ShouldHideArenaAnnouncement and module:ShouldHideArenaAnnouncement(msg) then return end
             self:AddMessage(msg, 1, 1, 0, 1)
         end
     end)
@@ -582,6 +583,7 @@ local function InstallErrorHandler()
         local msg = ...
         local now = GetTime()
 
+        if module.ShouldHideArenaAnnouncement and module:ShouldHideArenaAnnouncement(msg) then return end
         if event == "UI_ERROR_MESSAGE" and S.errorFilterFrames.enabled then
             local throttle = checkDb.errorThrottleWindow or 0.5
             if msg == S.errorFilterFrames.lastMsg and (now - (S.errorFilterFrames.lastAt or 0)) < throttle then

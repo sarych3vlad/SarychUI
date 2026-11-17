@@ -755,48 +755,14 @@ local function CooldownDuration(guid, id, data)
 	local configured = tonumber(data and data.cooldown) or 0
 	local rule = AbilityData.cooldownRules and AbilityData.cooldownRules[id]
 	if not rule or configured ~= presetCooldowns[id] then return configured end
-	-- Keep ATT's preset estimate until the relevant inspect data arrives.
-	if rule.talents and not (talentLib and talentLib.GetGUIDTalents and talentLib:GetGUIDTalents(guid)) then
-		return configured
-	end
-	-- Inspect exposes teammates' talents, but their glyphs are only available
-	-- when they also sync LibGroupTalents. Missing glyphs must not hide talents.
-	local glyphsKnown = not rule.glyphs or (talentLib and talentLib.GetGUIDGlyphs and talentLib:GetGUIDGlyphs(guid))
-		or (UnitGUID and guid == UnitGUID("player"))
-	if rule.glyphs and not glyphsKnown and not rule.talents then return configured end
-	local duration = glyphsKnown and rule.base or (rule.unknownGlyphBase or configured)
-	for _, modifier in ipairs(rule.talents or {}) do
-		local talentName = GetSpellInfo(modifier[1])
-		local rank = talentLib and talentLib.GUIDHasTalent and talentName
-			and tonumber(talentLib:GUIDHasTalent(guid, talentName)) or 0
-		if modifier.percents then
-			duration = duration * (1 + (modifier.percents[math.min(rank, #modifier.percents - 1) + 1] or 0))
-		else
-			if modifier.percent then duration = duration * (1 + modifier.percent * rank) end
-			if modifier.seconds then duration = duration + modifier.seconds * rank end
-		end
-	end
-	for _, modifier in ipairs(glyphsKnown and rule.glyphs or {}) do
-		if talentLib and talentLib.GUIDHasGlyph then
-			for _, glyphID in ipairs(modifier.ids) do
-				if talentLib:GUIDHasGlyph(guid, glyphID) then
-					if modifier.percent then duration = duration * (1 + modifier.percent) end
-					if modifier.seconds then duration = duration + modifier.seconds end
-					break
-				end
-			end
-		end
-	end
-	return math.max(0.5, duration)
+	return SUI.SpellModifiers:Calculate(guid, rule, configured)
 end
 
 local function ModifierDataKnown(guid, id, data)
 	local rule = AbilityData.cooldownRules and AbilityData.cooldownRules[id]
 	if not rule or tonumber(data.cooldown) ~= presetCooldowns[id] then return true end
-	if rule.talents and not (talentLib and talentLib.GetGUIDTalents and talentLib:GetGUIDTalents(guid)) then return false end
-	if rule.glyphs and not (talentLib and talentLib.GetGUIDGlyphs and talentLib:GetGUIDGlyphs(guid))
-		and guid ~= UnitGUID("player") then return false end
-	return true
+	local _, known = SUI.SpellModifiers:Calculate(guid, rule, nil, true)
+	return known
 end
 
 function extension:RefreshActiveDurations(guid)

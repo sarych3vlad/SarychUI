@@ -1,9 +1,9 @@
-## Interface: 30300
+﻿## Interface: 30300
 ## Title: |cFFFFFFFFSarych|rUI
 ## Notes: Complete UI for WotLK 3.3.5
 ## Notes-ruRU: Комплексный интерфейс для WotLK 3.3.5
 ## Author: Сарыч
-## Version: 1.4.3
+## Version: 1.4.4
 ## SavedVariables: SarychUIFlightTimeDB, SarychUIDB, CompactRaidFrameDB, InternalCooldownsDB, BagnonForeverDB, BigDebuffsDB, OmniBarDB, LootClickerDB, LootHistoryDB, MapsterDB, SarychUIElvNamePlatesDB, SarychUIElvNamePlatesPrivateDB, SarychUIElvBagsDB, SarychUIElvBagsPrivateDB, TrufiGCDGlSave, Postal3DB, PurgeatoryDB, AUCTIONATOR_SAVEDVARS, AUCTIONATOR_PRICING_HISTORY, AUCTIONATOR_SHOPPING_LISTS, AUCTIONATOR_PRICE_DATABASE, AUCTIONATOR_MEAN_PRICE_DATABASE, AUCTIONATOR_LAST_SCAN_TIME, AUCTIONATOR_TOONS, AUCTIONATOR_STACKING_PREFS, AUCTIONATOR_SCAN_MINLEVEL, RaidRoll_DB, RaidRoll_DBPC, TalentedDB
 ## SavedVariablesPerCharacter: SnowfallKeyPressSV, TrufiGCDChSave, AUCTIONATOR_SHOW_ST_PRICE, AUCTIONATOR_ENABLE_ALT, AUCTIONATOR_OPEN_FIRST, AUCTIONATOR_OPEN_BUY, AUCTIONATOR_OPEN_ALL_BAGS, AUCTIONATOR_DEF_DURATION, AUCTIONATOR_SHOW_TIPS, AUCTIONATOR_V_TIPS, AUCTIONATOR_A_TIPS, AUCTIONATOR_D_TIPS, AUCTIONATOR_SHIFT_TIPS, AUCTIONATOR_DE_DETAILS_TIPS, AUCTIONATOR_DEFTAB, AUCTIONATOR_CHARACTER_RECENTS, BASpammerDB, RR_Accept_All_Rolls, RR_Track_Unannounced_Rolls, RR_Roll_Tracking_Enabled, RR_AllowExtraRolls, RR_Show_Ranks, RR_RankPriority, RR_ExtraWidth, RR_ShowGroupNumber, RR_RollFrameHeight
 
@@ -24,6 +24,10 @@ src\options\pool.lua
 src\foundation\compatibility\widgets.lua
 src\foundation\frameworks\visuals\animation.lua
 src\foundation\frameworks\visuals\smoothing.lua
+src\foundation\frameworks\visuals\texture_color.lua
+src\foundation\frameworks\visuals\icon_geometry.lua
+src\foundation\frameworks\visuals\font_scale.lua
+src\foundation\frameworks\numbers\format.lua
 src\foundation\data\registry.lua
 src\foundation\data\aura_tracking.lua
 src\foundation\frameworks\auratracking\core.lua
@@ -63,6 +67,8 @@ src\foundation\services\toggle_bindings.lua
 src\foundation\frameworks\visuals\combat_animations.lua
 src\foundation\services\drag_mode.lua
 src\modules\floating_text\drag_panel.lua
+src\foundation\frameworks\positioning\relative.lua
+src\foundation\frameworks\positioning\managed.lua
 src\foundation\lifecycle\addons_registry.lua
 src\extensions\registry.lua
 src\extensions\addon_management\module.lua
@@ -85,6 +91,9 @@ src\foundation\localization\ukUA.lua
 src\foundation\localization\Apply.lua
 
 # Modules
+src\foundation\frameworks\actionbars\core.lua
+src\foundation\frameworks\actionbars\pets.lua
+src\foundation\frameworks\actionbars\layout.lua
 src\modules\action_bars\module.lua
 src\modules\minimap\module.lua
 src\modules\minimap\preview.lua
@@ -105,6 +114,8 @@ src\modules\map\groupicons.lua
 src\modules\map\scalehandle.lua
 src\modules\map\button.lua
 src\modules\unit_frames\module.lua
+src\modules\unit_frames\secondary_positions.lua
+src\modules\unit_frames\status_text.lua
 src\modules\unit_frames\specs.lua
 src\modules\unit_frames\portraits.lua
 src\modules\unit_frames\classicon.lua
@@ -140,6 +151,7 @@ src\modules\castbar\module.lua
 src\modules\castbar\ticks.lua
 src\modules\castbar\dragonflight.lua
 src\modules\castbar\latency.lua
+src\foundation\frameworks\cooldowntext\framework.xml
 src\extensions\cc\module.lua
 src\extensions\cc\previews.lua
 src\modules\bags\module.lua
@@ -152,6 +164,7 @@ src\extensions\tooltip_control\ownership\localization\localization.tw.lua
 src\extensions\tooltip_control\ownership\db.lua
 src\extensions\tooltip_control\ownership\tooltips.lua
 src\modules\automation\module.lua
+src\modules\automation\duels.lua
 src\modules\automation\loot_rolls\util.lua
 src\modules\automation\loot_rolls\locale.lua
 src\modules\automation\loot_rolls\init.lua
@@ -172,10 +185,25 @@ src\extensions\talents\glyphs\EasyGlyph_ItemData.lua
 src\extensions\talents\glyphs\EasyGlyph_ItemIcons.lua
 src\extensions\modern_features\quest_tracker.lua
 src\modules\floating_text\module.lua
+src\foundation\frameworks\arena\announcements.lua
+src\modules\floating_text\arena_announcements.lua
 src\modules\floating_text\preview.lua
 src\modules\nameplates\module.lua
+src\modules\nameplates\native_options.lua
+src\foundation\frameworks\nameplates\classic_art.lua
+src\foundation\frameworks\nameplates\visibility.lua
 src\modules\nameplates\scale.lua
+src\foundation\frameworks\spellmodifiers\framework.xml
+src\foundation\frameworks\nameplates\identity.lua
+src\foundation\frameworks\nameplates\pets.lua
+src\foundation\frameworks\nameplates\pet_lifetimes.lua
 src\modules\nameplates\pet_icons.lua
+src\modules\nameplates\pet_options.lua
+src\foundation\frameworks\nameplates\totems.lua
+src\modules\nameplates\totems.lua
+src\modules\nameplates\totem_options.lua
+src\foundation\frameworks\nameplates\friendly_classes.lua
+src\modules\nameplates\friendly_names.lua
 src\modules\nameplates\distance_preview.lua
 src\modules\plates_auras\configID.lua
 src\modules\plates_auras\elvui_layout.lua
@@ -228,6 +256,7 @@ src\extensions\interactions\announcement_options.lua
 src\extensions\interactions\focus_options.lua
 
 # Module Options
+src\modules\action_bars\native_options.lua
 src\modules\action_bars\options.lua
 src\modules\minimap\options.lua
 src\modules\map\options.lua

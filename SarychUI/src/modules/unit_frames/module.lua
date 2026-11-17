@@ -245,6 +245,7 @@ end
 -- Получение текстового элемента из бара
 local function GetBarText(bar)
     if not bar then return nil end
+    if bar.TextString then return bar.TextString end
     local barName = bar:GetName()
     if not barName then return nil end
     
@@ -276,7 +277,24 @@ end
 -- Show mode delegates visibility to Blizzard's per-unit CVars. Hide mode
 -- retains SUI's hover, modifier and combat exceptions.
 local function IsBarTextControlEnabled()
-    return GetSetting("textIndicatorMode", "hide") ~= "show"
+    local mode = GetSetting("textIndicatorMode", "hide")
+    return mode ~= "show" and mode ~= "bfa"
+end
+
+-- One inventory for native text styling and SUI's visibility adapter.
+function module:ForEachTextStatusBar(callback, includeParty)
+    NormalizeBars()
+    for _, bar in pairs(bars) do callback(bar, GetBarText(bar)) end
+    if includeParty then
+        for i = 1, 4 do
+            local frame = _G["PartyMemberFrame" .. i]
+            for _, suffix in ipairs({ "HealthBar", "ManaBar" }) do
+                local bar = _G["PartyMemberFrame" .. i .. suffix]
+                    or (frame and frame[suffix == "HealthBar" and "healthbar" or "manabar"])
+                if bar then callback(bar, bar.TextString) end
+            end
+        end
+    end
 end
 
 -- Универсальная функция анимации альфы
@@ -523,17 +541,14 @@ local function ReleaseBarToBlizzard(bar)
 end
 
 function module:UpdateBarTextControl()
-    NormalizeBars()
     local enabled = IsBarTextControlEnabled()
-    for _, bar in ipairs(bars) do
-        if bar then
-            if enabled then
-                WireBarHover(bar)
-            else
-                ReleaseBarToBlizzard(bar)
-            end
+    self:ForEachTextStatusBar(function(bar)
+        if enabled then
+            WireBarHover(bar)
+        else
+            ReleaseBarToBlizzard(bar)
         end
-    end
+    end)
     return enabled
 end
 
@@ -653,6 +668,7 @@ end
 
 -- Disable module
 function module:Disable()
+	if self.ResetStatusTextStyle then self:ResetStatusTextStyle() end
 	if SarychUI.UnitFrameLayers then SarychUI.UnitFrameLayers:SetUnitFrameColorsEnabled(false) end
 	self:DisableFrameVisibility()
     self._pvpHooksInstalled = false
@@ -692,6 +708,8 @@ function module:Disable()
         SarychUI.modules.frame:DisablePetNameShortening()
     end
     
+    if self.ApplySecondaryPositionDragMode then self:ApplySecondaryPositionDragMode(true) end
+
     -- Отключаем drag mode для позиционирования
     if SarychUI.DragMode then
         if PlayerFrame then
@@ -940,6 +958,12 @@ function module:OnEvent(event, ...)
         if self._pendingFrameScale then
             self:ApplyFrameScale()
         end
+        if self._pendingSecondaryPositions and self.ApplySecondaryFramePositions then
+            self:ApplySecondaryFramePositions()
+        end
+        if self._pendingSecondaryDrag and self.ApplySecondaryPositionDragMode then
+            self:ApplySecondaryPositionDragMode()
+        end
         if self._pendingFramePositions then
             self:ApplyFramePositions()
         end
@@ -1035,6 +1059,7 @@ function module:SaveDefaultPositions()
 end
 
 function module:ApplyFramePositions()
+    if self.ApplySecondaryFramePositions then self:ApplySecondaryFramePositions() end
     if GetSetting('changePositions', 0) == 0 and GetSetting('changePetPosition', 0) == 0 then
         return
     end
@@ -1071,6 +1096,7 @@ function module:ApplyFramePositions()
 end
 
 function module:ResetFramePositions()
+    if self.ApplySecondaryFramePositions then self:ApplySecondaryFramePositions(true) end
     -- FrameXML defaults: PlayerFrame.xml / TargetFrame.xml / FocusFrame.xml
     if PlayerFrame then
         PlayerFrame:ClearAllPoints()
@@ -1272,6 +1298,8 @@ end
 
 function module:CreateFocusFrameTexts()
     if FocusFrame and FocusFrame.healthbar and FocusFrame.manabar then
+        FocusFrameHealthBarText = FocusFrame.healthbar.TextString or FocusFrameHealthBarText
+        FocusFrameManaBarText = FocusFrame.manabar.TextString or FocusFrameManaBarText
         if not FocusFrameHealthBarText then
             FocusFrameHealthBarText = FocusFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
             FocusFrameHealthBarText:SetPoint("CENTER", FocusFrame.healthbar, "CENTER", 0, 0)
@@ -1302,7 +1330,9 @@ end
 function module:ApplyTextIndicators()
     -- Update fonts if LibSharedMedia is available
     self:UpdateTextIndicatorFonts()
-    if not self:UpdateBarTextControl() then
+    local controlsVisibility = self:UpdateBarTextControl()
+    if self.ApplyStatusTextStyle then self:ApplyStatusTextStyle() end
+    if not controlsVisibility then
         self:UpdateTextIndicators()
         return
     end
@@ -1334,6 +1364,11 @@ function module:UpdateTextIndicatorFonts()
 end
 
 function module:UpdateTextIndicators()
+    if GetSetting("textIndicatorMode", "hide") == "bfa" then
+        self:HideTextIndicators()
+        self:HidePVPTimer()
+        return
+    end
     local pctOnAlt = SettingOn("showPercentagesOnAlt", 1)
     local isAltPressed = IsAltPressed()
 
@@ -1407,6 +1442,10 @@ end
 -- Функция для принудительного обновления отображения процентов цели
 function module:ForceUpdateTargetPercentDisplay()
     if not TargetFrameHealthBarPercent then return end
+    if GetSetting("textIndicatorMode", "hide") == "bfa" then
+        TargetFrameHealthBarPercent:Hide()
+        return
+    end
     local shouldShowTargetPercent = false
     local classAlwaysShow = self:ShouldClassAlwaysShowPercent()
     local isAltPressed = IsAltPressed()
@@ -1429,6 +1468,10 @@ function module:ForceUpdateTargetPercentDisplay()
 end
 
 function module:UpdateHealthBarPercent(frame, unit)
+    if GetSetting("textIndicatorMode", "hide") == "bfa" then
+        if frame then frame:Hide() end
+        return
+    end
     if frame and unit then
         local health = UnitHealth(unit)
         local maxHealth = UnitHealthMax(unit)
@@ -2412,6 +2455,7 @@ end
 -- Register position frames for drag mode
 function module:RegisterPositionFrames()
     if not SarychUI.DragMode then return end
+    if self.RegisterSecondaryPositionFrames then self:RegisterSecondaryPositionFrames() end
 
     local function FrameGetPoint(frameId, xKey, yKey, defX, defY)
         return function()
@@ -2546,7 +2590,8 @@ function module:ApplyPositionDragMode()
         SarychUI.DragMode:EnableEditMode("petFrame", petEnabled, showPet, showPet)
         if petData then petData._suiWasEnabled = petEnabled end
     end
-    SarychUI.DragMode:ShowGrid(showGrid or showPet)
+    local secondaryGrid = self.ApplySecondaryPositionDragMode and self:ApplySecondaryPositionDragMode()
+    SarychUI.DragMode:ShowGrid(showGrid or showPet or secondaryGrid)
 end
 
 -- Export options hook (populated in options.lua)

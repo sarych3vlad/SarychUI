@@ -6,7 +6,8 @@ local L = SarychUI.L
 
 local function InterfaceStyleActive()
 	local style = _G.SarychUI_InterfaceStyle
-	return style and style.enabled and style.UseStyleTextures and style.UseStyleTextures()
+	local db = style and style:GetDB()
+	return db and db.enabled == true or false
 end
 
 local function NotifyOptionsChange()
@@ -268,6 +269,54 @@ local function AuxiliaryOptions(group, title, order, shownKey, alphaPrefix, fram
     }
 end
 
+local function RefreshButtonBorders()
+    local style = SarychUI_InterfaceStyle
+    local menu = SarychUI.modules.mainmenubar
+    if style and style.enabled then
+        style:RefreshGloss()
+    elseif menu.ApplyButtonBorderAlpha then
+        menu:ApplyButtonBorderAlpha()
+    end
+    for _, preview in ipairs({"ActionBarAppearancePreview", "ActionBarColorPreview", "ActionBarTransparencyPreview"}) do
+        local owner = SarychUI[preview]
+        if owner and owner.RefreshAll then owner:RefreshAll() end
+    end
+    NotifyOptionsChange()
+end
+
+-- One option definition and one saved value, presented by the active owner.
+local function ButtonBorderOptions(order, hidden)
+    return {
+        type = "group", name = L["Button_Border_Alpha"], order = order,
+        inline = true, hidden = hidden,
+        args = {
+            button_border_alpha_enabled = {
+                type = "toggle", name = "ui.enable_transparency_33d8cb9a",
+                desc = L["Button_Border_Alpha_Desc"], order = 1, width = "full",
+                get = function() return TextDB().buttonBorderAlphaEnabled end,
+                set = function(_, value)
+                    TextDB().buttonBorderAlphaEnabled = value
+                    RefreshButtonBorders()
+                end,
+            },
+            button_border_alpha = {
+                type = "range", name = "ui.outline_transparency_c422cce3",
+                desc = "ui.button_outline_transparency_0_invisible_1_fully__73691cd0",
+                order = 2, min = 0, max = 1, step = 0.05, width = "full",
+                disabled = function() return not TextDB().buttonBorderAlphaEnabled end,
+                get = function() return TextDB().buttonBorderAlpha end,
+                set = function(_, value)
+                    TextDB().buttonBorderAlpha = value
+                    RefreshButtonBorders()
+                end,
+            },
+        },
+    }
+end
+SarychUI.modules.mainmenubar.GetButtonBorderOptions = function(_, order, hidden)
+    return ButtonBorderOptions(order, hidden)
+end
+
 local function GetOptions()
     local options = {
         name = L["MainMenuBar"],
@@ -345,10 +394,11 @@ local function GetOptions()
 							},
 						},
 					},
+					nativeBars = SarychUI.modules.mainmenubar:GetNativeActionBarOptions(),
 					modeHint = {
 						type = "description",
 						name = "ui.cffffd700warning_r_changing_the_bar_type_require_330931fc",
-						order = 30,
+						order = 15,
 						width = "full",
 					},
 				},
@@ -1008,9 +1058,8 @@ local function GetOptions()
                                             set = function(_, value)
                                                 SarychUI.db.profile.modules.mainmenubar.dragonSpacing = value
                                                 local bars = SarychUI.modules and SarychUI.modules.mainmenubar
-                                                if bars and bars.DragonStyle and bars.DragonStyle.active then
-                                                    bars.DragonStyle:Layout()
-                                                end
+                                                local style = bars and SarychUI.ActionBars:GetActiveStyle(bars)
+                                                if style and style.runtime then style.runtime:ApplyLayout() end
                                             end,
                                         },
                                     },
@@ -1243,62 +1292,7 @@ local function GetOptions()
                                         },
                                     },
                                 },
-                                borderBox = {
-                                    type = "group",
-                                    name = L["Button_Border_Alpha"],
-                                    order = 50,
-                                    inline = true,
-                                    disabled = InterfaceStyleActive,
-                                    args = {
-                                        button_border_alpha_enabled = {
-                                            type = "toggle",
-                                            name = "ui.enable_transparency_33d8cb9a",
-                                            desc = L["Button_Border_Alpha_Desc"],
-                                            order = 1,
-                                            width = "full",
-                                            disabled = InterfaceStyleActive,
-                                            get = function(info)
-                                                return SarychUI.db.profile.modules.mainmenubar.buttonBorderAlphaEnabled
-                                            end,
-                                            set = function(info, value)
-                                                SarychUI.db.profile.modules.mainmenubar.buttonBorderAlphaEnabled = value
-                                                if SarychUI.modules and SarychUI.modules.mainmenubar then
-                                                    SarychUI.modules.mainmenubar:ApplyAppearanceSettings()
-                                                end
-                                                if SarychUI.ActionBarAppearancePreview and SarychUI.ActionBarAppearancePreview.RefreshAll then
-                                                    SarychUI.ActionBarAppearancePreview:RefreshAll()
-                                                end
-                                                NotifyOptionsChange()
-                                            end,
-                                        },
-                                        button_border_alpha = {
-                                            type = "range",
-                                            name = "ui.outline_transparency_c422cce3",
-                                            desc = "ui.button_outline_transparency_0_invisible_1_fully__73691cd0",
-                                            order = 2,
-                                            min = 0,
-                                            max = 1,
-                                            step = 0.05,
-                                            width = "full",
-                                            disabled = function()
-                                                return InterfaceStyleActive()
-                                                    or not SarychUI.db.profile.modules.mainmenubar.buttonBorderAlphaEnabled
-                                            end,
-                                            get = function(info)
-                                                return SarychUI.db.profile.modules.mainmenubar.buttonBorderAlpha
-                                            end,
-                                            set = function(info, value)
-                                                SarychUI.db.profile.modules.mainmenubar.buttonBorderAlpha = value
-                                                if SarychUI.modules and SarychUI.modules.mainmenubar then
-                                                    SarychUI.modules.mainmenubar:ApplyAppearanceSettings()
-                                                end
-                                                if SarychUI.ActionBarAppearancePreview and SarychUI.ActionBarAppearancePreview.RefreshAll then
-                                                    SarychUI.ActionBarAppearancePreview:RefreshAll()
-                                                end
-                                            end,
-                                        },
-                                    },
-                                },
+                                borderBox = ButtonBorderOptions(50, InterfaceStyleActive),
 
                             },
                         },

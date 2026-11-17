@@ -117,7 +117,7 @@ end
 function owner:FormatGearScore(score)
     local text = tostring(score)
     if self.settings and self.settings.ThousandsSeparator == true then
-        text = text:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+        text = SarychUI.Frameworks.FormatThousands(score)
     end
     return text
 end

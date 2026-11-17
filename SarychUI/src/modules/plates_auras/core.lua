@@ -107,6 +107,22 @@ local function GetPetAuraLift(namePlate)
     return namePlate._suiPetIconAnchor and 12 or 0
 end
 
+local function AnchorCenterAuras(namePlate, y)
+    local container = namePlate.centerContainer
+    local layout = SarychUI.PlatesAurasElvUI
+    if layout and layout.AnchorCenterToIcon and layout.AnchorCenterToIcon(container, namePlate, 0, y) then return end
+    container:ClearAllPoints()
+    container:SetPoint("CENTER", GetAuraContainerParent(namePlate), "TOP", 0, y + GetPetAuraLift(namePlate))
+end
+
+local function AnchorRightAuras(namePlate, x, y)
+    local container = namePlate.mobilityContainer
+    local layout = SarychUI.PlatesAurasElvUI
+    if layout and layout.AnchorRightToIcon and layout.AnchorRightToIcon(container, namePlate) then return end
+    container:ClearAllPoints()
+    container:SetPoint("LEFT", GetAuraContainerParent(namePlate), "RIGHT", x or 0, y or 0)
+end
+
 -- Move existing auras immediately when a classic plate enters/leaves pet-icon
 -- mode. New containers use the same parent resolver during their creation.
 _G.sarPlatesAuras_RefreshContainerParent = function(namePlate)
@@ -130,6 +146,9 @@ _G.sarPlatesAuras_RefreshContainerParent = function(namePlate)
             container:ClearAllPoints()
             for _, point in ipairs(points) do container:SetPoint(unpack(point)) end
         end
+    end
+    if namePlate.mobilityContainer and not namePlate.UnitFrame then
+        AnchorRightAuras(namePlate, RightX, RightY)
     end
 end
 
@@ -1383,8 +1402,7 @@ local function UpdateCenterFramesPosition(namePlate)
             })
         end
     else
-        namePlate.centerContainer:ClearAllPoints()
-        namePlate.centerContainer:SetPoint("CENTER", GetAuraContainerParent(namePlate), "TOP", 0, yOffset + GetPetAuraLift(namePlate))
+        AnchorCenterAuras(namePlate, yOffset)
     end
     
     -- Позиционируем фреймы внутри контейнера - центрируем как раньше
@@ -1427,7 +1445,7 @@ local function UpdateMobilityFramesPosition(namePlate)
     -- Позиционируем контейнер
     if not UsesElvUILayout() then
         namePlate.mobilityContainer:ClearAllPoints()
-        namePlate.mobilityContainer:SetPoint("LEFT", GetAuraContainerParent(namePlate), "RIGHT", RightX, RightY)
+        AnchorRightAuras(namePlate, RightX, RightY)
     end
     
     -- Позиционируем фреймы внутри контейнера - сначала OTHER, потом MOBILITY
@@ -1604,6 +1622,14 @@ function _G.UpdateAuras(namePlate, unitId, forcedGuid)
         return
     end
 
+    -- Reject icon-only totems before creating/showing aura containers or icons. This
+    -- also clears auras left by a previous owner of a recycled nameplate.
+    local totems = SarychUI and SarychUI.NameplateTotems
+    if totems and totems:ShouldHideAuras(namePlate, unitId, plateGUID) then
+        HidePlateAuras(namePlate)
+        return
+    end
+
     -- LibNameplates reuses the same WorldFrame child for different units. A
     -- stale border/timer must never cross that ownership boundary.
     if namePlate._sarAuraGUID and namePlate._sarAuraGUID ~= plateGUID then
@@ -1670,8 +1696,7 @@ function _G.UpdateAuras(namePlate, unitId, forcedGuid)
     namePlate.centerContainer._suiPlateAura = true
     namePlate.centerContainer:SetSize(ICON_SIZE_CONTROL + ICON_SIZE_CAST + 4, ICON_SIZE_CONTROL)
     if not UsesElvUILayout() then
-        namePlate.centerContainer:ClearAllPoints()
-        namePlate.centerContainer:SetPoint("CENTER", GetAuraContainerParent(namePlate), "TOP", 0, CentrY + GetPetAuraLift(namePlate))
+        AnchorCenterAuras(namePlate, CentrY)
     end
     namePlate.centerContainer:SetAlpha(alpha)
     namePlate.centerContainer:Show()
@@ -1745,7 +1770,7 @@ function _G.UpdateAuras(namePlate, unitId, forcedGuid)
     namePlate.mobilityContainer:SetSize(ICON_SIZE_MOBILITY + ICON_SIZE_OTHER + 4, ICON_SIZE_MOBILITY)
     if not UsesElvUILayout() then
         namePlate.mobilityContainer:ClearAllPoints()
-        namePlate.mobilityContainer:SetPoint("LEFT", GetAuraContainerParent(namePlate), "RIGHT", RightX, RightY)
+        AnchorRightAuras(namePlate, RightX, RightY)
     end
     namePlate.mobilityContainer:SetAlpha(alpha)
     namePlate.mobilityContainer:Show()
@@ -1882,6 +1907,11 @@ end
 
 function _G.sarPlatesAuras_UpdatePlateLayout(namePlate)
     if not namePlate then return end
+    local totems = SarychUI and SarychUI.NameplateTotems
+    if totems and totems:ShouldHideAuras(namePlate, namePlate.namePlateUnitToken, namePlate._sarAuraGUID) then
+        HidePlateAuras(namePlate)
+        return
+    end
     UpdateCenterFramesPosition(namePlate)
 	UpdateMobilityFramesPosition(namePlate)
 	ApplyAllPlateGlows(namePlate)
@@ -2331,8 +2361,7 @@ local function ApplySizesToPlate(namePlate)
     if namePlate.centerContainer then
         namePlate.centerContainer:SetSize(ICON_SIZE_CONTROL + ICON_SIZE_CAST + 4, ICON_SIZE_CONTROL)
         if not UsesElvUILayout() then
-            namePlate.centerContainer:ClearAllPoints()
-            namePlate.centerContainer:SetPoint("CENTER", GetAuraContainerParent(namePlate), "TOP", 0, CentrY + GetPetAuraLift(namePlate))
+            AnchorCenterAuras(namePlate, CentrY)
         end
     end
     if namePlate.controlFrame then
@@ -2353,7 +2382,7 @@ local function ApplySizesToPlate(namePlate)
         namePlate.mobilityContainer:SetSize(ICON_SIZE_MOBILITY + ICON_SIZE_OTHER + 4, ICON_SIZE_MOBILITY)
         if not UsesElvUILayout() then
             namePlate.mobilityContainer:ClearAllPoints()
-            namePlate.mobilityContainer:SetPoint("LEFT", GetAuraContainerParent(namePlate), "RIGHT", RightX, RightY)
+            AnchorRightAuras(namePlate, RightX, RightY)
         end
     end
     if namePlate.mobilityFrame then

@@ -30,20 +30,13 @@ local function RestoreRegion(region, saved)
 end
 
 local function DebuffColor(region, state)
-	local r, g, b, a = Style.GetColor()
-	local black = Style:GetTextureMode() == "black"
-	local value = black and Style:GetGlossBrightness() or 1
-	local color = state.originalColor
-	local alpha = black and a or (color[4] or 1)
 	if Style:GetDebuffOriginalColor() then
-		state.vertexSetter(region, color[1] or 1,
-			color[2] or 1, color[3] or 1, alpha)
+		local color = state.originalColor
+		local _, _, _, a = Style.GetColor()
+		state.vertexSetter(region, color[1] or 1, color[2] or 1, color[3] or 1,
+			(color[4] or 1) * a)
 	else
-		if black then
-			state.vertexSetter(region, value, value, value, alpha)
-		else
-			state.vertexSetter(region, r, g, b, alpha)
-		end
+		state.vertexSetter(region, Style:GetBorderColor())
 	end
 end
 
@@ -66,16 +59,13 @@ function Style:StyleAuraButton(button)
 	if not black and not border then return end
 	local state = auras[button]
 	if not state then
-		state = { icon = icon, iconSaved = SaveRegion(icon),
+		state = { icon = icon,
 			border = border, borderSaved = SaveRegion(border), created = not border,
 			isDebuff = isDebuff, black = black }
 		auras[button] = state
 	end
 	if black and icon then
-		icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
-		icon:ClearAllPoints()
-		icon:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
-		icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
+		state.iconCrop = SarychUI.Frameworks.SetIconCrop(icon, state.iconCrop, self:GetCropIcons(), button, 1)
 	end
 	if not border then
 		border = state.border or button:CreateTexture(nil, "OVERLAY")
@@ -102,12 +92,7 @@ function Style:StyleAuraButton(button)
 				if state.isDebuff then
 					return DebuffColor(region, state)
 				end
-				local sr, sg, sb, sa = Style.GetColor()
-				if Style:GetTextureMode() == "black" then
-					local value = Style:GetGlossBrightness()
-					return state.vertexSetter(region, value, value, value, sa)
-				end
-				return state.vertexSetter(region, sr, sg, sb, sa)
+				return state.vertexSetter(region, Style:GetBorderColor())
 			end
 			return state.vertexSetter(region, r, g, b, a)
 		end
@@ -121,13 +106,7 @@ function Style:StyleAuraButton(button)
 	if isDebuff then
 		DebuffColor(border, state)
 	else
-		local r, g, b, a = self.GetColor()
-		if black then
-			local value = self:GetGlossBrightness()
-			state.vertexSetter(border, value, value, value, a)
-		else
-			state.vertexSetter(border, r, g, b, state.originalColor[4] or 1)
-		end
+		state.vertexSetter(border, self:GetBorderColor())
 	end
 	if black then border:Show() end
 end
@@ -204,6 +183,7 @@ end
 
 function Style:RestoreAuras()
 	for button, state in pairs(auras) do
+		state.iconCrop = SarychUI.Frameworks.SetIconCrop(nil, state.iconCrop, false)
 		local border = state.border
 		if border and state.vertexSetter then
 			if state.textureSetter then border.SetTexture = state.textureSetter end
@@ -214,10 +194,8 @@ function Style:RestoreAuras()
 				border:SetVertexColor(unpack(state.originalColor))
 			end
 		elseif state.created then
-			RestoreRegion(state.icon, state.iconSaved)
 			if border then border:Hide() end
 		elseif border then
-			RestoreRegion(state.icon, state.iconSaved)
 			RestoreRegion(border, state.borderSaved)
 			if state.originalTexture then border:SetTexture(state.originalTexture) end
 			if state.originalColor then border:SetVertexColor(unpack(state.originalColor)) end

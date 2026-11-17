@@ -252,6 +252,26 @@ local function BuildPatternListArgs(key, defaultText, pendingGet, pendingSet, or
 	return args
 end
 
+-- Both settings pages edit the floating-text owner's single preference.
+function module:GetArenaAnnouncementOptions(order)
+	return {
+		type = "group", name = "ui.floating_text.arena_start", inline = true, order = order,
+		disabled = function() return not IsModuleEnabled() end,
+		args = {
+			hideArenaStartAnnouncement = {
+				type = "toggle", name = "ui.floating_text.hide_arena_start", order = 1, width = "full",
+				desc = "ui.floating_text.hide_arena_start_desc",
+				get = function() local db = DB(); return db and db.hideArenaStartAnnouncement == true or false end,
+				set = function(_, value)
+					local db = DB(); if not db then return end
+					db.hideArenaStartAnnouncement = value and true or false
+					module:ApplyArenaAnnouncementFilter()
+				end,
+			},
+		},
+	}
+end
+
 function module:GetOptions()
 	return {
 		type = "group",
@@ -582,6 +602,7 @@ function module:GetOptions()
 						desc = "ui.raid_boss_event_notification_settings_0f4ae846",
 						order = 2,
 						args = {
+							arenaStartBox = module:GetArenaAnnouncementOptions(99),
 							displayBox = {
 								type = "group",
 								name = "ui.system_messages_b49f1ebf",

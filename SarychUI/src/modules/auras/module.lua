@@ -1455,9 +1455,9 @@ function module:UpdateFilteredFrameAuras(hook, frame, unit, ...)
                     local reader = kind == "Buff" and UnitBuff or UnitDebuff
                     local _, _, _, _, _, duration, expiration = reader(unit, nativeIndex)
                     if button:IsShown() and duration and duration > 0 and expiration then
-                        SarychUI_NotifyCooldown(cooldown, expiration - duration, duration, 1)
+                        SarychUI_NotifyCooldown(cooldown, expiration - duration, duration, 1, "playerAuras")
                     else
-                        SarychUI_NotifyCooldown(cooldown, 0, 0, 0)
+                        SarychUI_NotifyCooldown(cooldown, 0, 0, 0, "playerAuras")
                     end
                 end
                 if button:IsShown() and GameTooltip and GameTooltip:IsOwned(button) then

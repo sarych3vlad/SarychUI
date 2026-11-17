@@ -66,134 +66,7 @@ mod.TriggerConditions = {
 	uniqueUnits = {}
 }
 
-local totemTypes = {
-	air = { -- Air Totems
-		[8177] = "a1",	-- Grounding Totem
-		[10595] = "a2",	-- Nature Resistance Totem I
-		[10600] = "a2",	-- Nature Resistance Totem II
-		[10601] = "a2",	-- Nature Resistance Totem III
-		[25574] = "a2",	-- Nature Resistance Totem IV
-		[58746] = "a2",	-- Nature Resistance Totem V
-		[58749] = "a2",	-- Nature Resistance Totem VI
-		[6495] = "a3",	-- Sentry Totem
-		[8512] = "a4",	-- Windfury Totem
-		[3738] = "a5",	-- Wrath of Air Totem
-	},
-	earth = { -- Earth Totems
-		[2062] = "e1",	-- Earth Elemental Totem
-		[2484] = "e2",	-- Earthbind Totem
-		[5730] = "e3",	-- Stoneclaw Totem I
-		[6390] = "e3",	-- Stoneclaw Totem II
-		[6391] = "e3",	-- Stoneclaw Totem III
-		[6392] = "e3",	-- Stoneclaw Totem IV
-		[10427] = "e3",	-- Stoneclaw Totem V
-		[10428] = "e3",	-- Stoneclaw Totem VI
-		[25525] = "e3",	-- Stoneclaw Totem VII
-		[58580] = "e3",	-- Stoneclaw Totem VIII
-		[58581] = "e3",	-- Stoneclaw Totem IX
-		[58582] = "e3",	-- Stoneclaw Totem X
-		[8071] = "e4",	-- Stoneskin Totem I -- Faction Champs
-		[8154] = "e4",	-- Stoneskin Totem II
-		[8155] = "e4",	-- Stoneskin Totem III
-		[10406] = "e4",	-- Stoneskin Totem IV
-		[10407] = "e4",	-- Stoneskin Totem V
-		[10408] = "e4",	-- Stoneskin Totem VI
-		[25508] = "e4",	-- Stoneskin Totem VII
-		[25509] = "e4",	-- Stoneskin Totem VIII
-		[58751] = "e4",	-- Stoneskin Totem IX
-		[58753] = "e4",	-- Stoneskin Totem X
-		[8075] = "e5",	-- Strength of Earth Totem I -- Faction Champs
-		[8160] = "e5",	-- Strength of Earth Totem II
-		[8161] = "e5",	-- Strength of Earth Totem III
-		[10442] = "e5",	-- Strength of Earth Totem IV
-		[25361] = "e5",	-- Strength of Earth Totem V
-		[25528] = "e5",	-- Strength of Earth Totem VI
-		[57622] = "e5",	-- Strength of Earth Totem VII
-		[58643] = "e5",	-- Strength of Earth Totem VIII
-		[8143] = "e6",	-- Tremor Totem
-	},
-	fire = { -- Fire Totems
-		[2894] = "f1",	-- Fire Elemental Totem
-		[8227] = "f2",	-- Flametongue Totem I -- Faction Champs
-		[8249] = "f2",	-- Flametongue Totem II
-		[10526] = "f2",	-- Flametongue Totem III
-		[16387] = "f2",	-- Flametongue Totem IV
-		[25557] = "f2",	-- Flametongue Totem V
-		[58649] = "f2",	-- Flametongue Totem VI
-		[58652] = "f2",	-- Flametongue Totem VII
-		[58656] = "f2",	-- Flametongue Totem VIII
-		[8181] = "f3",	-- Frost Resistance Totem I
-		[10478] = "f3",	-- Frost Resistance Totem II
-		[10479] = "f3",	-- Frost Resistance Totem III
-		[25560] = "f3",	-- Frost Resistance Totem IV
-		[58741] = "f3",	-- Frost Resistance Totem V
-		[58745] = "f3",	-- Frost Resistance Totem VI
-		[8190] = "f4",	-- Magma Totem I
-		[10585] = "f4",	-- Magma Totem II
-		[10586] = "f4",	-- Magma Totem III
-		[10587] = "f4",	-- Magma Totem IV
-		[25552] = "f4",	-- Magma Totem V
-		[58731] = "f4",	-- Magma Totem VI
-		[58734] = "f4",	-- Magma Totem VII
-		[3599] = "f5",	-- Searing Totem I -- Faction Champs
-		[6363] = "f5",	-- Searing Totem II
-		[6364] = "f5",	-- Searing Totem III
-		[6365] = "f5",	-- Searing Totem IV
-		[10437] = "f5",	-- Searing Totem V
-		[10438] = "f5",	-- Searing Totem VI
-		[25533] = "f5",	-- Searing Totem VII
-		[58699] = "f5",	-- Searing Totem VIII
-		[58703] = "f5",	-- Searing Totem IX
-		[58704] = "f5",	-- Searing Totem X
-		[30706] = "f6",	-- Totem of Wrath I
-		[57720] = "f6",	-- Totem of Wrath II
-		[57721] = "f6",	-- Totem of Wrath III
-		[57722] = "f6",	-- Totem of Wrath IV
-	},
-	water = { -- Water Totems
-		[8170] = "w1",	-- Cleansing Totem
-		[8184] = "w2",	-- Fire Resistance Totem I
-		[10537] = "w2",	-- Fire Resistance Totem II
-		[10538] = "w2",	-- Fire Resistance Totem III
-		[25563] = "w2",	-- Fire Resistance Totem IV
-		[58737] = "w2",	-- Fire Resistance Totem V
-		[58739] = "w2",	-- Fire Resistance Totem VI
-		[5394] = "w3",	-- Healing Stream Totem I -- Faction Champs
-		[6375] = "w3",	-- Healing Stream Totem II
-		[6377] = "w3",	-- Healing Stream Totem III
-		[10462] = "w3",	-- Healing Stream Totem IV
-		[10463] = "w3",	-- Healing Stream Totem V
-		[25567] = "w3",	-- Healing Stream Totem VI
-		[58755] = "w3",	-- Healing Stream Totem VII
-		[58756] = "w3",	-- Healing Stream Totem VIII
-		[58757] = "w3",	-- Healing Stream Totem IX
-		[5675] = "w4",	-- Mana Spring Totem I
-		[10495] = "w4",	-- Mana Spring Totem II
-		[10496] = "w4",	-- Mana Spring Totem III
-		[10497] = "w4",	-- Mana Spring Totem IV
-		[25570] = "w4",	-- Mana Spring Totem V
-		[58771] = "w4",	-- Mana Spring Totem VI
-		[58773] = "w4",	-- Mana Spring Totem VII
-		[58774] = "w4",	-- Mana Spring Totem VIII
-		[16190] = "w5"	-- Mana Tide Totem
-	},
-	other = {
-		[724] = "o1"	-- Lightwell
-	}
-}
-
-local totemRanks = {
-	"",
-	" II",
-	" III",
-	" IV",
-	" V",
-	" VI",
-	" VII",
-	" VIII",
-	" IX",
-	" X"
-}
+local Totems = SarychUI.NameplateTotems
 
 local uniqueUnitTypes = {
 	pvp = {
@@ -214,27 +87,9 @@ for unitType, units in pairs(uniqueUnitTypes) do
 	end
 end
 
-for totemSchool, totems in pairs(totemTypes) do
-	for spellID, totemID in pairs(totems) do
-		local totemName, rank, texture = GetSpellInfo(spellID)
-
-		if not mod.TriggerConditions.totems[totemID] then
-			mod.TriggerConditions.totems[totemID] = {totemName, totemSchool, texture}
-		end
-
-		rank = totemRanks[tonumber(match(rank, ("%d+")))]
-
-		if rank then
-			totemName = totemName..rank
-		else
-			totemName = totemName
-		end
-
-		mod.Totems[totemName] = totemID
-	end
-end
-
-G.nameplates.totemTypes = totemTypes
+mod.Totems = Totems.Names
+mod.TriggerConditions.totems = Totems.Info
+G.nameplates.totemTypes = Totems.Types
 
 function mod:StyleFilterAuraCheck(names, icons, mustHaveAll, missing, minTimeLeft, maxTimeLeft)
 	local total, count = 0, 0
@@ -387,13 +242,15 @@ function mod:StyleFilterSetChanges(frame, actions, HealthColorChanged, BorderCha
 		mod:Configure_IconFrame(frame)
 		mod:Update_IconFrame(frame)
 	end
-	if IconOnlyChanged and (frame._suiPetIconTexture or mod.Totems[frame.UnitName] or mod.UniqueUnits[frame.UnitName]) then
+	if IconOnlyChanged and (frame._suiTotemTexture or frame._suiPetIconTexture or mod.Totems[frame.UnitName] or mod.UniqueUnits[frame.UnitName]) then
 		frame.StyleChanged = true
 		frame.IconOnlyChanged = true
 		mod:Configure_IconFrame(frame, true)
 		mod:Update_IconFrame(frame)
-		if frame.CastBar:IsShown() then frame.CastBar:Hide() end
 		if frame.Health:IsShown() then frame.Health:Hide() end
+		if frame._suiPetIconTexture and mod.Update_PetIconCastBar then
+			mod:Update_PetIconCastBar(frame)
+		elseif frame.CastBar:IsShown() then frame.CastBar:Hide() end
 		frame.Level:SetText()
 		frame.Name:SetText()
 		mod:Configure_Glow(frame)
@@ -829,12 +686,21 @@ end
 
 function mod:StyleFilterUpdate(frame, event)
 	local owner = SarychUI.modules and SarychUI.modules.health_indicators
-	local petTexture = owner and owner.GetPetIconTexture and owner:GetPetIconTexture(frame:GetParent()) or nil
-	local petChanged = frame._suiPetIconTexture ~= petTexture
+	local totemAction, totemTexture
+	if owner and owner.GetTotemDisplay then totemAction, totemTexture = owner:GetTotemDisplay(frame) end
+	local totemChanged = frame._suiTotemAction ~= totemAction or frame._suiTotemTexture ~= totemTexture
+	local petAction, petTexture
+	if owner and owner.GetPetDisplay then
+		petAction, petTexture = owner:GetPetDisplay(frame:GetParent())
+	elseif owner and owner.GetPetIconTexture then
+		petTexture = owner:GetPetIconTexture(frame:GetParent())
+	end
+	local petChanged = frame._suiPetAction ~= petAction or frame._suiPetIconTexture ~= petTexture
 	local hasEvent = mod.StyleFilterTriggerEvents[event]
-	if not hasEvent and not petTexture and not petChanged then
+	if not hasEvent and not petAction and not petTexture and not petChanged and not totemAction and not totemChanged then
 		return
-	elseif hasEvent == true and not petChanged then -- skip on 1 or 0
+	elseif hasEvent == true and not petAction and not petTexture and not totemAction
+		and not petChanged and not totemChanged then -- skip only ordinary filters
 		if not frame.StyleFilterWaitTime then
 			frame.StyleFilterWaitTime = GetTime()
 		elseif GetTime() > (frame.StyleFilterWaitTime + 0.1) then
@@ -844,19 +710,50 @@ function mod:StyleFilterUpdate(frame, event)
 		end
 	end
 
+	local wasIconOnly = frame.IconOnlyChanged and true or false
+	local wasHidden = frame.VisibilityChanged and true or false
 	frame._suiPetIconTexture = petTexture
+	frame._suiPetAction = petAction
+	frame._suiPetCastAllowed = owner and owner.ShouldShowPetCastBar and owner:ShouldShowPetCastBar(petAction) or false
+	frame._suiTotemAction, frame._suiTotemTexture = totemAction, totemTexture
 	mod:StyleFilterClear(frame)
+	if totemAction == "hide" or petAction == "hide" then
+		if frame.CastBar:IsShown() then frame.CastBar:Hide() end
+		mod:StyleFilterSetChanges(frame, {}, false, false, false, false, false, false,
+			false, false, false, true, false, false)
+		if owner and owner.UpdatePetLifetime then owner:UpdatePetLifetime(frame:GetParent()) end
+		if _G.Autolos and _G.Autolos.RefreshNameplate then
+			_G.Autolos.RefreshNameplate(frame:GetParent(), {layoutOnly=true})
+		end
+		return
+	end
 
 	for filterNum in ipairs(mod.StyleFilterTriggerList) do
 		local filter = E.global.nameplates.filters[mod.StyleFilterTriggerList[filterNum][1]]
-		if filter then
+		if filter and not (totemAction and filter.triggers.totems and filter.triggers.totems.enable)
+			and not (petAction and filter.triggers.uniqueUnits and filter.triggers.uniqueUnits.enable) then
 			mod:StyleFilterConditionCheck(frame, filter, filter.triggers)
 		end
 	end
-	if petTexture and not frame.VisibilityChanged then
+	if (petTexture or (totemAction == "icons" and totemTexture)) and not frame.VisibilityChanged then
 		-- Use the same state and restoration path as native icon-only filters.
 		mod:StyleFilterSetChanges(frame, {}, false, false, false, false, false, false,
 			false, false, false, false, false, true)
+	end
+	if frame._suiPetCastGap and not frame._suiPetCastAllowed and mod.StartCastBarFromDefault then
+		mod:Configure_CastBar(frame, true)
+		mod:StartCastBarFromDefault(frame, true)
+	end
+	-- Distance normally rescans on a timer. Finish its anchor transition here,
+	-- after the final style/geometry, so an icon never renders with the old
+	-- name/health offset. Do not expose the temporary state during StyleFilterClear.
+	if (wasIconOnly ~= (frame.IconOnlyChanged and true or false)
+		or wasHidden ~= (frame.VisibilityChanged and true or false))
+		and _G.Autolos and _G.Autolos.RefreshNameplate then
+		_G.Autolos.RefreshNameplate(frame:GetParent(), {layoutOnly=true})
+	end
+	if owner and owner.UpdatePetLifetime then
+		owner:UpdatePetLifetime(frame:GetParent(), petTexture and frame.IconOnlyChanged and not frame.VisibilityChanged and frame.IconFrame or nil)
 	end
 end
 

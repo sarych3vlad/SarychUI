@@ -208,9 +208,8 @@ function module:SetAuxiliaryLayoutPoint(group, frame, ...)
 end
 
 local function ApplyPlayerLayout()
-    local style = module:GetBootBarStyle() == "bfa" and module.BFAStyle
-        or module:GetBootBarStyle() == "dragon" and module.DragonStyle
-    if style and style.active then style:LayoutBagsAndMicroMenu() end
+    local style = SarychUI.ActionBars:GetActiveStyle(module)
+    if style and style.LayoutBagsAndMicroMenu then style:LayoutBagsAndMicroMenu() end
 end
 
 local function Refresh()

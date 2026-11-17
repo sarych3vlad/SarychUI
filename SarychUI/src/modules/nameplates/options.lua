@@ -165,6 +165,7 @@ function module:GetOptions()
 				name = "ui.general_b250a3d6",
 				order = 1,
 				args = {
+                    nativePlates = module.GetNativeNameplateOptions and module:GetNativeNameplateOptions(),
 					enabled = {
 						suiModuleEnable = true,
 						type = "toggle",
@@ -280,69 +281,124 @@ function module:GetOptions()
 							},
 						},
 					},
-					scaleBox = {
-						type = "group",
-						name = "ui.scale_e037e967",
-						order = 3,
-						inline = true,
-						hidden = function()
-							return GetCurrentNameplateMode() ~= "classic"
-						end,
-						args = {
-							scale = {
-								type = "range",
-								name = "ui.nameplates.indicator_size",
-								desc = L and (L["Nameplate Scale Desc"] or SarychUI:T("ui.options_6a2779ecd2")) or SarychUI:T("ui.options_6a2779ecd2"),
-								order = 1,
-								width = "full",
-								suiFullRow = true,
-								min = 0.5,
-								max = 3,
-								step = 0.05,
-								get = function()
-									if module.GetNameplateScale then
-										return module:GetNameplateScale()
-									end
-									local db = DB()
-									return (db and db.scale) or 1
-								end,
-								set = function(_, value)
-									local db = DB()
-									if not db then return end
-									db.scale = value
-									if module.ApplyNameplateScale then
-										module:ApplyNameplateScale()
-									end
-								end,
-							},
-						},
-					},
 					modeHint = {
 						type = "description",
 						name = "ui.nameplates.mode_reload_hint",
 						order = 2.5,
 						width = "full",
 					},
-                    summonedCreatures = {
-                        type = "group", name = "ui.nameplates.summoned_creatures",
-                        inline = true, order = 5,
-                        args = {
-                            petIcons = {
-                                type = "toggle", name = "ui.nameplates.pet_icons",
-                                desc = "ui.nameplates.pet_icons_desc", order = 1, width = "full",
-                                get = function() local db = DB(); return db and db.petIcons == true end,
-                                set = function(_, value)
-                                    local db = DB(); if not db then return end
-                                    db.petIcons = value and true or false
-                                    module:RefreshPetIcons()
-                                end,
-                                disabled = function() return not IsModuleEnabled() end,
-                            },
 
-                        },
-                    },
 				},
 			},
+
+            elvuiSettings = {
+                type = "group", name = "ui.settings_985b5e0f", order = 1.5, childGroups = "tab",
+                hidden = function() return GetCurrentNameplateMode() ~= "elvui" end,
+                disabled = function() return not IsModuleEnabled() end,
+                args = {
+                    totems = {
+                        type="group", name="ui.nameplates.totems", order=1,
+                        args={totems=module.GetTotemOptions and module:GetTotemOptions("elvui", 1)},
+                    },
+                    pets = {
+                        type="group", name="ui.nameplates.summoned_creatures", order=2,
+                        args={summonedCreatures=module.GetPetOptions and module:GetPetOptions("elvui", 1)},
+                    },
+                },
+            },
+
+            classicSettings = {
+                type = "group", name = "ui.settings_985b5e0f", order = 1.5, childGroups = "tab",
+                hidden = function() return GetCurrentNameplateMode() ~= "classic" end,
+                disabled = function() return not IsModuleEnabled() end,
+                args = {
+                    appearance = {
+                        type="group", name="ui.appearance_c407960b", order=1,
+                        args={
+                            scaleBox = {
+                                type = "group",
+                                name = "ui.scale_e037e967",
+                                order = 3,
+                                inline = true,
+                                hidden = function()
+                                    return GetCurrentNameplateMode() ~= "classic"
+                                end,
+                                args = {
+                                    scale = {
+                                        type = "range",
+                                        name = "ui.nameplates.indicator_size",
+                                        desc = L and (L["Nameplate Scale Desc"] or SarychUI:T("ui.options_6a2779ecd2")) or SarychUI:T("ui.options_6a2779ecd2"),
+                                        order = 1,
+                                        width = "full",
+                                        suiFullRow = true,
+                                        min = 0.5,
+                                        max = 3,
+                                        step = 0.05,
+                                        get = function()
+                                            if module.GetNameplateScale then
+                                                return module:GetNameplateScale()
+                                            end
+                                            local db = DB()
+                                            return (db and db.scale) or 1
+                                        end,
+                                        set = function(_, value)
+                                            local db = DB()
+                                            if not db then return end
+                                            db.scale = value
+                                            if module.ApplyNameplateScale then
+                                                module:ApplyNameplateScale()
+                                            end
+                                        end,
+                                    },
+                                },
+                            },
+                            levelBackgroundBox = {
+                                type = "group", name = "ui.nameplates.level_background", order = 4, inline = true,
+                                hidden = function() return GetCurrentNameplateMode() ~= "classic" end,
+                                args = {
+                                    levelBackground = {
+                                        type = "select", name = "ui.display_205c4b9e", order = 1,
+                                        values = {show = "ui.show_d61d6efc", hide = "ui.tooltip.hidden", __order = {"show", "hide"}},
+                                        disabled = function() return not IsModuleEnabled() end,
+                                        get = function()
+                                            local db = DB()
+                                            return db and db.classicLevelBackground or "show"
+                                        end,
+                                        set = function(_, value)
+                                            local db = DB(); if not db then return end
+                                            db.classicLevelBackground = value
+                                            module:ApplyNameplateScale()
+                                        end,
+                                    },
+                                },
+                            },
+                            friendlyNames = {
+                                type = "group", name = "ui.nameplates.friendly_names", order = 6, inline = true,
+                                args = {
+                                    classColor = {
+                                        type = "toggle", name = "ui.nameplates.friendly_class_names", order = 1,
+                                        desc = "ui.nameplates.friendly_class_names_desc", width = "full",
+                                        get = function() local db = DB(); return db and db.friendlyClassNames == true end,
+                                        set = function(_, value)
+                                            local db = DB(); if not db then return end
+                                            db.friendlyClassNames = value and true or false
+                                            module:RefreshFriendlyClassNames()
+                                        end,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    totems = {
+                        type="group", name="ui.nameplates.totems", order=2,
+                        args={totems=module.GetTotemOptions and module:GetTotemOptions("classic", 1)},
+                    },
+                    pets = {
+                        type="group", name="ui.nameplates.summoned_creatures", order=3,
+                        args={summonedCreatures=module.GetPetOptions and module:GetPetOptions()},
+                    },
+                },
+            },
 
 			distance = {
 				type = "group",

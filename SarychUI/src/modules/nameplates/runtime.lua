@@ -5,6 +5,8 @@ function module:IsNamePlatesRunning()
     return E and E.initialized and NP and NP.Initialized and E:IsNamePlatesRuntimeEnabled() or false
 end
 function module:ApplyNamePlates(enable)
+    if self.RefreshTotems then self:RefreshTotems() end
+    if self.RefreshFriendlyClassNames then self:RefreshFriendlyClassNames() end
     local E = _G.SarychUI_ElvUI_NamePlates and _G.SarychUI_ElvUI_NamePlates[1]
     if not E then return false end
     if E.CheckStandaloneConflict and E:CheckStandaloneConflict() then enable = false end

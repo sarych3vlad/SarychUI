@@ -44,7 +44,7 @@ local function StopTimer(icon)
 	if not icon then return end
 	CooldownFrame_SetTimer(icon.cooldown, 0, 0, 0)
 	if SarychUI_ReleaseCooldown then SarychUI_ReleaseCooldown(icon.cooldown)
-	elseif SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(icon.cooldown, 0, 0, 0) end
+	elseif SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(icon.cooldown, 0, 0, 0, "arena") end
 	icon.timerKey = nil
 end
 
@@ -411,7 +411,7 @@ local function RenderState(icon, state, slot, now, desaturate, procIconMode)
 		if icon.timerKey ~= key then
 			CooldownFrame_SetTimer(icon.cooldown, timerStart, timerDuration, 1)
 			if SarychUI_NotifyCooldown then
-				SarychUI_NotifyCooldown(icon.cooldown, timerStart, timerDuration, 1)
+				SarychUI_NotifyCooldown(icon.cooldown, timerStart, timerDuration, 1, "arena")
 			end
 			icon.timerKey = key
 		end

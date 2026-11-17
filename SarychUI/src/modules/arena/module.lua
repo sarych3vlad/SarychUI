@@ -608,7 +608,7 @@ local function StartArenaTrinketCooldown(icon, duration)
 	icon._cooldownEnd = start + duration
 	CooldownFrame_SetTimer(icon.Cooldown, start, duration, 1)
 	if SarychUI_NotifyCooldown then
-		SarychUI_NotifyCooldown(icon.Cooldown, start, duration, 1)
+		SarychUI_NotifyCooldown(icon.Cooldown, start, duration, 1, "arena")
 	end
 	local db = GetDB()
 	UpdateArenaIconCooldownColor(icon,
@@ -1852,7 +1852,7 @@ local function StartTestIconCooldown(icon, duration)
 		icon._testReadyUntil = now + 5
 		CooldownFrame_SetTimer(icon.Cooldown, 0, 0, 0)
 		if SarychUI_NotifyCooldown then
-			SarychUI_NotifyCooldown(icon.Cooldown, 0, 0, 0)
+			SarychUI_NotifyCooldown(icon.Cooldown, 0, 0, 0, "arena")
 		end
 		UpdateArenaIconCooldownColor(icon, false, now)
 		return
@@ -1864,7 +1864,7 @@ local function StartTestIconCooldown(icon, duration)
 	icon._cooldownEnd = start + duration
 	CooldownFrame_SetTimer(icon.Cooldown, start, duration, 1)
 	if SarychUI_NotifyCooldown then
-		SarychUI_NotifyCooldown(icon.Cooldown, start, duration, 1)
+		SarychUI_NotifyCooldown(icon.Cooldown, start, duration, 1, "arena")
 	end
 	local db = GetDB()
 	UpdateArenaIconCooldownColor(icon,

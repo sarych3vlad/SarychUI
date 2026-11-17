@@ -94,28 +94,8 @@ local function SafeSetFont(fs, path, size, flags)
 end
 
 local function FormatCooldownPreview(seconds)
-	local defaultColor = GetSetting("defaultColor", { 1, 1, 1, 1 })
-	local fontSizeSmall = GetSetting("fontSizeSmall", 14)
-	local fontSizeMedium = GetSetting("fontSizeMedium", 12)
-	local fontSizeLarge = GetSetting("fontSizeLarge", 12)
-	local locale = GetLocale and GetLocale() or "enUS"
-	local daySuffix = (locale == "ruRU") and SarychUI:T("ui.options_8696018d06") or "d"
-	local hourSuffix = (locale == "ruRU") and SarychUI:T("ui.options_11a7e20809") or "h"
-	local minuteSuffix = (locale == "ruRU") and SarychUI:T("ui.options_bf6379458c") or "m"
-
-	if seconds >= 86400 then
-		return format(" %d%s ", floor(seconds / 86400 + 0.5), daySuffix), defaultColor, fontSizeLarge
-	elseif seconds >= 3600 then
-		return format(" %d%s ", floor(seconds / 3600 + 0.5), hourSuffix), defaultColor, fontSizeLarge
-	elseif seconds >= 600 then
-		return format(" %d%s ", floor(seconds / 60 + 0.5), minuteSuffix), defaultColor, fontSizeLarge
-	elseif seconds >= 60 then
-		return format(" %d:%02d ", floor(seconds / 60), floor(seconds % 60)), defaultColor, fontSizeMedium
-	elseif seconds >= 10 then
-		return format(" %02d ", floor(seconds + 0.5)), defaultColor, fontSizeSmall
-	else
-		return format(" %d ", floor(seconds + 0.5)), defaultColor, fontSizeSmall
-	end
+	local text, color, _, size = SarychUI.CooldownText.Format(seconds, GetCcDB() or {}, nil, "preview")
+	return text, color, size
 end
 
 local function TrackInstance(bucket, host)
@@ -308,6 +288,12 @@ function CdPreview:Create(parent)
 
 	local function ApplyStyle()
 		local live = CdPreview._live
+        local sample = GetSetting("showTenths", false)
+            and (max(1, min(10, tonumber(GetSetting("tenthsThreshold", 1)) or 1)) - .2) or 45
+        if buttons[1]._remain ~= sample then
+            buttons[1]._remain = sample
+            buttons[1]._cdEnds = nil
+        end
 		local fontName = live.font or GetSetting("font", DEFAULT_FONT_NAME)
 		local fontPath = ResolveFontPath(fontName)
 		local fontFlags = live.fontFlags or GetSetting("fontFlags", "OUTLINE")
@@ -498,7 +484,8 @@ function GcdPreview:Create(parent)
 			now = GetTime()
 		end
 		local remain = max(0, (btn._gcdEnds or now) - now)
-		btn._cdText:SetText(format(" %.1f ", remain))
+		local text = SarychUI.CooldownText.Format(remain, GetCcDB() or {}, nil, "actionBars")
+		btn._cdText:SetText(text)
 	end)
 	TrackInstance(self, host)
 	Layout()

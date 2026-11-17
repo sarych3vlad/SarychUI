@@ -632,8 +632,14 @@ end
 do
 -- UI string map: Russian source -> esES
 local M = {}
-M["ui.unit_frames.show_blizzard_text"] = "Mostrar (ajustes de Blizzard)"
-M["ui.unit_frames.hide_text"] = "Ocultar"
+M["ui.unit_frames.show_blizzard_text"] = "Ajustes originales de Blizzard"
+M["ui.unit_frames.hide_text"] = "Estilo SarychUI"
+M["ui.unit_frames.bfa_text"] = "Ajustes originales de Blizzard BFA"
+M["ui.unit_frames.thousands_separator"] = "Separador de miles"
+M["ui.unit_frames.thousands_separator_desc"] = "Mostrar los valores completos de salud y recursos con comas entre los miles: 1234567 → 1,234,567. Solo para el estilo BFA."
+M["ui.unit_frames.status_text_size"] = "Tamaño del texto de las barras"
+M["ui.unit_frames.status_text_scale"] = "Escala del texto"
+M["ui.unit_frames.status_text_scale_desc"] = "Tamaño del texto de salud y recursos en las barras. 100% es el tamaño original de Blizzard. Se aplica a todos los modos de indicadores de texto."
 M["+ Текст боя"] = "+ Texto de combate"
 M["ui.options_077ad54da2"] = "Seguimiento de reutilización de habilidades"
 M["- Текст боя"] = "- Texto de combate"
@@ -2838,6 +2844,10 @@ SarychUI.RegisterUIMap("esES", {
 
 SarychUI.RegisterUIMap("esES", {
     ["ui.nameplates.indicator_size"] = "Tamaño de los indicadores",
+    ["ui.nameplates.level_background"] = "Fondo del nivel",
+    ["ui.nameplates.friendly_names"] = "Nombres de aliados",
+    ["ui.nameplates.friendly_class_names"] = "Nombres con color de clase",
+    ["ui.nameplates.friendly_class_names_desc"] = "Colorea los nombres de jugadores amistosos según su clase. Con Awesome, la clase se obtiene directamente del indicador. El cliente estándar usa las listas actuales del grupo, banda, hermandad y campo de batalla, además del objetivo, foco y unidad bajo el ratón. Las clases obtenidas al pasar el ratón o seleccionar un objetivo se recuerdan hasta cambiar de zona. La caché no se guarda en disco.",
     ["ui.nameplates.mode_reload_hint"] = "|cFFFFD700Atención:|r Cambiar este ajuste requiere recargar la interfaz.",
     ["ui.text_b3e68b98"] = "Cantidad de objetos entre personajes",
     ["ui.text_0781c0a5"] = "Activar el seguimiento de cantidades",
@@ -2887,6 +2897,18 @@ SarychUI.RegisterUIMap("esES", {
 
 SarychUI:RegisterUIMap("esES", {
     ["ui.equipment.title"] = "Información del equipo",
+    ["ui.action_bars.native_settings"] = "Barras de acción",
+    ["ui.action_bars.bottom_left"] = "Barra inferior izquierda",
+    ["ui.action_bars.bottom_right"] = "Barra inferior derecha",
+    ["ui.action_bars.right"] = "Barra derecha",
+    ["ui.action_bars.right_two"] = "Barra derecha 2",
+    ["ui.action_bars.lock"] = "Bloquear barras de acción",
+    ["ui.action_bars.always_show"] = "Mostrar siempre",
+    ["ui.action_bars.secure_toggle"] = "Evitar desactivación accidental",
+    ["ui.unit_frames.pet_names"] = "Nombres de mascotas",
+    ["ui.unit_frames.pet_names_desc"] = "Mostrar los nombres completos, acortar los nombres largos u ocultar los nombres en el marco de mascota.",
+    ["ui.unit_frames.pet_names_full"] = "Nombres completos",
+    ["ui.unit_frames.pet_names_hide"] = "Ocultar nombres",
     ["ui.equipment.score"] = "Mostrar GearScore / Item Level",
     ["ui.equipment.sources"] = "Mostrar fuentes del equipo",
     ["ui.equipment.sources_title"] = "Fuentes del equipo",
@@ -2909,4 +2931,67 @@ SarychUI:RegisterUIMap("esES", {
     ["ui.castbar.latency_above"] = "Encima de la barra",
     ["ui.castbar.latency_below"] = "Debajo de la barra",
     ["ui.castbar.latency_text_alpha"] = "Opacidad del texto",
+    ["ui.nameplates.totems"] = "Tótems",
+    ["ui.nameplates.pet.snakes"] = "Serpientes de la trampa",
+    ["ui.nameplates.pet.mirrorimage"] = "Imágenes especulares",
+    ["ui.nameplates.pet.waterelemental"] = "Elemental de agua",
+    ["ui.nameplates.pet_display"] = "Visualización de mascotas y criaturas invocadas",
+    ["ui.nameplates.pet_plates"] = "Mostrar indicadores de criaturas invocadas",
+    ["ui.nameplates.pet_fallback_plates"] = "Mostrar indicador",
+    ["ui.nameplates.pet_fallback_hide"] = "Ocultar por completo",
+    ["ui.nameplates.pet_icon_castbars"] = "Mostrar barras de lanzamiento junto a los iconos",
+    ["ui.nameplates.pet_plate_on_target"] = "Mostrar placa de nombre del objetivo actual",
+    ["ui.nameplates.pet_icon_lifetime"] = "Mostrar tiempo de existencia en el icono",
+    ["ui.nameplates.pet_icon_lifetime_desc"] = "Cuenta atrás circular para una criatura identificada tras observar una invocación de duración conocida. También usa datos disponibles del juego para tu mascota temporal. Sin datos de tiempo o vínculo con la criatura no se muestra un temporizador. Los números y su formato dependen de Tiempos de reutilización y temporizadores. Las duraciones pueden variar en servidores modificados.",
+    ["ui.nameplates.pet.shadowfiend"] = "Maligno de las Sombras",
+    ["ui.nameplates.pet.wolves"] = "Lobo espiritual",
+    ["ui.nameplates.pet.gargoyle"] = "Gárgola",
+    ["ui.nameplates.pet.ghoul"] = "Necrófago",
+    ["ui.nameplates.pet.hunterpet"] = "Mascota de cazador",
+    ["ui.nameplates.pet.imp"] = "Diablillo",
+    ["ui.nameplates.pet.voidwalker"] = "Abisario",
+    ["ui.nameplates.pet.felguard"] = "Guardia vil",
+    ["ui.nameplates.pet.treants"] = "Antárboles (Fuerza de la Naturaleza)",
+    ["ui.nameplates.pet.armyofthedead"] = "Ejército de muertos",
+    ["ui.nameplates.pet.succubus"] = "Súcubo",
+    ["ui.nameplates.pet.felhunter"] = "Manáfago",
+    ["ui.nameplates.totem_display"] = "Visualización de tótems",
+    ["ui.nameplates.totem_plates"] = "Mostrar indicadores de tótems",
+    ["ui.nameplates.totem_icons"] = "Mostrar iconos en lugar de indicadores",
+    ["ui.nameplates.native_settings"] = "Indicadores de salud",
+    ["ui.nameplates.allow_overlap"] = "Permitir superposición de indicadores",
+    ["ui.nameplates.show_friends"] = "Indicadores de aliados",
+    ["ui.nameplates.show_enemies"] = "Indicadores de enemigos",
+    ["ui.nameplates.guardians"] = "Guardianes",
+})
+
+SarychUI.RegisterUIMap("esES", {
+    ["ui.cc.last_five_red"] = "Últimos |cffff00005 segundos en rojo|r",
+    ["ui.cc.show_tenths"] = "Mostrar décimas de segundo",
+    ["ui.cc.tenths_threshold"] = "Mostrar décimas a partir de (s)",
+    ["ui.cc.tenths_exceptions"] = "Excepciones",
+    ["ui.cc.tenths_locations_help"] = "Desmarca una ubicación para mostrar solo segundos enteros.",
+    ["ui.cc.location.actionBars"] = "Barras de acción",
+    ["ui.cc.location.petBar"] = "Barra de mascota",
+    ["ui.cc.location.forms"] = "Barra de actitudes y formas",
+    ["ui.cc.location.spellbook"] = "Libro de hechizos",
+    ["ui.cc.location.items"] = "Objetos en bolsas y equipo",
+    ["ui.cc.location.playerAuras"] = "Auras del jugador",
+    ["ui.cc.location.unitAuras"] = "Auras en marcos de unidad",
+    ["ui.cc.location.groupAuras"] = "Auras de grupo y banda",
+    ["ui.cc.location.auraTracking"] = "Seguimiento de auras",
+    ["ui.cc.location.trackedCooldowns"] = "Seguimiento de reutilización",
+    ["ui.cc.location.arena"] = "Temporizadores y abalorios de arena",
+    ["ui.cc.location.diminishings"] = "Rendimiento decreciente",
+    ["ui.cc.location.petLifetime"] = "Duración de criaturas invocadas",
+    ["ui.cc.location.internalCooldowns"] = "Reutilizaciones internas",
+    ["ui.cc.location.castbar"] = "Iconos de barras de lanzamiento",
+    ["ui.cc.location.other"] = "Otros temporizadores circulares",
+    ["ui.unit_frames.target_target"] = "Objetivo del objetivo",
+    ["ui.unit_frames.focus_target"] = "Objetivo del foco",
+    ["ui.unit_frames.relative_offset"] = "Desplazamiento desde la posición predeterminada junto al marco principal. Cero restaura la posición predeterminada.",
+    ["ui.unit_frames.relative_drag"] = "Mover el marco con el ratón desde su posición predeterminada.",
+    ["ui.unit_frames.reposition_desc"] = "Permitir mover los marcos del jugador, objetivo, foco, objetivo del objetivo y objetivo del foco.",
+    ["ui.castbar.ignore_standard_offset"] = "Ignorar el desplazamiento predeterminado",
+    ["ui.castbar.ignore_standard_offset_desc"] = "Con la posición activada y Y distinto de cero, no elevar la barra por la barra de mascota, barras adicionales u otros elementos de Blizzard. El desplazamiento parte de la posición base predeterminada.",
 })

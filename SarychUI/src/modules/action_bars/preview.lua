@@ -17,6 +17,18 @@ local function Tr(s)
 	return s
 end
 
+local function LayoutPreviewIcon(icon, button)
+	local style = SarychUI_InterfaceStyle
+	if style and style.enabled and style:GetCropIcons() then
+		SarychUI.Frameworks.ApplyButtonIconCrop(icon, button)
+	else
+		icon:ClearAllPoints()
+		icon:SetSize(36, 36)
+		icon:SetPoint("CENTER", button, "CENTER", 0, 0)
+		icon:SetTexCoord(0, 1, 0, 1)
+	end
+end
+
 local SAMPLE_ICONS = {
 	"Interface\\Icons\\Spell_Holy_FlashHeal",
 	"Interface\\Icons\\Spell_Fire_Fireball02",
@@ -129,6 +141,7 @@ local function MakePreviewButton(parent, index)
 	icon:SetSize(36, 36)
 	icon:SetPoint("CENTER", btn, "CENTER", 0, 0)
 	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+	btn._icon = icon
 
 	-- Hotkey (top-right), like Blizzard ActionButton HotKey.
 	local hotkey = btn:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmallGray")
@@ -183,14 +196,16 @@ function Preview:Create(parent)
 				local black = style:GetTextureMode() == "black"
 				btn._slot:SetTexture(black and style.normalTexture or "Interface\\Buttons\\UI-Quickslot2")
 				btn._slot:SetSize(black and 44 or 64, black and 44 or 64)
-				local r, g, b, a = style.GetColor()
-				local value = black and style:GetGlossBrightness()
-				btn._slot:SetVertexColor(black and value or r,
-					black and value or g, black and value or b, a)
+				btn._slot:SetVertexColor(style:GetBorderColor())
+				btn._slot:SetAlpha(style:GetButtonBorderAlpha())
+				LayoutPreviewIcon(btn._icon, btn)
 			else
 				btn._slot:SetTexture("Interface\\Buttons\\UI-Quickslot2")
 				btn._slot:SetSize(64, 64)
 				btn._slot:SetVertexColor(1, 1, 1, 1)
+				btn._slot:SetAlpha(SarychUI.Frameworks.ButtonBorderAlpha(
+					GetSetting("buttonBorderAlphaEnabled", false), GetSetting("buttonBorderAlpha", 0.4)))
+				LayoutPreviewIcon(btn._icon, btn)
 			end
 			if hotkeyMode == "custom" then
 				btn._hotkey:SetFont(hotkeyFont or "Fonts\\FRIZQT__.TTF", GetSetting("hotkeyFontSize", 12),
@@ -366,14 +381,16 @@ function ColorPreview:Create(parent)
 				local black = style:GetTextureMode() == "black"
 				btn._slot:SetTexture(black and style.normalTexture or "Interface\\Buttons\\UI-Quickslot2")
 				btn._slot:SetSize(black and 44 or 64, black and 44 or 64)
-				local r, g, b, a = style.GetColor()
-				local value = black and style:GetGlossBrightness()
-				btn._slot:SetVertexColor(black and value or r,
-					black and value or g, black and value or b, a)
+				btn._slot:SetVertexColor(style:GetBorderColor())
+				btn._slot:SetAlpha(style:GetButtonBorderAlpha())
+				LayoutPreviewIcon(btn._icon, btn)
 			else
 				btn._slot:SetTexture("Interface\\Buttons\\UI-Quickslot2")
 				btn._slot:SetSize(64, 64)
 				btn._slot:SetVertexColor(1, 1, 1, 1)
+				btn._slot:SetAlpha(SarychUI.Frameworks.ButtonBorderAlpha(
+					GetSetting("buttonBorderAlphaEnabled", false), GetSetting("buttonBorderAlpha", 0.4)))
+				LayoutPreviewIcon(btn._icon, btn)
 			end
 		end
 		local cdOn = GetSetting("colorCooldownEnabled", false)
@@ -982,19 +999,17 @@ function TransparencyPreview:Create(parent)
 			if style and style.enabled then
 				local r, g, b, a = style.GetColor()
 				if not isBag and newTextures then
-					local value = style:GetGlossBrightness()
-					rim:SetVertexColor(value, value, value, a)
+					rim:SetVertexColor(style:GetBorderColor())
 				else
 					rim:SetVertexColor(r, g, b, a)
 				end
 			else
 				rim:SetVertexColor(1, 1, 1, 1)
 			end
-			rim:SetAlpha(newTextures and 1 or (borderOn and borderAlpha or 1))
+			rim:SetAlpha(SarychUI.Frameworks.ButtonBorderAlpha(borderOn, borderAlpha))
 		end
 		SetRim(border, newTextures and 44 or 64)
-		local crop = 0.07
-		icon:SetTexCoord(crop, 1 - crop, crop, 1 - crop)
+		LayoutPreviewIcon(icon, actionWrap)
 
 		local useDf = GetSetting("microMenuStyle", "dragonflight") == "dragonflight"
 		for _, btn in ipairs(microButtons) do
@@ -1035,7 +1050,10 @@ function TransparencyPreview:Create(parent)
 		local bagA = bagOn and bagAlpha or 1
 		for _, btn in ipairs(bagButtons) do
 			btn:SetAlpha(bagA)
-			if btn._icon then btn._icon:SetTexCoord(crop, 1 - crop, crop, 1 - crop) end
+			if btn._icon then
+				btn._iconCrop = SarychUI.Frameworks.SetIconCrop(btn._icon, btn._iconCrop,
+					style and style.enabled and style:GetCropIcons(), btn)
+			end
 			if btn._rim then
 				SetRim(btn._rim, bagSize + 14, true)
 			end

@@ -20,6 +20,7 @@ BigDebuffs = LibStub("AceAddon-3.0"):NewAddon("BigDebuffs", "AceEvent-3.0", "Ace
 BigDebuffs:SetEnabledState(false)
 local L = LibStub("AceLocale-3.0"):GetLocale("BigDebuffs")
 local timerAppearance = {
+	context = "auraTracking",
 	compactUnits = true,
 	baseColor = {1, 1, 1, 1},
 	minuteSuffix = L["m"],

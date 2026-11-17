@@ -15,7 +15,7 @@ local original = {
 
 local function IsOriginal(path, kind)
 	if type(path) ~= "string" then return false end
-	path = path:gsub("/", "\\"):lower()
+	path = path:gsub("/", "\\"):lower():gsub("%.blp$", ""):gsub("%.tga$", "")
 	for _, expected in ipairs(original[kind]) do
 		if path == expected then return true end
 	end
@@ -39,6 +39,16 @@ local function SaveRegion(state, region)
 	}
 end
 
+local function NormalColor(state, region, preserveOriginal)
+	local color = state.lastNormalColors[region]
+	local preserve = preserveOriginal or state.preserveColor
+	local r, g, b, a = Style:GetBorderColor(preserve and color or nil)
+	if not preserve and Style:GetTextureMode() == "classic" then
+		a = a * (color[4] or 1)
+	end
+	return r, g, b, a
+end
+
 local function HoldNormalColor(state, region, preserveOriginal)
 	if state.colorSetters[region] then return end
 	local setter = region.SetVertexColor
@@ -47,20 +57,7 @@ local function HoldNormalColor(state, region, preserveOriginal)
 	region.SetVertexColor = function(self, r, g, b, a)
 		if Style.enabled then
 			state.lastNormalColors[self] = { r, g, b, a or 1 }
-			local sr, sg, sb, sa = Style.GetColor()
-			local black = Style:GetTextureMode() == "black"
-			local alpha = black and sa or (a or 1)
-			if black then
-				local value = Style:GetGlossBrightness()
-				if preserveOriginal or state.preserveColor then
-					return setter(self, r * value, g * value, b * value, alpha)
-				end
-				return setter(self, value, value, value, alpha)
-			end
-			if preserveOriginal or state.preserveColor then
-				return setter(self, r * sr, g * sg, b * sb, alpha)
-			end
-			return setter(self, sr, sg, sb, alpha)
+			return setter(self, NormalColor(state, self, preserveOriginal))
 		end
 		return setter(self, r, g, b, a)
 	end
@@ -76,6 +73,10 @@ local function ApplyActionBorder(button, state)
 	border:SetVertexColor(unpack(state.lastNormalColors[border]))
 end
 
+local function NormalAlpha(state)
+	return state.manageBorderAlpha and Style:GetButtonBorderAlpha() or 1
+end
+
 local function HoldNormalAlpha(state, region)
 	if state.alphaSetters[region] then return end
 	local setter = region.SetAlpha
@@ -84,7 +85,7 @@ local function HoldNormalAlpha(state, region)
 	region.SetAlpha = function(self, alpha)
 		if Style.enabled then
 			state.lastNormalAlphas[self] = alpha
-			return setter(self, 1)
+			return setter(self, NormalAlpha(state))
 		end
 		return setter(self, alpha)
 	end
@@ -99,43 +100,25 @@ local function ApplyNormal(button, state)
 	local styled = false
 	local function Paint(region, namedRegion)
 		if region and ((not black and namedRegion) or IsOriginal(region:GetTexture(), "normal")
-			or region:GetTexture() == Style.textures.normal) then
+			or region:GetTexture() == Style.textures.normal
+			or (not state.preserveColor and namedRegion and not region:GetTexture())) then
 			if not state.originalNormal and IsOriginal(region:GetTexture(), "normal") then
 				state.originalNormal = region:GetTexture()
 			end
 			SaveRegion(state, region)
 			state.normalRegions[region] = true
 			HoldNormalColor(state, region)
+			if black or state.manageBorderAlpha then HoldNormalAlpha(state, region) end
 			if black then
-				HoldNormalAlpha(state, region)
 				region:SetTexture(Style.textures.normal)
 				region:ClearAllPoints()
 				region:SetAllPoints(button)
 			end
 			-- Keep Blizzard's item-state hue on equipment slots.
-			local sr, sg, sb, sa = Style.GetColor()
-			local color = state.lastNormalColors[region]
-			local alpha = black and sa or (color[4] or 1)
-			if black and state.preserveColor then
-				local value = Style:GetGlossBrightness()
-				state.colorSetters[region](region,
-					(color[1] or 1) * value,
-					(color[2] or 1) * value,
-					(color[3] or 1) * value,
-					alpha)
-			elseif black then
-				local value = Style:GetGlossBrightness()
-				state.colorSetters[region](region, value, value, value, alpha)
-			elseif state.preserveColor then
-				state.colorSetters[region](region,
-					(color[1] or 1) * sr,
-					(color[2] or 1) * sg,
-					(color[3] or 1) * sb,
-					alpha)
-			else
-				state.colorSetters[region](region, sr, sg, sb, alpha)
+			state.colorSetters[region](region, NormalColor(state, region))
+			if state.alphaSetters[region] then
+				state.alphaSetters[region](region, NormalAlpha(state))
 			end
-			if black then state.alphaSetters[region](region, 1) end
 			styled = true
 		end
 	end
@@ -173,10 +156,7 @@ local function ApplyIcon(button, state)
 	if not icon then return end
 	SaveRegion(state, icon)
 	state.iconRegions[icon] = true
-	icon:ClearAllPoints()
-	icon:SetPoint("TOPLEFT", button, "TOPLEFT", 2, -2)
-	icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -2, 2)
-	icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+	state.iconCrop = SarychUI.Frameworks.SetIconCrop(icon, state.iconCrop, Style:GetCropIcons(), button)
 end
 
 local function ShowBackground(button)
@@ -196,11 +176,18 @@ local function ShowBackground(button)
 		})
 		backgrounds[button] = back
 	end
-	local r, g, b, a = Style.GetColor()
+	local r, g, b, a = Style:GetBackgroundColor()
 	back.fill:SetVertexColor(r, g, b, a * 0.7)
-	back:SetBackdropBorderColor(0, 0, 0, a * 0.9)
+	back:SetBackdropBorderColor(r, g, b, a * 0.9)
 	back:SetFrameLevel(math.max(0, button:GetFrameLevel() - 1))
 	back:Show()
+end
+
+function Style:RefreshBackgrounds()
+	if not self.enabled or self:GetTextureMode() ~= "black" then return end
+	for button in pairs(backgrounds) do
+		if states[button] then ShowBackground(button) end
+	end
 end
 
 local function InstallSetters(button, state)
@@ -237,16 +224,27 @@ end
 
 local function StyleButton(button, isItem)
 	if not Style.enabled or not button or not button.GetNormalTexture then return end
+	-- TalentButtonTemplate inherits ItemButtonTemplate and uses the same global
+	-- item-update helpers. The native talent window owns all of its artwork.
+	-- Resolve ancestry at call time: Blizzard_TalentUI is loaded on demand.
+	local owner = button
+	while owner do
+		if owner == _G.PlayerTalentFrame then return end
+		owner = owner.GetParent and owner:GetParent()
+	end
 	-- LargeItemButtonTemplate includes both an icon and a text label. Its full
 	-- rectangle is not an icon slot and must not receive square-slot artwork.
 	if isItem and button:GetWidth() > button:GetHeight() + 1 then return end
 	local state = states[button]
 	if not state then
+		local name = button.GetName and button:GetName() or ""
 		state = {
 			regions = {}, normalRegions = {}, iconRegions = {},
 			colorSetters = {}, lastNormalColors = {},
 			alphaSetters = {}, lastNormalAlphas = {}, preserveColor = isItem,
 			mode = Style:GetTextureMode(),
+			manageBorderAlpha = not isItem or name == "MainMenuBarBackpackButton"
+				or name:match("^CharacterBag%dSlot$") ~= nil,
 		}
 		states[button] = state
 	end
@@ -254,8 +252,8 @@ local function StyleButton(button, isItem)
 	ApplyActionBorder(button, state)
 	if styled then
 		InstallSetters(button, state)
+		ApplyIcon(button, state)
 		if state.mode == "black" then
-			ApplyIcon(button, state)
 			ShowBackground(button)
 			ApplyParts(button, state)
 		end
@@ -305,6 +303,9 @@ function Style:ApplyButtons()
 	for i = 1, (NUM_PET_ACTION_SLOTS or 10) do self.StyleActionButton(_G["PetActionButton" .. i]) end
 	for i = 1, (NUM_SHAPESHIFT_SLOTS or 10) do self.StyleActionButton(_G["ShapeshiftButton" .. i]) end
 	for i = 1, (POSSESS_SLOTS or 2) do self.StyleActionButton(_G["PossessButton" .. i]) end
+	for i = 1, 12 do self.StyleActionButton(_G["MultiCastActionButton" .. i]) end
+	self.StyleActionButton(_G.MultiCastSummonSpellButton)
+	self.StyleActionButton(_G.MultiCastRecallSpellButton)
 	local bars = SarychUI and SarychUI.FrostAtomBars
 	if bars and bars.IsActive and bars.IsActive() and bars.ForEachStyledButton then
 		bars.ForEachStyledButton(self.StyleActionButton)
@@ -329,6 +330,7 @@ end
 
 function Style:RestoreButtons()
 	for button, state in pairs(states) do
+		state.iconCrop = SarychUI.Frameworks.SetIconCrop(nil, state.iconCrop, false)
 		if state.setters then
 			for method, setter in pairs(state.setters) do button[method] = setter end
 		end
@@ -349,10 +351,10 @@ function Style:RestoreButtons()
 			if not state.iconRegions[region] then
 				region:SetVertexColor(unpack(state.lastNormalColors[region] or saved.color))
 			end
-			if state.mode == "black" and not state.iconRegions[region] then
+			if state.alphaSetters[region] then
 				region:SetAlpha(state.lastNormalAlphas[region] or saved.alpha)
 			end
-			if state.mode == "black" then
+			if state.mode == "black" and not state.iconRegions[region] then
 				region:SetTexCoord(unpack(saved.coords))
 				region:ClearAllPoints()
 				for _, point in ipairs(saved.points) do region:SetPoint(unpack(point)) end
@@ -368,15 +370,13 @@ function Style:InstallButtonHooks()
 	if self.buttonHooksInstalled or not hooksecurefunc then return end
 	self.buttonHooksInstalled = true
 	if ActionButton_Update then hooksecurefunc("ActionButton_Update", self.StyleActionButton) end
-	if PetActionBar_Update then
-		hooksecurefunc("PetActionBar_Update", function()
-			if Style.enabled then Style:ApplyButtons() end
-		end)
-	end
-	if ShapeshiftBar_Update then
-		hooksecurefunc("ShapeshiftBar_Update", function()
-			if Style.enabled then Style:ApplyButtons() end
-		end)
+	for _, name in ipairs({ "PetActionBar_Update", "ShapeshiftBar_Update", "PossessBar_Update",
+		"MultiCastActionBarFrame_Update", "MultiCastSummonSpellButton_Update", "MultiCastRecallSpellButton_Update" }) do
+		if _G[name] then
+			hooksecurefunc(name, function()
+				if Style.enabled then Style:ApplyButtons() end
+			end)
+		end
 	end
 	if SetItemButtonTexture then
 		hooksecurefunc("SetItemButtonTexture", function(button)

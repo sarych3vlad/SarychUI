@@ -509,8 +509,8 @@ local function LayoutCastbar(unitType)
 	local blizz = GetBlizzardBar(unitType)
 	local playerOffsetY = 0
 	if unitType == "player" then
-		local db = module.DB and module:DB()
-		playerOffsetY = db and tonumber(db.dragonflightCastbarOffsetY) or 0
+		local _, offset = module:GetPlayerPositionSettings("dragonflight")
+		playerOffsetY = offset
 	end
 	frames.container:ClearAllPoints()
 	if blizz then
@@ -625,7 +625,7 @@ function DF:HideCastbar(unitType)
 	end
 	if frames.iconCooldown and CooldownFrame_SetTimer then
 		CooldownFrame_SetTimer(frames.iconCooldown, 0, 0, 0)
-		if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(frames.iconCooldown, 0, 0, 0) end
+		if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(frames.iconCooldown, 0, 0, 0, "castbar") end
 	end
 end
 
@@ -688,10 +688,10 @@ function DF:ApplyPlayerIconCooldown()
 		local start = castbar.startTime or 0
 		local duration = (castbar.endTime or start) - start
 		CooldownFrame_SetTimer(cooldown, start, duration, 1)
-		if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(cooldown, start, duration, 1) end
+		if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(cooldown, start, duration, 1, "castbar") end
 	else
 		CooldownFrame_SetTimer(cooldown, 0, 0, 0)
-		if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(cooldown, 0, 0, 0) end
+		if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(cooldown, 0, 0, 0, "castbar") end
 	end
 end
 
@@ -787,11 +787,11 @@ function DF:HandleCastStart(unitType, unit, isChanneling)
 	if unitType == "player" and frames.iconCooldown and CooldownFrame_SetTimer then
 		if UsesPlayerIconCooldown() then
 			CooldownFrame_SetTimer(frames.iconCooldown, start, finish - start, 1)
-			if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(frames.iconCooldown, start, finish - start, 1) end
+			if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(frames.iconCooldown, start, finish - start, 1, "castbar") end
 		else
 			CooldownFrame_SetTimer(frames.iconCooldown, 0, 0, 0)
-			if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(frames.iconCooldown, 0, 0, 0) end
-		if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(frames.iconCooldown, 0, 0, 0) end
+			if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(frames.iconCooldown, 0, 0, 0, "castbar") end
+		if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(frames.iconCooldown, 0, 0, 0, "castbar") end
 		end
 	end
 
@@ -877,7 +877,7 @@ function DF:HandleCastStop(unitType, wasInterrupted, isChannelStop, overrideText
 	end
 	if frames.iconCooldown and CooldownFrame_SetTimer then
 		CooldownFrame_SetTimer(frames.iconCooldown, 0, 0, 0)
-		if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(frames.iconCooldown, 0, 0, 0) end
+		if SarychUI_NotifyCooldown then SarychUI_NotifyCooldown(frames.iconCooldown, 0, 0, 0, "castbar") end
 	end
 	if not wasInterrupted and not isChannelStop and unitType ~= "player" then
 		if not (UnitIsUnit and UnitIsUnit(unitType, "player")) then

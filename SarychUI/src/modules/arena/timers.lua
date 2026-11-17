@@ -3,7 +3,8 @@ local timers = { frames = {}, totems = {}, eyes = {}, pickups = {} }
 module.ArenaTimers = timers
 local NATIVE_BAR_HEIGHT, NATIVE_ICON_SIZE, NATIVE_BAR_GAP = 14, 16, 4
 local NATIVE_ICON_GAP = 5 -- ArenaCastingBarFrameTemplate
-local tickTextOptions = { periodic = true, compactUnits = true, decimalThreshold = 3 }
+local timerTextOptions = { context = "arena" }
+local tickTextOptions = { periodic = true, compactUnits = true, context = "arena", decimalThreshold = 3 }
 local definitions = {
     tremor = { title = "ui.arena.timer_tremor", x = 320, y = -156, scale = 1.1, icon = "Spell_Nature_TremorTotem" },
     eyes = { title = "ui.arena.timer_eyes", x = 416, y = -174, scale = 1, icon = "Spell_Shadow_EvilEye" },
@@ -89,11 +90,6 @@ function timers:CombatEvent(event, source, sourceName, flags, dest, spell)
         self.eyeDurations[index] = 120
     end
 end
-local starts = {
-    "The Arena battle has begun!", "Бой начался!", "¡La batalla en arena ha comenzado!",
-    "Der Arenakampf hat begonnen!", "Le combat d'arène commence",
-    "A batalha na Arena começou!", "竞技场的战斗开始了", "競技場戰鬥開始了", "투기장 전투가 시작되었습니다",
-}
 function timers:Event(event, ...)
     if event == "PLAYER_ENTERING_WORLD" then
         self:ClearMatch()
@@ -108,10 +104,8 @@ function timers:Event(event, ...)
         self:Refresh()
     elseif event == "CHAT_MSG_BG_SYSTEM_NEUTRAL" or event == "CHAT_MSG_RAID_BOSS_EMOTE" then
         local text = ...
-        if InArena() and type(text) == "string" then
-            for _, start in ipairs(starts) do
-                if text:find(start, 1, true) then self:StartMatch(); break end
-            end
+        if InArena() and SarychUI.ArenaAnnouncements:IsStart(text) then
+            self:StartMatch()
         end
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
         -- Wrath 3.3.5 combat-log argument layout.
@@ -251,7 +245,7 @@ local function DrawIcon(frame, key, index, start, duration, now)
     local cc = SarychUI.modules.cc
     row.text:SetFontObject((key == "tremor" or bars) and GameFontHighlightSmall or GameFontHighlight)
     if cc and cc.UpdateTimerText then
-        cc:UpdateTimerText(row.text, left, duration, row, true, key == "tremor" and tickTextOptions or nil)
+        cc:UpdateTimerText(row.text, left, duration, row, true, key == "tremor" and tickTextOptions or timerTextOptions)
     else row.text:Hide() end
     if bars then
         -- Measure after CC has formatted/hidden this frame's current value.

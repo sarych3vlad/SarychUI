@@ -6,6 +6,10 @@ local LSM = E.Libs.LSM
 --WoW API / Variables
 
 function NP:Update_Level(frame)
+	if frame.IconOnlyChanged then
+		frame.Level:SetText()
+		return
+	end
 	if not self.db.units[frame.UnitType].level.enable then return end
 
 	local levelText, r, g, b = self:UnitLevel(frame)

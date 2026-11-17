@@ -172,7 +172,7 @@ function mod:CreateProcOverlay(itemID, spellID, start, duration)
     -- Устанавливаем кулдаун в стиле edge как у бафов
     CooldownFrame_SetTimer(cooldownFrame, currentTime, duration, 1);
     if SarychUI_NotifyCooldown then
-        SarychUI_NotifyCooldown(cooldownFrame, currentTime, duration, 1);
+        SarychUI_NotifyCooldown(cooldownFrame, currentTime, duration, 1, "internalCooldowns");
     end
     
     -- Позиционируем оверлей
@@ -340,7 +340,7 @@ function mod:RemoveProcOverlay(itemID)
         if overlay.cooldown and SarychUI_ReleaseCooldown then
             SarychUI_ReleaseCooldown(overlay.cooldown);
         elseif overlay.cooldown and SarychUI_NotifyCooldown then
-            SarychUI_NotifyCooldown(overlay.cooldown, 0, 0, 0);
+            SarychUI_NotifyCooldown(overlay.cooldown, 0, 0, 0, "internalCooldowns");
         end
         overlay.frame:Hide();
         overlay.frame:SetParent(nil);

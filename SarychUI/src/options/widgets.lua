@@ -995,15 +995,16 @@ function W:ButtonPair(parent, leftText, leftClick, leftTooltip, leftNameFn, righ
 	return row
 end
 
-function W:Checkbox(parent, text, get, set, tooltipFn, helpIcon, previewKey)
+function W:Checkbox(parent, text, get, set, tooltipFn, helpIcon, previewKey, indent)
 	local row = CreateFrame("Frame", nil, parent, nil, "widgets:13")
+    row._suiFullLabel = nil
 	row:SetHeight(T.sizes.rowH or 22)
 	row:EnableMouse(true)
 	row._previewKey = previewKey
 
 	local box = CreateFrame("Button", nil, row, nil, "widgets:14")
 	box:SetSize(16, 16)
-	box:SetPoint("LEFT", row, "LEFT", 0, 0)
+	box:SetPoint("LEFT", row, "LEFT", tonumber(indent) or 0, 0)
 	T:ApplyFlat(box, T.colors.inputBg, T.colors.border)
 
 	local check = box:CreateTexture(nil, "OVERLAY")
@@ -1151,14 +1152,107 @@ function W:Checkbox(parent, text, get, set, tooltipFn, helpIcon, previewKey)
 	return row
 end
 
+-- A borderless list entry: checkbox/name plus an optional select on its right.
+function W:CheckboxSelect(parent, name, get, set, values, selectGet, selectSet, selectHidden)
+    local row = self:Checkbox(parent, name(), get, set)
+    local dropdown = self:Dropdown(row, "", values, selectGet, selectSet)
+    row._suiSelect = dropdown
+    local measure = MakeLabel(row, "")
+    measure:Hide()
+    row.label:SetWordWrap(false)
+
+    local function Layout()
+        local width = math.max(80, row:GetWidth() or 80)
+        local hidden = selectHidden()
+        local selectWidth = hidden and 0 or math.min(170, math.max(90, width - 100))
+        dropdown:ClearAllPoints()
+        dropdown:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+        dropdown:SetWidth(selectWidth)
+        if hidden then dropdown:Hide() else dropdown:Show() end
+        local available = math.max(1, width - 22 - (hidden and 0 or selectWidth + 6))
+        local full = name()
+        row._suiFullLabel = full
+        local prefix, body = full:match("^(|T.-|t%s*)(.*)$")
+        prefix, body = prefix or "", body or full
+        local text = full
+        measure:SetText(text)
+        if measure:GetStringWidth() > available then
+            repeat
+                -- Drop a complete UTF-8 character; preserve the inline icon tag.
+                body = body:gsub("[%z\1-\127\194-\244][\128-\191]*$", "")
+                text = prefix .. body .. "..."
+                measure:SetText(text)
+            until body == "" or measure:GetStringWidth() <= available
+        end
+        row.label:ClearAllPoints()
+        row.label:SetPoint("LEFT", row.box, "RIGHT", 6, 0)
+        row.label:SetWidth(available)
+        row.label:SetText(text)
+    end
+    local refresh, disable = row.Refresh, row.SetDisabled
+    row.Refresh = function(self)
+        refresh(self)
+        dropdown:Refresh()
+        Layout()
+    end
+    row.SetDisabled = function(self, disabled)
+        disable(self, disabled)
+        dropdown:SetDisabled(disabled)
+        Layout()
+    end
+    row:SetScript("OnSizeChanged", Layout)
+    row:Refresh()
+    return row
+end
+
+local function ColorPickerNoop() end
+
+local function ClearOwnedColorPicker(picker)
+	picker._suiOwner, picker._suiOnHide, picker._suiFinish = nil, nil, nil
+	-- Legacy OK calls func unconditionally, even after Hide released its owner.
+	-- Keep a closure-free callable; no callback may retain a recycled option row.
+	picker.func, picker.opacityFunc, picker.cancelFunc = ColorPickerNoop, nil, nil
+end
+
+local function InstallColorPickerActions(picker)
+	if picker._suiActionsInstalled then return end
+	picker._suiActionsInstalled = true
+	for _, entry in ipairs({{"ColorPickerOkayButton", false}, {"ColorPickerCancelButton", true}}) do
+		local button, cancel = _G[entry[1]], entry[2]
+		if button then
+			local original = button:GetScript("OnClick")
+			button:SetScript("OnClick", function(self, ...)
+				if picker._suiFinish then
+					picker._suiFinish(cancel)
+					if PlaySound then PlaySound("igMainMenuOptionCheckBoxOn") end
+				elseif original then
+					return original(self, ...)
+				end
+			end)
+		end
+	end
+	local originalKey = picker:GetScript("OnKeyDown")
+	picker:SetScript("OnKeyDown", function(self, key, ...)
+		if self._suiFinish and GetBindingFromClick(key) == "TOGGLEGAMEMENU" then
+			self._suiFinish(true)
+		elseif originalKey then
+			return originalKey(self, key, ...)
+		end
+	end)
+	picker:HookScript("OnHide", function(self)
+		local fn = self._suiOnHide
+		if fn then fn() end
+	end)
+end
+
 function W:ColorPicker(parent, text, get, set, hasAlpha, tooltipFn, previewKey)
 	local row = CreateFrame("Frame", nil, parent, nil, "widgets:16")
+	local released = false
 	if SUI.OptionsPool then
 		SUI.OptionsPool:OnRelease(row, function()
+			released = true
 			if ColorPickerFrame and ColorPickerFrame._suiOwner == row then
-				ColorPickerFrame._suiOwner = nil
-				ColorPickerFrame._suiOnHide = nil
-				ColorPickerFrame.func, ColorPickerFrame.opacityFunc, ColorPickerFrame.cancelFunc = nil, nil, nil
+				ClearOwnedColorPicker(ColorPickerFrame)
 				HideUIPanel(ColorPickerFrame)
 			end
 		end)
@@ -1207,27 +1301,30 @@ function W:ColorPicker(parent, text, get, set, hasAlpha, tooltipFn, previewKey)
 	end
 
 	local function ColorCallback(r, g, b, a, confirmed)
+		if released then return end
 		if not row._hasAlpha then
 			a = 1
 		end
 		ApplyColor(r, g, b, a)
 		if row._previewKey then
 			NotifyPreview({ r, g, b, a }, true)
-			SafeCall(set, r, g, b, a)
+			if not released then SafeCall(set, r, g, b, a) end
 		elseif confirmed then
 			SafeCall(set, r, g, b, a)
 		end
 	end
 
 	swatch:SetScript("OnClick", function()
-		if row._disabled then return end
+		if released or row._disabled then return end
 		if not ColorPickerFrame then return end
 		HideUIPanel(ColorPickerFrame)
+		if released then return end
+		InstallColorPickerActions(ColorPickerFrame)
 		ColorPickerFrame._suiOwner = row
 		ColorPickerFrame:SetFrameStrata("FULLSCREEN_DIALOG")
 
 		local cr, cg, cb, ca = row._r or 1, row._g or 1, row._b or 1, (row._a == nil) and 1 or row._a
-		local cancelled = false
+		local initializing = true
 
 		local function CurrentAlpha()
 			if row._hasAlpha and OpacitySliderFrame then
@@ -1237,6 +1334,7 @@ function W:ColorPicker(parent, text, get, set, hasAlpha, tooltipFn, previewKey)
 		end
 
 		ColorPickerFrame.func = function()
+			if released or initializing or ColorPickerFrame._suiOwner ~= row then return end
 			local r, g, b = ColorPickerFrame:GetColorRGB()
 			ColorCallback(r, g, b, CurrentAlpha(), false)
 		end
@@ -1245,6 +1343,7 @@ function W:ColorPicker(parent, text, get, set, hasAlpha, tooltipFn, previewKey)
 		if row._hasAlpha then
 			ColorPickerFrame.opacity = 1 - (ca or 0)
 			ColorPickerFrame.opacityFunc = function()
+				if released or initializing or ColorPickerFrame._suiOwner ~= row then return end
 				local r, g, b = ColorPickerFrame:GetColorRGB()
 				ColorCallback(r, g, b, CurrentAlpha(), false)
 			end
@@ -1252,31 +1351,25 @@ function W:ColorPicker(parent, text, get, set, hasAlpha, tooltipFn, previewKey)
 			ColorPickerFrame.opacityFunc = nil
 		end
 
-		ColorPickerFrame:SetColorRGB(cr, cg, cb)
-		ColorPickerFrame.cancelFunc = function()
-			cancelled = true
-			ColorCallback(cr, cg, cb, ca, true)
-		end
-		-- WotLK has OK/Cancel. Apply on close unless Cancel already restored.
-		ColorPickerFrame._suiOnHide = function()
-			if cancelled then return end
+		local function Finish(cancel, alreadyHidden)
+			if released or ColorPickerFrame._suiOwner ~= row then return end
 			local r, g, b = ColorPickerFrame:GetColorRGB()
-			ColorCallback(r, g, b, CurrentAlpha(), true)
+			local a = CurrentAlpha()
+			if cancel then r, g, b, a = cr, cg, cb, ca end
+			-- Detach before the setter: it may rebuild/recycle this row or open
+			-- another picker. Never clear the new owner's callbacks afterwards.
+			ClearOwnedColorPicker(ColorPickerFrame)
+			ColorCallback(r, g, b, a, true)
+			if not alreadyHidden and ColorPickerFrame.func == ColorPickerNoop then
+				HideUIPanel(ColorPickerFrame)
+			end
 		end
-		if not ColorPickerFrame._suiHideHooked then
-			ColorPickerFrame._suiHideHooked = true
-			ColorPickerFrame:HookScript("OnHide", function()
-				local fn = ColorPickerFrame._suiOnHide
-				ColorPickerFrame._suiOnHide = nil
-				if fn then fn() end
-				if ColorPickerFrame._suiOwner then
-					ColorPickerFrame._suiOwner = nil
-					ColorPickerFrame.func, ColorPickerFrame.opacityFunc, ColorPickerFrame.cancelFunc = nil, nil, nil
-				end
-			end)
-		end
-
+		ColorPickerFrame._suiFinish = Finish
+		ColorPickerFrame.cancelFunc = function() Finish(true) end
+		ColorPickerFrame._suiOnHide = function() Finish(false, true) end
+		ColorPickerFrame:SetColorRGB(cr, cg, cb)
 		ShowUIPanel(ColorPickerFrame)
+		initializing = false
 	end)
 	swatch:SetScript("OnEnter", function(self)
 		NotifyPreview(nil, false)

@@ -8,6 +8,8 @@ local SCALE_MIN = 0.5
 local SCALE_MAX = 3
 local SCALE_DEFAULT = 1
 local FLASH = [[Interface\TargetingFrame\UI-TargetingFrame-Flash]]
+local BORDER = [[Interface\Tooltips\Nameplate-Border]]
+local BORDER_NO_LEVEL = [[Interface\AddOns\SarychUI\media\components\modules\nameplates\Nameplate-Border-nolvl]]
 
 local WorldFrameGetChildren = WorldFrame.GetChildren
 local InCombat = false
@@ -19,6 +21,14 @@ local events = CreateFrame("Frame")
 
 local Plates = {}
 local PlatesVisible = {}
+local levelBackgroundHidden = false
+
+local function IsTexturePath(texture, path)
+    if texture == path then return true end
+    if type(texture) ~= "string" then return false end
+    return texture:lower():gsub("/", "\\"):gsub("%.blp$", "")
+        == path:lower():gsub("%.blp$", "")
+end
 
 local function GetDB()
 	if SarychUI.GetModuleProfile then
@@ -55,10 +65,37 @@ local function AttachAutolosText(plate, visual)
 	if not fs or not visual or not fs.SetParent then
 		return
 	end
+	-- Distance chooses the visible icon or the normal visual wrapper. Do not
+	-- pull its label back into the hidden wrapper on every scale/show refresh.
+	if _G.Autolos and _G.Autolos.RefreshNameplate then
+		_G.Autolos.RefreshNameplate(plate, {layoutOnly=true})
+		return
+	end
 	if fs.GetParent and fs:GetParent() == visual then
 		return
 	end
 	fs:SetParent(visual)
+end
+
+local function ApplyLevelBackground(visual)
+    local border = visual and visual.levelBorder
+    if not border or visual.applyingLevelBorder then return end
+    visual.applyingLevelBorder = true
+    local hide = classicStarted and levelBackgroundHidden and GetMode() == "classic"
+    if hide then
+        visual.levelBorderState = visual.levelBorderState or {coords = {border:GetTexCoord()}}
+        if not IsTexturePath(border:GetTexture(), BORDER_NO_LEVEL) then
+            -- Same approach as unit_frames:SetBorderTexture: update the actual
+            -- health-border texture and preserve its native UV coordinates.
+            border:SetTexture(BORDER_NO_LEVEL)
+            border:SetTexCoord(unpack(visual.levelBorderState.coords))
+        end
+    elseif visual.levelBorderState then
+        border:SetTexture(BORDER)
+        border:SetTexCoord(unpack(visual.levelBorderState.coords))
+        visual.levelBorderState = nil
+    end
+    visual.applyingLevelBorder = nil
 end
 
 local function ApplyClassicPlateScale(plate)
@@ -68,6 +105,12 @@ local function ApplyClassicPlateScale(plate)
 		return
 	end
 	visual:SetScale(scale)
+	-- Auras may predate this wrapper. Reuse the same parent resolver as pet
+	-- icon transitions; their own scale stays relative to the plate's scale.
+	if _G.sarPlatesAuras_RefreshContainerParent then
+		_G.sarPlatesAuras_RefreshContainerParent(plate)
+	end
+	ApplyLevelBackground(visual)
 	AttachAutolosText(plate, visual)
 	if not InCombat then
 		plate:SetSize(visual.BaseWidth * scale, visual.BaseHeight * scale)
@@ -93,6 +136,7 @@ local function PlateOnShow(plate)
 		return
 	end
 	PlatesVisible[plate] = visual
+	if module.PreparePetNameplate then module:PreparePetNameplate(plate) end
 	visual:Show()
 	AttachAutolosText(plate, visual)
 	ApplyClassicPlateScale(plate)
@@ -134,6 +178,7 @@ local function ReparentChildren(plate, ...)
 			child:SetParent(visual)
 			child:SetFrameLevel(visual:GetFrameLevel() + levelOffset)
 			visual.regions[#visual.regions + 1] = child
+			if index == 2 then visual.castBar = child; visual.castParts[child] = true end
 		end
 	end
 end
@@ -142,8 +187,22 @@ local function ReparentRegions(plate, ...)
 	local visual = Plates[plate]
 	for index = 1, select("#", ...) do
 		local region = select(index, ...)
+		-- Select by role, not file path: the cast border can use the same texture.
+        -- Region 2 is healthBorder; region 3 is castBorder (FrameXML/LibNameplates).
+		if index == 2 and region.GetTexture and region.GetObjectType
+            and region:GetObjectType() == "Texture" then
+			visual.levelBorder = region
+			if hooksecurefunc then
+                hooksecurefunc(region, "SetTexture", function()
+                    if classicStarted and levelBackgroundHidden and GetMode() == "classic" then
+                        ApplyLevelBackground(visual)
+                    end
+                end)
+			end
+		end
 		region:SetParent(visual)
 		visual.regions[#visual.regions + 1] = region
+		if index >= 3 and index <= 5 then visual.castParts[region] = true end
 	end
 end
 
@@ -152,10 +211,13 @@ local function PlateAdd(plate)
 		return
 	end
 
+	local art = SarychUI.ClassicNameplateArt:Capture(plate)
 	local visual = CreateFrame("Frame", nil, plate)
+	visual._suiClassicRoot = plate
 	Plates[plate] = visual
 	visual.originalLevels = {}
 	visual.regions = {}
+	visual.castParts = {}
 	plate._suiClassicVisual = visual
 	visual:Hide()
 	visual:SetPoint("TOP")
@@ -168,9 +230,12 @@ local function PlateAdd(plate)
 	end
 	visual:SetSize(visual.BaseWidth, visual.BaseHeight)
 
-	ReparentChildren(plate, plate:GetChildren())
-	ReparentRegions(plate, plate:GetRegions())
+	ReparentChildren(plate, art:GetChildren())
+	ReparentRegions(plate, art:GetRegions())
 	visual:EnableDrawLayer("HIGHLIGHT")
+	if module.PrepareFriendlyNameplate then module:PrepareFriendlyNameplate(plate) end
+	if module.PrepareTotemNameplate then module:PrepareTotemNameplate(plate) end
+	if module.PreparePetNameplate then module:PreparePetNameplate(plate) end
 
 	if plate:GetScript("OnShow") then
 		plate:HookScript("OnShow", PlateOnShow)
@@ -191,8 +256,10 @@ local function PlatesScan(...)
 	for index = 1, select("#", ...) do
 		local frame = select(index, ...)
 		if not Plates[frame] and not frame.UnitFrame then
-			local region = frame:GetRegions()
-			if region and region.GetObjectType and region:GetObjectType() == "Texture" and region.GetTexture and region:GetTexture() == FLASH then
+			local region, border = frame:GetRegions()
+			if region and region.GetObjectType and region:GetObjectType() == "Texture" and region.GetTexture
+                and (IsTexturePath(region:GetTexture(), FLASH)
+                    or (border and border.GetTexture and IsTexturePath(border:GetTexture(), BORDER))) then
 				PlateAdd(frame)
 			end
 		end
@@ -210,6 +277,10 @@ local function WorldFrameOnUpdate()
 		childCount = newChildCount
 		PlatesScan(WorldFrameGetChildren(self))
 	end
+    -- C++ updates bypass Lua hooks. Keep the selected texture on visible plates.
+    if levelBackgroundHidden then
+        for _, visual in pairs(PlatesVisible) do ApplyLevelBackground(visual) end
+    end
 end
 
 local function StartClassicScale()
@@ -238,6 +309,7 @@ local function RestoreClassicPlates()
     if not restorePending then return end
     restorePending = false
     for plate, visual in pairs(Plates) do
+        ApplyLevelBackground(visual)
         for _, region in ipairs(visual.regions) do
             region:SetParent(plate)
             if visual.originalLevels[region] then region:SetFrameLevel(visual.originalLevels[region]) end
@@ -248,6 +320,11 @@ local function RestoreClassicPlates()
         end
         plate:SetSize(visual.BaseWidth, visual.BaseHeight)
         plate._suiClassicVisual = nil
+        -- Move aura containers off the wrapper before hiding it. Their local
+        -- scale and icon sizes remain owned by the aura settings.
+        if _G.sarPlatesAuras_RefreshContainerParent then
+            _G.sarPlatesAuras_RefreshContainerParent(plate)
+        end
         visual:SetScale(1)
         visual:Hide()
         PlatesVisible[plate] = nil
@@ -256,6 +333,7 @@ end
 
 function module:StopNameplateScale()
     classicStarted = false
+    levelBackgroundHidden = false
     driver:SetScript("OnUpdate", nil)
     driver:Hide()
     events:UnregisterAllEvents()
@@ -273,6 +351,7 @@ function module:ApplyNameplateScale()
         self:StopNameplateScale()
         return
     end
+    levelBackgroundHidden = db.classicLevelBackground == "hide"
     InCombat = InCombatLockdown()
     events:RegisterEvent("PLAYER_REGEN_DISABLED")
     events:RegisterEvent("PLAYER_REGEN_ENABLED")

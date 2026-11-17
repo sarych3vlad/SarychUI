@@ -101,9 +101,12 @@ function module:RefreshConfig()
 		self:ApplyNameplateScale()
 	end
     if self.RefreshPetIcons then self:RefreshPetIcons() end
+    if self.RefreshTotems then self:RefreshTotems() end
+    if self.RefreshFriendlyClassNames then self:RefreshFriendlyClassNames() end
 end
 
 function module:Initialize()
+    if self.InitializeNativeNameplateOptions then self:InitializeNativeNameplateOptions() end
     self:Applyautolos(true)
 	self:EnsureAutolosProfiles()
 	self:ApplyAutolosSettings()
@@ -119,6 +122,8 @@ function module:Disable()
     self:ApplyNamePlates(false)
     self:Applyautolos(true)
     if self.StopNameplateScale then self:StopNameplateScale() end
+    if self.DisableFriendlyClassNames then self:DisableFriendlyClassNames() end
+    if self.DisableTotems then self:DisableTotems() end
 end
 
 return module

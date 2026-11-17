@@ -126,7 +126,7 @@ SUI.OptionsTooltip = { Show = ShowCooltip, Hide = HideCooltip }
 -- A checkbox and its label share one cursor-following tooltip.
 function SUI.OptionsTooltip.BindCheckbox(row)
     local function Enter()
-        local text = row.label:GetText()
+          local text = row._suiFullLabel or row.label:GetText()
         if text and text ~= "" then
             ShowCooltip(row, {text})
             SUI.OptionsTooltip.owner = row

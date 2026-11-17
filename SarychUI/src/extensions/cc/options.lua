@@ -83,6 +83,22 @@ local function timerToggleSet(key, applyFn)
 end
 
 function module:GetOptions()
+    local locationOptions = {
+        help = { type = "description", name = "ui.cc.tenths_locations_help", order = 0, width = "full" },
+    }
+    for order, context in ipairs(self.TimerContexts) do
+        local key = context
+        locationOptions[key] = {
+            type = "toggle", name = "ui.cc.location." .. key, order = order,
+            get = function() return GetSetting("tenthsLocations", {})[key] ~= false end,
+            set = function(_, value)
+                local locations = {}
+                for k, v in pairs(GetSetting("tenthsLocations", {})) do locations[k] = v end
+                locations[key] = value
+                SetAndApply("tenthsLocations", locations)
+            end,
+        }
+    end
     return {
         type = "group",
         name = L and (L["Cooldown Text"] or SarychUI:T("ui.options_3911356ba6")) or SarychUI:T("ui.options_3911356ba6"),
@@ -217,6 +233,29 @@ function module:GetOptions()
                                 order = 7, width = "full", suiFullRow = true,
                                 get = function() return GetSetting("lastFiveSecondsRed", false) end,
                                 set = function(_, value) SetAndApply("lastFiveSecondsRed", value) end,
+                            },
+                            showTenths = {
+                                type = "toggle", name = "ui.cc.show_tenths",
+                                order = 8, width = "full", suiFullRow = true,
+                                get = function() return GetSetting("showTenths", false) end,
+                                set = function(_, value)
+                                    SetAndApply("showTenths", value)
+                                    if SarychUI.OptionsCore then SarychUI.OptionsCore:ScheduleSmartRefresh(true) end
+                                end,
+                            },
+                            tenthsThreshold = {
+                                type = "range", name = "ui.cc.tenths_threshold",
+                                order = 9, min = 1, max = 10, step = 1,
+                                width = "full", suiFullRow = true,
+                                hidden = function() return not GetSetting("showTenths", false) end,
+                                get = function() return GetSetting("tenthsThreshold", 1) end,
+                                set = function(_, value) SetAndApply("tenthsThreshold", value) end,
+                            },
+                            tenthsLocations = {
+                                type = "group", name = "ui.cc.tenths_exceptions",
+                                order = 10, inline = true, suiTwoCol = true,
+                                hidden = function() return not GetSetting("showTenths", false) end,
+                                args = locationOptions,
                             },
                         },
                     },
