@@ -144,6 +144,10 @@ function mod:StyleFilterSetChanges(frame, actions, HealthColorChanged, BorderCha
 		frame.StyleChanged = true
 		frame.VisibilityChanged = true
 		frame:Hide()
+		-- SUI aura containers belong to the root, outside this hidden UnitFrame.
+		if _G.sarPlatesAuras_HidePlateAuras then
+			_G.sarPlatesAuras_HidePlateAuras(frame:GetParent())
+		end
 		return --We hide it. Lets not do other things (no point)
 	end
 	if FrameLevelChanged then

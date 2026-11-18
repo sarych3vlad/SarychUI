@@ -17,6 +17,9 @@ function Visibility:SetHidden(root, kind, hidden)
     hidden = hidden and true or nil
     if root[key] == hidden then return end
     root[key] = hidden
+    if hidden and _G.sarPlatesAuras_HidePlateAuras then
+        _G.sarPlatesAuras_HidePlateAuras(root)
+    end
     if _G.Autolos and _G.Autolos.RefreshNameplate then
         _G.Autolos.RefreshNameplate(root, {layoutOnly=true})
     end

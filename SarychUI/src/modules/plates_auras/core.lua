@@ -1596,6 +1596,12 @@ function _G.UpdateAuras(namePlate, unitId, forcedGuid)
         return
     end
 
+    local visibility = SarychUI and SarychUI.NameplateVisibility
+    if visibility and visibility:IsHidden(namePlate) then
+        HidePlateAuras(namePlate)
+        return
+    end
+
     -- Get GUID from nameplate (primary method - most reliable)
     local plateGUID = nil
     if UseAwesomeWotlk() then
@@ -1918,6 +1924,11 @@ end
 
 function _G.sarPlatesAuras_UpdatePlateLayout(namePlate)
     if not namePlate then return end
+    local visibility = SarychUI and SarychUI.NameplateVisibility
+    if visibility and visibility:IsHidden(namePlate) then
+        HidePlateAuras(namePlate)
+        return
+    end
     local totems = SarychUI and SarychUI.NameplateTotems
     if totems and totems:ShouldHideAuras(namePlate, namePlate.namePlateUnitToken, namePlate._sarAuraGUID) then
         HidePlateAuras(namePlate)
