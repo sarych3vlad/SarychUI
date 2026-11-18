@@ -199,7 +199,7 @@ end
 
 -- Упрощенная функция для создания иконки ауры (для тестирования)
 local function CreateAuraIcon(frame, size, width, height, noBorder)
-    local icon = frame:CreateTexture(nil, "OVERLAY")
+    local icon = frame:CreateTexture(nil, "BACKGROUND")
     if width and height then
         -- Для прямоугольных иконок сохраняем пропорции через обрезку
         icon:SetSize(width, height)
@@ -249,6 +249,13 @@ end
 
 -- Функция для обновления текста кулдауна (упрощенная версия)
 local function UpdateTestCooldownText(frame, expirationTime, duration, stackCount)
+    local mod = SarychUI:GetModule("plates_auras", true)
+    local profile = mod and mod:GetActiveDisplayProfile()
+    local display = profile and profile.display
+    if SarychUI.TextureCooldown then
+        SarychUI.TextureCooldown.Set(frame, frame.auraIcon or frame.icon, expirationTime, duration,
+            display and display.cooldownEnabled)
+    end
     if not frame.cooldownText then return end
     
     -- Обновляем стаки
@@ -691,6 +698,14 @@ end
 -- Функция для очистки тестовых аур
 function TestMod.ClearTestAuras(namePlate)
     if not namePlate then return end
+    if SarychUI.TextureCooldown then
+        for _, key in ipairs({ "controlFrame", "castFrame", "mobilityFrame", "otherFrame" }) do
+            SarychUI.TextureCooldown.Clear(namePlate[key])
+        end
+        for _, auraFrame in ipairs(namePlate.playerFrame and namePlate.playerFrame.auraIcons or {}) do
+            SarychUI.TextureCooldown.Clear(auraFrame)
+        end
+    end
     
     -- Очищаем ControlFrame
     if namePlate.controlFrame and namePlate.controlFrame.auraIcon then

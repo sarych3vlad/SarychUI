@@ -65,15 +65,7 @@ local function XFraction(point)
     return 0
 end
 
-local function EffectiveScale(region)
-    -- Texture/FontString anchors inherit their parent Frame's scale and do
-    -- not expose GetEffectiveScale in the legacy client.
-    for i = 1, 8 do
-        if not region then return end
-        if region.GetEffectiveScale then return region:GetEffectiveScale() end
-        region = region.GetParent and region:GetParent()
-    end
-end
+local EffectiveScale = SarychUI.Frameworks.RegionEffectiveScale
 
 local function RelativeX(frame, root, depth)
     if frame == root then return 0 end

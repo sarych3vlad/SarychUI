@@ -66,15 +66,10 @@ function module:SyncTotemsToPlateVisibility(shown, alpha)
 	ApplyVisibility(shown, alpha)
 end
 
--- Parse the event payload directly; external API shims cannot change its layout.
+-- Share payload normalization with arena timers.
 local function ParseCLEU(...)
-	local _, sub, a, b, c, d, e, f, g = ...
-	-- WotLK: timestamp, sub, srcGUID, srcName, srcFlags, dstGUID, dstName, dstFlags, spellId
-	-- Cata-like: timestamp, sub, hideCaster, srcGUID, srcName, srcFlags, dstGUID, dstName, dstFlags, spellId
-	if type(a) == "boolean" or a == "1" or a == "0" then
-		return sub, b, e, select(10, ...)
-	end
-	return sub, a, d, g
+	local sub, source, _, _, dest, spell = SarychUI.CombatLog.Parse(...)
+	return sub, source, dest, spell
 end
 
 local function TotemData()

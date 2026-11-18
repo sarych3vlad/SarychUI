@@ -747,7 +747,7 @@ local function ApplyIconGeometry(icon, size, width, height)
 end
 
 local function CreateAuraIcon(frame, size, width, height, noBorder)
-    local icon = frame:CreateTexture(nil, "OVERLAY")
+    local icon = frame:CreateTexture(nil, "BACKGROUND")
     ApplyIconGeometry(icon, size, width, height)
     icon:SetPoint("CENTER", frame, "CENTER")
 
@@ -860,6 +860,7 @@ local function SetStackText(frame, text)
 end
 
 local function ClearAuraText(frame)
+    if SarychUI.TextureCooldown then SarychUI.TextureCooldown.Clear(frame) end
     SetCooldownText(frame, "")
     SetStackText(frame, "")
 end
@@ -929,6 +930,12 @@ SyncCooldownUpdates = function()
 end
 
 local function UpdateCooldownText(frame, expirationTime, duration, stackCount)
+    if SarychUI.TextureCooldown then
+        local profile = GetActiveDisplayProfile()
+        local display = profile and profile.display
+        SarychUI.TextureCooldown.Set(frame, GetAuraTexture(frame), expirationTime, duration,
+            display and display.cooldownEnabled)
+    end
     if not frame.cooldownText then 
         -- Создаем cooldownText если его нет
         local cooldownText = frame:CreateFontString(nil, "OVERLAY")
@@ -1201,6 +1208,8 @@ local function UpdateAuraFrameFromCache(namePlate, frame, size, foundAuras, aura
                 UpdateCooldownText(frame, bestAura.expirationTime, bestAura.duration, bestAura.stackCount)
             else
                 ClearAuraText(frame)
+                activeCooldownFrames[frame] = nil
+                SyncCooldownUpdates()
                 frame:SetScript("OnUpdate", nil)
             end
         end
@@ -1553,6 +1562,8 @@ local function UpdateOtherAurasFromCache(namePlate, foundAuras)
                 UpdateCooldownText(auraFrame, aura.expirationTime, aura.duration, aura.stackCount)
             else
                 ClearAuraText(auraFrame)
+                activeCooldownFrames[auraFrame] = nil
+                SyncCooldownUpdates()
                 auraFrame:SetScript("OnUpdate", nil)
             end
         else

@@ -1,13 +1,12 @@
 local module = SarychUI.modules.arena
-local timers = { frames = {}, totems = {}, eyes = {}, pickups = {} }
+local timers = { frames = {}, totems = SarychUI.TremorTicks.totems, eyes = {}, pickups = {} }
 module.ArenaTimers = timers
 local NATIVE_BAR_HEIGHT, NATIVE_ICON_SIZE, NATIVE_BAR_GAP = 14, 16, 4
 local NATIVE_ICON_GAP = 5 -- ArenaCastingBarFrameTemplate
 local timerTextOptions = { context = "arena" }
-local tickTextOptions = { periodic = true, compactUnits = true, context = "arena", decimalThreshold = 3 }
 local definitions = {
-    tremor = { title = "ui.arena.timer_tremor", x = 320, y = -156, scale = 1.1, icon = "Spell_Nature_TremorTotem" },
-    eyes = { title = "ui.arena.timer_eyes", x = 416, y = -174, scale = 1, icon = "Spell_Shadow_EvilEye" },
+    tremor = { title = "ui.arena.timer_tremor", x = 95, y = -62, scale = 1.1, icon = "Spell_Nature_TremorTotem" },
+    eyes = { title = "ui.arena.timer_eyes", x = 712, y = 226, scale = 1, icon = "Spell_Shadow_EvilEye" },
 }
 local function DB()
     local db = SarychUI.db.profile.modules.arena
@@ -15,7 +14,7 @@ local function DB()
     for key, def in pairs(definitions) do
         local cfg = db.timers[key] or {}
         db.timers[key] = cfg
-        if cfg.enabled == nil then cfg.enabled = true end
+        if cfg.enabled == nil then cfg.enabled = false end
         cfg.scale = cfg.scale or def.scale
         if key == "eyes" then
             if cfg.display ~= "bars" and cfg.display ~= "icons" then cfg.display = "bars" end
@@ -42,52 +41,36 @@ local function CloseMover(key)
     end
 end
 function timers:ClearMatch()
-    self.totems, self.eyes, self.pickups = {}, {}, {}
+    self.eyes, self.pickups = {}, {}
     self.eyeDurations = {}
-    self.started = nil
+    self.started, self.initialEyes = nil, nil
 end
 function timers:StartMatch()
     if not InArena() or self.started then return end
-    self.started = true
+    self.started, self.initialEyes = true, true
     self.eyes = { GetTime() + 91, GetTime() + 91 }
     self.eyeDurations = {91, 91}
 end
-function timers:CombatEvent(event, source, sourceName, flags, dest, spell)
+function timers:CombatEvent(event, source, sourceName, flags, dest, spell, destName, destFlags, timestamp)
     if not InArena() then return end
     local now = GetTime()
-    -- A replacement earth totem or Totemic Recall removes the old Tremor
-    -- even on servers which do not emit UNIT_DESTROYED for replacements.
-    local replacesEarth = false
-    if event == "SPELL_SUMMON" and spell and GetSpellInfo then
-        local name = GetSpellInfo(spell)
-        for _, base in ipairs({2484, 5730, 8071, 8075}) do
-            if name and name == GetSpellInfo(base) then replacesEarth = true; break end
+    timestamp = timestamp or now
+    if (event == "SPELL_AURA_APPLIED" or event == "SPELL_AURA_REFRESH") and spell == 34709 and dest then
+        -- Refresh is a second pickup by the same player while the first buff is
+        -- still active. Only discard identical combat-log deliveries.
+        local previous = self.pickups[dest]
+        if previous and previous.event == event and previous.timestamp == timestamp then return end
+        self.pickups[dest] = { event = event, timestamp = timestamp }
+        if self.initialEyes then
+            self.eyes, self.eyeDurations, self.initialEyes = {}, {}, nil
         end
-    end
-    if replacesEarth or (event == "SPELL_CAST_SUCCESS" and spell == 36936) then
-        for guid, totem in pairs(self.totems) do
-            if totem.owner == source then self.totems[guid] = nil end
-        end
-    end
-    if event == "SPELL_SUMMON" and spell == 8143 and dest
-        and flags and bit.band(flags, COMBATLOG_OBJECT_REACTION_HOSTILE or 64) ~= 0 then
-        for guid, totem in pairs(self.totems) do
-            if totem.owner == source then self.totems[guid] = nil end
-        end
-        self.totems[dest] = { owner = source, name = sourceName, start = now, expires = now + 300 }
-    elseif event == "UNIT_DIED" or event == "UNIT_DESTROYED" then
-        if dest then self.totems[dest] = nil end
-        for guid, totem in pairs(self.totems) do
-            if totem.owner == dest then self.totems[guid] = nil end
-        end
-    elseif event == "SPELL_AURA_APPLIED" and spell == 34709 and dest then
-        -- Each pickup restarts one of the two crystals. Ignore duplicate delivery.
-        if self.pickups[dest] and now - self.pickups[dest] < 2 then return end
-        self.pickups[dest] = now
         local index = (self.eyes[1] or 0) <= (self.eyes[2] or 0) and 1 or 2
-        self.eyes[index] = now + 120
+        -- A real pickup overrides our prediction, even if it happened earlier
+        -- than the displayed deadline. The other crystal keeps its own clock.
+        local duration = SarychUI.ArenaTiming:EyeRespawn()
+        self.eyes[index] = now + duration
         self.eyeDurations = self.eyeDurations or {}
-        self.eyeDurations[index] = 120
+        self.eyeDurations[index] = duration
     end
 end
 function timers:Event(event, ...)
@@ -108,9 +91,7 @@ function timers:Event(event, ...)
             self:StartMatch()
         end
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-        -- Wrath 3.3.5 combat-log argument layout.
-        local _, subevent, source, name, flags, dest, _, _, spell = ...
-        self:CombatEvent(subevent, source, name, flags, dest, spell)
+        self:CombatEvent(SarychUI.CombatLog.Parse(...))
     end
     self:Update()
 end
@@ -130,13 +111,11 @@ local function EnsureIcon(frame, key, index)
     row.icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
     row.__sary_partyAbility = true -- same tracked-ability text policy as Aesa/OmniBar
     if tremor then
-        row.shade = row:CreateTexture(nil, "ARTWORK")
-        row.shade:SetTexture(0, 0, 0, 0.7)
-        row.shade:SetPoint("TOPLEFT", row.icon, "TOPLEFT")
-        row.edge = row:CreateTexture(nil, "OVERLAY")
-        row.edge:SetTexture(1, 1, 1, 0.65)
-        row.edge:SetSize(36, 1)
-        row.edge:SetPoint("TOPLEFT", row.shade, "BOTTOMLEFT")
+        row.tremorView = SarychUI.TremorIcon:Create(row, row.icon)
+        row.shade, row.edge = row.tremorView.shade, row.tremorView.edge
+        row.procBorder, row.text = row.tremorView.procBorder, row.tremorView.text
+        frame.icons[index] = row
+        return row
     else
         row.cooldown = CreateFrame("Cooldown", nil, row, "CooldownFrameTemplate")
         row.cooldown:SetAllPoints(row.icon)
@@ -151,14 +130,6 @@ local function EnsureIcon(frame, key, index)
     -- Native arena castbar text style, shared with the Shadow Sight bars.
     row.text = row.overlay:CreateFontString(nil, "OVERLAY", tremor and "GameFontHighlightSmall" or "GameFontHighlight")
     row.text:SetJustifyH(tremor and "CENTER" or "RIGHT")
-    if tremor then
-        row.procBorder = row.overlay:CreateTexture(nil, "OVERLAY")
-        row.procBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-        row.procBorder:SetBlendMode("ADD")
-        row.procBorder:SetPoint("CENTER", row.icon, "CENTER")
-        row.procBorder:SetSize(36 * 48 / 26, 36 * 48 / 26)
-        row.procBorder:SetVertexColor(1, 0.82, 0.28)
-    end
     if not tremor then
         row.bar = CreateFrame("StatusBar", nil, row)
         row.bar:SetSize(200, 24)
@@ -193,6 +164,11 @@ local function EnsureIcon(frame, key, index)
 end
 local function DrawIcon(frame, key, index, start, duration, now)
     local row = EnsureIcon(frame, key, index)
+    if key == "tremor" then
+        SarychUI.TremorIcon:Draw(row.tremorView, start, now, "arena")
+        row:Show()
+        return
+    end
     local left = math.max(0, start + duration - now)
     local cfg = DB().eyes
     local bars = key == "eyes" and cfg.display == "bars"
@@ -231,13 +207,7 @@ local function DrawIcon(frame, key, index, start, duration, now)
         row.text:SetHeight(0)
         if row.bar then row.bar:Hide(); row.label:Hide() end
     end
-    if key == "tremor" then
-        -- Reveal the icon from bottom to top during each three-second tick.
-        row.shade:SetSize(size, math.max(0.001, size * math.min(1, left / duration)))
-        -- Same glow/range as arena proc trinkets, but one pulse per tick.
-        -- At the wrap both sides meet at alpha=1: no independent pulse clock.
-        row.procBorder:SetAlpha(0.65 + 0.35 * math.cos((now - start) / duration * 2 * math.pi))
-    elseif row.start ~= start or row.duration ~= duration then
+    if row.start ~= start or row.duration ~= duration then
         CooldownFrame_SetTimer(row.cooldown, start, duration, 1)
         row.start, row.duration = start, duration
     end
@@ -245,7 +215,7 @@ local function DrawIcon(frame, key, index, start, duration, now)
     local cc = SarychUI.modules.cc
     row.text:SetFontObject((key == "tremor" or bars) and GameFontHighlightSmall or GameFontHighlight)
     if cc and cc.UpdateTimerText then
-        cc:UpdateTimerText(row.text, left, duration, row, true, key == "tremor" and tickTextOptions or timerTextOptions)
+        cc:UpdateTimerText(row.text, left, duration, row, true, timerTextOptions)
     else row.text:Hide() end
     if bars then
         -- Measure after CC has formatted/hidden this frame's current value.
@@ -275,30 +245,34 @@ function timers:Update()
                     count = 1
                 else
                     DrawIcon(frame, key, 1, now - now % 30, 30, now)
-                    DrawIcon(frame, key, 2, now - now % 45, 45, now)
-                    count = 2
+                    count = 1
+                    if (now - (self.testStarted or now)) % 45 >= 5 then
+                        DrawIcon(frame, key, 2, now - now % 45, 45, now)
+                        count = 2
+                    end
                 end
             elseif InArena() then
                 if key == "tremor" then
                     local guids = {}
                     for guid, totem in pairs(self.totems) do
                         if now >= totem.expires then self.totems[guid] = nil
-                        else guids[#guids + 1] = guid end
+                        elseif totem.hostile then guids[#guids + 1] = guid end
                     end
                     table.sort(guids)
                     for _, guid in ipairs(guids) do
                         local totem = self.totems[guid]
                         count = count + 1
-                        local start = totem.start + math.floor((now - totem.start) / 3) * 3
-                        DrawIcon(frame, key, count, start, 3, now)
+                        DrawIcon(frame, key, count, totem.start, 3, now)
                     end
                 elseif self.eyes[1] or self.eyes[2] then
                     for i = 1, 2 do
-                        local finish = self.eyes[i] or now
-                        local duration = self.eyeDurations and self.eyeDurations[i] or 91
-                        DrawIcon(frame, key, i, finish - duration, duration, now)
+                        local finish = self.eyes[i]
+                        if finish and finish > now and (not self.initialEyes or i == 1) then
+                            local duration = self.eyeDurations and self.eyeDurations[i] or 91
+                            count = count + 1
+                            DrawIcon(frame, key, count, finish - duration, duration, now)
+                        end
                     end
-                    count = 2
                 end
             end
         end
@@ -306,6 +280,11 @@ function timers:Update()
         if count > 0 then
             frame:SetSize(key == "tremor" and count * 40 - 4 or (cfg.eyes.display == "bars" and cfg.eyes.barWidth + NATIVE_ICON_SIZE + NATIVE_ICON_GAP or 80),
                 key == "tremor" and 36 or (cfg.eyes.display == "bars" and 2 * NATIVE_ICON_SIZE + NATIVE_BAR_GAP or 52))
+            if key == "eyes" and count == 1 then
+                local row = frame.icons[1]
+                row:ClearAllPoints()
+                row:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, -(frame:GetHeight() - row:GetHeight()) / 2)
+            end
             frame:Show()
         else frame:Hide() end
     end
@@ -325,6 +304,7 @@ function timers:Refresh()
     if self.stopping then return end
     local cfg, db = DB()
     if not db.enabled then self:Disable(); return end
+    SarychUI.TremorTicks:SetConsumer("arena", cfg.tremor.enabled)
     local active = cfg.tremor.enabled or cfg.eyes.enabled
     if not active then self.testing = false end
     for key, def in pairs(definitions) do
@@ -369,6 +349,7 @@ function timers:Refresh()
     self:Update()
 end
 function timers:Disable()
+    SarychUI.TremorTicks:SetConsumer("arena", false)
     self.stopping = true
     self.testing = false
     if self.watcher then self.watcher:UnregisterAllEvents(); self.watcher:Hide() end
@@ -395,7 +376,7 @@ function timers:GetOptions()
     local test = { type = "execute",
         name = function() return SarychUI:T(timers.testing and "ui.options_2aa205e3d3" or "ui.options_ec1868c5a7") end,
         disabled = function() local cfg = DB(); return InArena() or (not cfg.tremor.enabled and not cfg.eyes.enabled) end,
-        func = function() if InArena() then return end; timers.testing = not timers.testing; Notify() end }
+        func = function() if InArena() then return end; timers.testing = not timers.testing; timers.testStarted = GetTime(); Notify() end }
     local args = {}
     for index, key in ipairs({"tremor", "eyes"}) do
         local def = definitions[key]

@@ -610,7 +610,7 @@ function module:EnableArenaCountdown()
 
     S.startArenaCountdownFunc = function(duration)
         if not IsArenaCountdownEnabled() then return end
-        S.arenaTracker.baseDeadline = GetTime() + duration
+        S.arenaTracker.baseDeadline = GetTime() + duration - SarychUI.ArenaTiming:DoorLead()
         S.arenaTracker.deadline = S.arenaTracker.baseDeadline + ArenaCountdownOffset()
         local left = S.arenaTracker.deadline - GetTime()
         if left <= 0 then S.stopArenaCountdownFunc(); return end

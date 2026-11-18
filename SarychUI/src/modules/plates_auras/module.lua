@@ -507,6 +507,8 @@ function module:OnAuraDisplaySettingChanged(key, value)
         _G["sarPlatesAuras_SetAlpha"](value)
     elseif key == "scale" and _G["sarPlatesAuras_SetScale"] then
         _G["sarPlatesAuras_SetScale"](value)
+    elseif key == "cooldownEnabled" then
+        self:DoAuraRerenderNow()
     end
 
 end

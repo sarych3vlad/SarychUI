@@ -60,27 +60,7 @@ local function GetCollapsedTable()
 	return {}
 end
 
-local function SpecialCaseName(name)
-	if not name then
-		return ""
-	end
-	local partof = GetAddOnMetadata(name, "X-Part-Of") or GetAddOnMetadata(name, "X-Child-Of")
-	if partof then
-		return partof .. "_" .. name
-	end
-	if name == "DBM-Core" then
-		return "DBM"
-	elseif name:match("DBM%-") then
-		return name:gsub("DBM%-", "DBM_")
-	elseif name:sub(1, 1) == "+" or name:sub(1, 1) == "!" or name:sub(1, 1) == "_" then
-		return name:sub(2)
-	elseif name == "ShadowedUF_Options" then
-		return "ShadowedUnitFrames_Options"
-	elseif name:match("^WeakAuras") then
-		return name:gsub("WeakAuras(%w+)", "WeakAuras_%1")
-	end
-	return name
-end
+local SpecialCaseName = SarychUI.AddonGrouping.GetSortName
 
 local function SplitFirst(name, sep)
 	local pos = name:find(sep, 1, true)

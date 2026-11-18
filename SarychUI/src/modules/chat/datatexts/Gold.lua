@@ -26,6 +26,8 @@ local totalGold = 0
 local altGold = 0
 local profit = 0
 local spent = 0
+-- Persisted character balances are for the realm total, not session income.
+local lastMoney
 
 local function BuildDataTable()
 	wipe(dataTable)
@@ -59,10 +61,10 @@ local function OnEvent(self, event)
 
 	local curMoney = GetMoney()
 
-	if not dataUpdated and (event == "PLAYER_ENTERING_WORLD" or event == "ELVUI_FORCE_RUN") then
+	if not dataUpdated then
 		DT.goldDB.gold = DT.goldDB.gold or {}
 		DT.goldDB.gold[E.myrealm] = DT.goldDB.gold[E.myrealm] or {}
-		DT.goldDB.gold[E.myrealm][E.myname] = DT.goldDB.gold[E.myrealm][E.myname] or curMoney
+		DT.goldDB.gold[E.myrealm][E.myname] = curMoney
 
 		DT.goldDB.class = DT.goldDB.class or {}
 		DT.goldDB.class[E.myrealm] = DT.goldDB.class[E.myrealm] or {}
@@ -74,13 +76,15 @@ local function OnEvent(self, event)
 		self:UnregisterEvent("PLAYER_ENTERING_WORLD")
 	end
 
-	local oldMoney = DT.goldDB.gold[E.myrealm][E.myname]
-
-	if oldMoney > curMoney then
-		spent = spent - (curMoney - oldMoney)
-	else
-		profit = profit + (curMoney - oldMoney)
+	if lastMoney ~= nil then
+		local change = curMoney - lastMoney
+		if change < 0 then
+			spent = spent - change
+		else
+			profit = profit + change
+		end
 	end
+	lastMoney = curMoney
 
 	DT.goldDB.gold[E.myrealm][E.myname] = curMoney
 	totalGold = altGold + curMoney
@@ -158,6 +162,8 @@ local function OnClick(self, btn)
 		if IsShiftKeyDown() then
 			profit = 0
 			spent = 0
+			lastMoney = nil
+			OnEvent(self, "ELVUI_FORCE_RUN")
 			OnEnter(self)
 		else
 			OpenAllBags()

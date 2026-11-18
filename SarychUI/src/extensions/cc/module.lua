@@ -27,6 +27,10 @@ local function PartyAbilityExempt(frame)
     return frame and frame.__sary_partyAbility and getSetting("partyAbilitiesExempt", true)
 end
 
+local function WithinDisplayLimit(remaining)
+    return SarychUI.CooldownText.WithinDisplayLimit(remaining, DB() or {})
+end
+
 local function ResolveFontPath(fontNameOrPath)
     if type(fontNameOrPath) == "string" and fontNameOrPath:find("\\") then
         return fontNameOrPath
@@ -43,8 +47,8 @@ local function ResolveFontPath(fontNameOrPath)
     return "Fonts\\FRIZQT__.TTF"
 end
 
--- Context labels and runtime routing share the same keys. A missing saved entry
--- means enabled; disabling a location changes precision, never timer visibility.
+-- Context labels and runtime routing share the same keys. Default precision
+-- locations are resolved by CooldownText; disabling one never hides its timer.
 module.TimerContexts = {
     "actionBars", "petBar", "forms", "spellbook", "items", "playerAuras",
     "unitAuras", "groupAuras", "auraTracking", "trackedCooldowns", "arena",
@@ -93,7 +97,8 @@ module.FormatTime = formatCooldownText
 -- overlay. The owning view controls its geometry and which auras have timers;
 -- icon-size/min-duration filters only apply to the generic cooldown overlay.
 function module:UpdateNativeTimerText(text, remaining, appearance)
-    if not isEnabledFlag or not getSetting("enabled", true) or not remaining or remaining <= 0 then
+    if not isEnabledFlag or not getSetting("enabled", true) or not remaining or remaining <= 0
+        or not WithinDisplayLimit(remaining) then
         text:SetText("")
         text:Hide()
         return false
@@ -114,6 +119,7 @@ function module:UpdateTimerText(text, remaining, duration, owner, preserveAppear
     local periodic = timerOptions and timerOptions.periodic
     local allowed = isEnabledFlag and getSetting("enabled", true)
         and remaining > 0
+        and WithinDisplayLimit(remaining)
         and (periodic or duration > getSetting("minDuration", 3))
     if allowed and not PartyAbilityExempt(owner) then
         allowed = size >= getSetting("minIconSize", 23)
@@ -143,6 +149,83 @@ end
 local ccState = setmetatable({}, { __mode = "k" })
 local activeCountdowns = setmetatable({}, { __mode = "k" })
 local actionCountdowns = setmetatable({}, { __mode = "k" })
+
+-- Addon folder names are stable profile keys; titles are only display labels.
+-- The client discovers installed addons at startup, including load-on-demand ones.
+local timerAddons
+local ignoredTimerFamilies = {
+    sarychui = true, wcollections = true, atlasloot = true,
+    details = true, awesomecvar = true,
+}
+function module:GetTimerAddons()
+    if timerAddons then return timerAddons end
+    local list, families = {}, {}
+    if not GetNumAddOns or not GetAddOnInfo then return list end
+    for _, addon in ipairs(SarychUI.AddonGrouping.GetInstalled()) do
+        local family = addon.family
+        if not ignoredTimerFamilies[family:lower()] then
+            local entry = families[family]
+            if not entry then
+                entry = { name = family, title = family }
+                families[family] = entry
+                list[#list + 1] = entry
+            end
+            if addon.name == family then entry.title = addon.title end
+        end
+    end
+    table.sort(list, function(a, b) return a.name:lower() < b.name:lower() end)
+    timerAddons = list
+    return list
+end
+
+local function NamedAddonOwner(frame)
+    for _ = 1, 12 do
+        if not frame or frame == UIParent then break end
+        -- Explicit SUI contexts take precedence over a foreign ancestor.
+        if timerContexts[frame] or frame.__sary_partyAbility or frame.__sary_arenaTrinket
+            or frame.__sary_arenaDR or frame.__sary_petLifetime then return "SarychUI" end
+        local name = frame.GetName and frame:GetName()
+        if name then
+            if name:lower():match("^sarychui") then return "SarychUI" end
+            local addon = SarychUI.AddonGrouping.FindByName(name)
+            if addon then return addon.family end
+        end
+        frame = frame.GetParent and frame:GetParent()
+    end
+end
+
+local function CaptureAddonOwner(frame, state)
+    local parent = frame.GetParent and frame:GetParent()
+    if state.addonOwner ~= nil and state.addonParent == parent then return end
+    module:GetTimerAddons()
+    local owner = NamedAddonOwner(frame)
+    if not owner and module:GetTimerContext(frame) ~= "other" then owner = "SarychUI" end
+    if not owner and debugstack then
+        -- Anonymous icons (notably WeakAuras) have no useful frame name.
+        -- Inspect only their first live SetCooldown call, never the render loop.
+        -- Skip shared libraries: their install folder need not own the widget.
+        local stack = debugstack(2, 20, 0) or ""
+        for line in stack:gmatch("[^\n]+") do
+            local path = line:gsub("\\", "/"):lower()
+            if not path:find("/extensions/cc/module.lua", 1, true)
+                and not path:find("/libs/", 1, true) and not path:find("/lib/", 1, true)
+                and not path:find("/libraries/", 1, true) then
+                local addon = SarychUI.AddonGrouping.FindInPath(path)
+                if addon then owner = addon.family end
+                if owner then break end
+            end
+        end
+    end
+    -- Unknown/Blizzard widgets keep the existing behavior. Cache misses too.
+    state.addonOwner, state.addonParent = owner or false, parent
+end
+
+local function AddonTimerAllowed(state)
+    local settings = getSetting("addonTimers", {})
+    -- Listed third-party families require explicit opt-in in the active profile.
+    return not state.addonOwner or ignoredTimerFamilies[state.addonOwner:lower()]
+        or settings[state.addonOwner] == true
+end
 
 local function State(frame)
     local state = ccState[frame]
@@ -211,6 +294,8 @@ local function cooldown_OnUpdate(frame, elapsed, now)
     local owner = frame:GetParent()
     if not isEnabledFlag or not (owner and owner:IsVisible())
         or (frame.IsVisible and not frame:IsVisible()) or frame.__sary_cc_noCount
+        or not AddonTimerAllowed(state)
+        or not WithinDisplayLimit(remain)
         or (state.native and frame.noCooldownCount) then
         HideCountdown(state)
         state.nextUpdate = 0
@@ -353,6 +438,10 @@ local function InstallNativeCapture()
         -- Owners with their own timer can opt out. Explicit SarychUI_NotifyCooldown
         -- calls remain authoritative for SUI views that deliberately use this flag.
         if frame.noCooldownCount or frame.__sary_cc_noCount then return end
+        if type(start) == "number" and type(duration) == "number"
+            and start > 0 and duration > 0 and start + duration > GetTime() then
+            CaptureAddonOwner(frame, State(frame))
+        end
         handleSetCooldown(frame, start, duration, 1, true)
     end)
     nativeCaptureInstalled = true
@@ -591,7 +680,10 @@ function module:ApplySettings()
     end
     for _, state in pairs(ccState) do
         state.nextUpdate = 0
-        if not isEnabledFlag then HideCountdown(state) end
+        if not isEnabledFlag or not AddonTimerAllowed(state)
+            or (state.start and not WithinDisplayLimit(state.start + state.duration - GetTime())) then
+            HideCountdown(state)
+        end
     end
     -- Invite / arena countdown UI lives here; runtime stays in tools.
     local tools = SarychUI and SarychUI.modules and SarychUI.modules

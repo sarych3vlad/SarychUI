@@ -5,6 +5,17 @@ local floor, ceil, min, max, format = math.floor, math.ceil, math.min, math.max,
 local ru = GetLocale and GetLocale() == "ruRU"
 local day, hour, minute = ru and " д." or "d", ru and " ч." or "h", ru and "м" or "m"
 
+function F.IsTenthsLocationEnabled(locations, context)
+    if locations and locations[context] ~= nil then return locations[context] == true end
+    return context == "auraTracking" or context == "trackedCooldowns"
+end
+
+function F.WithinDisplayLimit(seconds, settings)
+    if settings.timerLimitEnabled ~= true then return true end
+    local limit = max(0, min(600, tonumber(settings.timerLimit) or 0))
+    return limit == 0 or seconds <= limit
+end
+
 function F.Color(seconds, settings, baseColor)
     local color = baseColor or settings.defaultColor or {1, 1, 1, 1}
     if settings.lastFiveSecondsRed and seconds > 0 and floor(seconds + .5) <= 5 then
@@ -16,12 +27,12 @@ end
 function F.Format(seconds, settings, appearance, context)
     local color = F.Color(seconds, settings, appearance and appearance.baseColor)
     local small, medium, large = settings.fontSizeSmall or 14, settings.fontSizeMedium or 12, settings.fontSizeLarge or 12
+    if not F.WithinDisplayLimit(seconds, settings) then return "", color, 1, large end
     context = (appearance and appearance.context) or context or "other"
-    local locations = settings.tenthsLocations
-    local threshold = max(1, min(10, tonumber(settings.tenthsThreshold) or 1))
+    local threshold = max(1, min(10, tonumber(settings.tenthsThreshold) or 3))
     -- Existing compact aura/tick views keep their own precision while the
     -- global override is off. When enabled, its threshold and exclusions win.
-    local tenths = settings.showTenths and (not locations or locations[context] ~= false)
+    local tenths = settings.showTenths and F.IsTenthsLocationEnabled(settings.tenthsLocations, context)
     if not settings.showTenths and appearance and appearance.decimalThreshold then
         threshold = appearance.decimalThreshold
         tenths = true

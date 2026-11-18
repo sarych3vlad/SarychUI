@@ -83,6 +83,24 @@ local function timerToggleSet(key, applyFn)
 end
 
 function module:GetOptions()
+    local addonOptions = {}
+    for order, addon in ipairs(self:GetTimerAddons()) do
+        local key = addon.name
+        addonOptions[key] = {
+            type = "toggle", name = addon.title, order = order,
+            desc = "ui.cc.addon_timers_desc",
+            get = function() return GetSetting("addonTimers", {})[key] == true end,
+            set = function(_, value)
+                local settings = {}
+                for k, v in pairs(GetSetting("addonTimers", {})) do settings[k] = v end
+                settings[key] = value
+                SetAndApply("addonTimers", settings)
+            end,
+        }
+    end
+    if #self:GetTimerAddons() == 0 then
+        addonOptions.empty = { type = "description", name = "ui.cc.addon_timers_empty", order = 1 }
+    end
     local locationOptions = {
         help = { type = "description", name = "ui.cc.tenths_locations_help", order = 0, width = "full" },
     }
@@ -90,7 +108,7 @@ function module:GetOptions()
         local key = context
         locationOptions[key] = {
             type = "toggle", name = "ui.cc.location." .. key, order = order,
-            get = function() return GetSetting("tenthsLocations", {})[key] ~= false end,
+            get = function() return SarychUI.CooldownText.IsTenthsLocationEnabled(GetSetting("tenthsLocations", {}), key) end,
             set = function(_, value)
                 local locations = {}
                 for k, v in pairs(GetSetting("tenthsLocations", {})) do locations[k] = v end
@@ -243,19 +261,39 @@ function module:GetOptions()
                                     if SarychUI.OptionsCore then SarychUI.OptionsCore:ScheduleSmartRefresh(true) end
                                 end,
                             },
-                            tenthsThreshold = {
-                                type = "range", name = "ui.cc.tenths_threshold",
-                                order = 9, min = 1, max = 10, step = 1,
-                                width = "full", suiFullRow = true,
+                            tenthsSettings = {
+                                type = "group", name = "", order = 9, inline = true,
                                 hidden = function() return not GetSetting("showTenths", false) end,
-                                get = function() return GetSetting("tenthsThreshold", 1) end,
-                                set = function(_, value) SetAndApply("tenthsThreshold", value) end,
-                            },
-                            tenthsLocations = {
-                                type = "group", name = "ui.cc.tenths_exceptions",
-                                order = 10, inline = true, suiTwoCol = true,
-                                hidden = function() return not GetSetting("showTenths", false) end,
-                                args = locationOptions,
+                                args = {
+                                    tenthsThreshold = {
+                                        type = "range", name = "ui.cc.tenths_threshold",
+                                        order = 9, min = 1, max = 10, step = 1,
+                                        width = "full", suiFullRow = true,
+                                        hidden = function() return not GetSetting("showTenths", false) end,
+                                        get = function() return GetSetting("tenthsThreshold", 3) end,
+                                        set = function(_, value) SetAndApply("tenthsThreshold", value) end,
+                                    },
+                                    showTenthsExceptions = {
+                                        type = "toggle", name = "ui.cc.show_tenths_exceptions",
+                                        order = 9.5, width = "full", suiFullRow = true,
+                                        hidden = function() return not GetSetting("showTenths", false) end,
+                                        get = function() return GetSetting("showTenthsExceptions", false) == true end,
+                                        set = function(_, value)
+                                            local db = SarychUI:GetModuleProfile(moduleName)
+                                            if not db then return end
+                                            db.showTenthsExceptions = value
+                                            if SarychUI.OptionsCore then SarychUI.OptionsCore:ScheduleSmartRefresh(true) end
+                                        end,
+                                    },
+                                    tenthsLocations = {
+                                        type = "group", name = "ui.cc.tenths_exceptions",
+                                        order = 10, inline = true, suiTwoCol = true,
+                                        hidden = function()
+                                            return not GetSetting("showTenths", false) or not GetSetting("showTenthsExceptions", false)
+                                        end,
+                                        args = locationOptions,
+                                    },
+                                },
                             },
                         },
                     },
@@ -268,33 +306,42 @@ function module:GetOptions()
                         suiTwoCol = true,
                         disabled = function() return not isEnabled() end,
                         args = {
-                            minScale = {
-                                type = "range",
-                                name = L and (L["Min_Scale"] or SarychUI:T("ui.options_74a0b56dc5")) or SarychUI:T("ui.options_74a0b56dc5"),
-                                desc = L and (L["Min_Scale_Desc"] or SarychUI:T("ui.options_9152e2ebcc")) or "",
-                                min = 0.1, max = 2.0, step = 0.05,
+                            sizeSettings = {
+                                type = "group",
+                                name = "",
                                 order = 1,
-                                get = function() return GetSetting("minScale", 0.5) end,
-                                set = function(_, v) SetAndApply("minScale", v) end,
-                            },
-                            minIconSize = {
-                                type = "range",
-                                name = L and (L["Min_Icon_Size"] or SarychUI:T("ui.options_cbd4b83753")) or SarychUI:T("ui.options_cbd4b83753"),
-                                desc = L and (L["Min_Icon_Size_Desc"] or SarychUI:T("ui.options_8f97405999")) or SarychUI:T("ui.options_8f97405999"),
-                                min = 8, max = 64, step = 1,
-                                order = 2,
-                                get = function() return GetSetting("minIconSize", 23) end,
-                                set = function(_, v) SetAndApply("minIconSize", v) end,
-                            },
-                            partyAbilitiesExempt = {
-                                type = "toggle",
-                                name = L and L["CC_PartyAbilitiesExempt"] or SarychUI:T("ui.options_ad29df6958"),
-                                desc = L and L["CC_PartyAbilitiesExempt_Desc"] or SarychUI:T("ui.options_ce260ee48d"),
-                                order = 3,
-                                width = "full",
-                                suiFullRow = true,
-                                get = function() return GetSetting("partyAbilitiesExempt", true) and true or false end,
-                                set = function(_, v) SetAndApply("partyAbilitiesExempt", v and true or false) end,
+                                inline = true,
+                                suiTwoCol = true,
+                                args = {
+                                    minScale = {
+                                        type = "range",
+                                        name = L and (L["Min_Scale"] or SarychUI:T("ui.options_74a0b56dc5")) or SarychUI:T("ui.options_74a0b56dc5"),
+                                        desc = L and (L["Min_Scale_Desc"] or SarychUI:T("ui.options_9152e2ebcc")) or "",
+                                        min = 0.1, max = 2.0, step = 0.05,
+                                        order = 1,
+                                        get = function() return GetSetting("minScale", 0.5) end,
+                                        set = function(_, v) SetAndApply("minScale", v) end,
+                                    },
+                                    minIconSize = {
+                                        type = "range",
+                                        name = L and (L["Min_Icon_Size"] or SarychUI:T("ui.options_cbd4b83753")) or SarychUI:T("ui.options_cbd4b83753"),
+                                        desc = L and (L["Min_Icon_Size_Desc"] or SarychUI:T("ui.options_8f97405999")) or SarychUI:T("ui.options_8f97405999"),
+                                        min = 8, max = 64, step = 1,
+                                        order = 2,
+                                        get = function() return GetSetting("minIconSize", 23) end,
+                                        set = function(_, v) SetAndApply("minIconSize", v) end,
+                                    },
+                                    partyAbilitiesExempt = {
+                                        type = "toggle",
+                                        name = L and L["CC_PartyAbilitiesExempt"] or SarychUI:T("ui.options_ad29df6958"),
+                                        desc = L and L["CC_PartyAbilitiesExempt_Desc"] or SarychUI:T("ui.options_ce260ee48d"),
+                                        order = 3,
+                                        width = "full",
+                                        suiFullRow = true,
+                                        get = function() return GetSetting("partyAbilitiesExempt", true) and true or false end,
+                                        set = function(_, v) SetAndApply("partyAbilitiesExempt", v and true or false) end,
+                                    },
+                                },
                             },
                             gcdPreview = {
                                 type = "description",
@@ -318,6 +365,23 @@ function module:GetOptions()
                                         SarychUI.GcdCooldownPreview:SetLiveValue("minDuration", v and 3 or 0)
                                     end
                                 end,
+                            },
+                            timerLimitEnabled = {
+                                type = "toggle", name = "ui.cc.timer_limit_enabled",
+                                order = 6, width = "full", suiFullRow = true,
+                                get = function() return GetSetting("timerLimitEnabled", false) == true end,
+                                set = function(_, value)
+                                    SetAndApply("timerLimitEnabled", value)
+                                    if SarychUI.OptionsCore then SarychUI.OptionsCore:ScheduleSmartRefresh(true) end
+                                end,
+                            },
+                            timerLimit = {
+                                type = "range", name = "ui.cc.timer_limit",
+                                order = 7, min = 0, max = 600, step = 1,
+                                width = "full", suiFullRow = true,
+                                hidden = function() return GetSetting("timerLimitEnabled", false) ~= true end,
+                                get = function() return GetSetting("timerLimit", 0) end,
+                                set = function(_, value) SetAndApply("timerLimit", value) end,
                             },
                         },
                     },
@@ -380,6 +444,16 @@ function module:GetOptions()
                                 end,
                             },
                         },
+                    },
+                },
+            },
+            addonManagement = {
+                type = "group", name = "ui.cc.addon_management", order = 3,
+                disabled = function() return not isEnabled() end,
+                args = {
+                    addons = {
+                        type = "group", name = "ui.cc.addon_timers", order = 1, inline = true, suiTwoCol = true,
+                        args = addonOptions,
                     },
                 },
             },

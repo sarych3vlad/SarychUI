@@ -61,10 +61,11 @@ end
 
 local function UnitValue(unit)
     local equipment = owner:GetUnitEquipment(unit)
+    local r, g, b = owner:ScoreColor(equipment.score)
     if owner:IsItemLevelMode() then
-        return owner:FormatItemLevel(equipment.average), equipment.count, owner:ScoreColor(equipment.score)
+        return owner:FormatItemLevel(equipment.average), equipment.count, r, g, b, equipment.score
     end
-    return owner:FormatGearScore(equipment.score), equipment.scoreCount, owner:ScoreColor(equipment.score)
+    return owner:FormatGearScore(equipment.score), equipment.scoreCount, r, g, b, equipment.score
 end
 
 local function ValueCaption()
@@ -135,9 +136,9 @@ local function ItemTooltip(tip)
     else ClearLine(tip) end
 end
 
-local function PaintLabel(label, unit)
+local function PaintLabel(label, unit, background)
     if not label then return end
-    local value, count, r, g, b = UnitValue(unit)
+    local value, count, r, g, b, score = UnitValue(unit)
     local text = (label == personalLabel or count > 0) and (value or "") or ""
     if label:GetText() ~= text then
         label:SetText(text)
@@ -147,13 +148,24 @@ local function PaintLabel(label, unit)
         label:SetTextColor(r, g, b)
         label.scoreR, label.scoreG, label.scoreB = r, g, b
     end
+    -- Use raw GS even when the displayed number is average item level.
+    local progress = math.max(0, math.min(1, (score or 0) / 5500))
+    if background.scoreProgress ~= progress then
+        background.scoreProgress = progress
+        background:SetAlpha(progress)
+        background.color:SetAlpha(progress)
+        -- Legacy SetDesaturated is binary. Blend gray and color layers;
+        -- compensate the lower layer for source-over opacity at mid scores.
+        background.gray:SetAlpha(1 / (1 + progress))
+        if progress >= 1 then background.gray:Hide() else background.gray:Show() end
+    end
 end
 
 local function RefreshInspect()
     if not inspectLabel then return end
     if Setting("Inspect") then
         inspectLabel:Show()
-        if InspectVisible() then PaintLabel(inspectLabel, InspectFrame.unit) end
+        if InspectVisible() then PaintLabel(inspectLabel, InspectFrame.unit, inspectBackground) end
     else inspectLabel:Hide() end
     local text = inspectLabel:GetText()
     if Setting("Inspect") and InspectVisible() and text and text ~= "" then
@@ -165,7 +177,7 @@ local function RefreshPersonal()
     if not personalLabel then return end
     if owner.running and owner:IsScoreEnabled() then
         personalLabel:Show()
-        PaintLabel(personalLabel, "player")
+        PaintLabel(personalLabel, "player", personalBackground)
         local text = personalLabel:GetText()
         if text and text ~= "" then personalBackground:Show()
         else personalBackground:Hide() end
@@ -189,7 +201,16 @@ function owner:CreateEquipmentStrip(parent)
 end
 
 local function MakeScoreBackground(parent, label)
-    local background = owner:CreateEquipmentStrip(parent)
+    local background = CreateFrame("Frame", nil, parent)
+    background:EnableMouse(false)
+    background:SetFrameLevel(parent:GetFrameLevel() - 1)
+    background.gray = owner:CreateEquipmentStrip(background)
+    background.gray:SetDrawLayer("BACKGROUND")
+    background.gray:SetAllPoints(background)
+    background.gray:SetDesaturated(true)
+    background.color = owner:CreateEquipmentStrip(background)
+    background.color:SetAllPoints(background)
+    background:SetAlpha(0)
     background:SetSize(120, 24)
     -- Preserve the existing badge center from the bottom-anchored number,
     -- then align the text inside the visible gold borders.
@@ -219,7 +240,8 @@ AttachInspect = function()
     host:EnableMouse(false)
     local function RaiseInspectScore()
         host:SetFrameLevel(math.max(InspectPaperDollFrame:GetFrameLevel(),
-            InspectModelFrame and InspectModelFrame:GetFrameLevel() or 0) + 1)
+            InspectModelFrame and InspectModelFrame:GetFrameLevel() or 0) + 2)
+        if inspectBackground then inspectBackground:SetFrameLevel(host:GetFrameLevel() - 1) end
     end
     RaiseInspectScore()
     inspectLabel = MakeLabel(host, InspectSecondaryHandSlot)
@@ -362,7 +384,8 @@ if PaperDollFrame then
     host:EnableMouse(false)
     local function RaisePersonalScore()
         host:SetFrameLevel(math.max(PaperDollFrame:GetFrameLevel(),
-            CharacterModelFrame and CharacterModelFrame:GetFrameLevel() or 0) + 1)
+            CharacterModelFrame and CharacterModelFrame:GetFrameLevel() or 0) + 2)
+        if personalBackground then personalBackground:SetFrameLevel(host:GetFrameLevel() - 1) end
     end
     RaisePersonalScore()
     personalLabel = host:CreateFontString(nil, "OVERLAY", "GameFontNormal")

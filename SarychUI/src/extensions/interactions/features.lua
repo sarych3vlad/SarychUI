@@ -98,25 +98,55 @@ local function ShouldSuppressFocusOnAnnounceBars()
     return db and SarychUI:IsFocusAssignmentEnabled() and db.enableFocuser == 1 and SarychUI:IsAnnouncementsEnabled() and db.enableAltUnitBars == 1 and GetFocuserModifier() == "ALT"
 end
 
-local function IsCursorOverBox(frame)
-    if not frame or not frame.IsShown or not frame:IsShown() then
-        return false
+local function ResourceClickBounds(region, owner)
+    if not region or not region.GetCenter then return end
+    local scale = SarychUI.Frameworks.RegionEffectiveScale(region)
+    local cx, cy = region:GetCenter()
+    if not scale or scale <= 0 or not cx or not cy then return end
+    local width = region.GetStringWidth and region:GetStringWidth() or 0
+    local height = region.GetStringHeight and region:GetStringHeight() or 0
+    if not width or width < 8 then width = region.GetWidth and region:GetWidth() or 0 end
+    if not height or height < 8 then height = region.GetHeight and region:GetHeight() or 0 end
+    if not width or width < 8 then width = 48 end
+    if not height or height < 8 then height = 14 end
+    cx, cy = cx * scale, cy * scale
+    local halfWidth, halfHeight = (width / 2 + 6) * scale, (height / 2 + 4) * scale
+    local left, bottom, right, top = cx - halfWidth, cy - halfHeight, cx + halfWidth, cy + halfHeight
+    if owner then
+        local ownerScale = SarychUI.Frameworks.RegionEffectiveScale(owner)
+        local ox, oy = owner:GetCenter()
+        if not ownerScale or ownerScale <= 0 or not ox or not oy then return end
+        local ow, oh = owner:GetWidth() * ownerScale / 2, owner:GetHeight() * ownerScale / 2
+        ox, oy = ox * ownerScale, oy * ownerScale
+        -- Health and power are adjacent. Padding around the text must never
+        -- let an invisible health button capture the neighbouring power bar.
+        left, bottom = math.max(left, ox - ow), math.max(bottom, oy - oh)
+        right, top = math.min(right, ox + ow), math.min(top, oy + oh)
     end
-    if not GetCursorPosition or not frame.GetLeft or not frame.GetBottom then
-        return false
+    if right <= left or top <= bottom then return end
+    return left, bottom, right, top, cx, cy
+end
+
+local function ResourceHasMouseFocus(region)
+    local focus = GetMouseFocus and GetMouseFocus()
+    if not focus or focus == UIParent or focus == WorldFrame then return false end
+    if S.resourceHitByButton and S.resourceHitByButton[focus] then
+        return focus.text == region and focus.owner and focus.owner:IsVisible()
     end
-    local left, bottom = frame:GetLeft(), frame:GetBottom()
-    local width, height = frame:GetWidth(), frame:GetHeight()
-    if not left or not bottom or not width or not height or width <= 0 or height <= 0 then
-        return false
+    -- A FontString cannot own mouse focus. Accept its unit-frame hierarchy,
+    -- but never the UIParent/WorldFrame shared by unrelated windows.
+    local scope = region
+    for _ = 1, 20 do
+        if not scope or scope == UIParent or scope == WorldFrame then break end
+        local target = focus
+        for _ = 1, 20 do
+            if not target or target == UIParent or target == WorldFrame then break end
+            if target == scope then return true end
+            target = target.GetParent and target:GetParent()
+        end
+        scope = scope.GetParent and scope:GetParent()
     end
-    local scale = frame.GetEffectiveScale and frame:GetEffectiveScale() or 1
-    if not scale or scale == 0 then
-        scale = 1
-    end
-    local x, y = GetCursorPosition()
-    x, y = x / scale, y / scale
-    return x >= left and x <= (left + width) and y >= bottom and y <= (bottom + height)
+    return false
 end
 
 local function IsCursorOverFrame(frame)
@@ -126,35 +156,16 @@ local function IsCursorOverFrame(frame)
     if frame.GetAlpha and frame:GetAlpha() <= 0 then
         return false
     end
-    if not GetCursorPosition or not frame.GetCenter then
+    if (frame.IsVisible and not frame:IsVisible()) or not ResourceHasMouseFocus(frame) then
         return false
     end
-    local cx, cy = frame:GetCenter()
-    if not cx or not cy then
-        return false
-    end
-    local scale = frame.GetEffectiveScale and frame:GetEffectiveScale() or 1
-    if not scale or scale == 0 then
-        scale = 1
-    end
+    if not GetCursorPosition then return false end
+    local hit = S.resourceHitByText and S.resourceHitByText[frame]
+    local owner = hit and hit.owner
+    local left, bottom, right, top = ResourceClickBounds(frame, owner)
+    if not left then return false end
     local x, y = GetCursorPosition()
-    x, y = x / scale, y / scale
-    local width = (frame.GetStringWidth and frame:GetStringWidth()) or 0
-    local height = (frame.GetStringHeight and frame:GetStringHeight()) or 0
-    if not width or width < 8 then
-        width = frame.GetWidth and frame:GetWidth() or 0
-    end
-    if not height or height < 8 then
-        height = frame.GetHeight and frame:GetHeight() or 0
-    end
-    if not width or width < 8 then
-        width = 48
-    end
-    if not height or height < 8 then
-        height = 14
-    end
-    return x >= (cx - width / 2 - 6) and x <= (cx + width / 2 + 6)
-        and y >= (cy - height / 2 - 4) and y <= (cy + height / 2 + 4)
+    return x >= left and x <= right and y >= bottom and y <= top
 end
 
 local function IsOverNamedFrame(name)
@@ -186,9 +197,6 @@ local function IsOverCompactResourceText()
 end
 
 local function IsOverAnnounceUnitBar()
-    if S.suppressFocuserForAnnounceBar then
-        return true
-    end
     for i = 1, #ANNOUNCE_UNIT_TEXTS do
         if IsOverNamedFrame(ANNOUNCE_UNIT_TEXTS[i]) then
             return true
@@ -200,7 +208,7 @@ local function IsOverAnnounceUnitBar()
     if S.resourceHits then
         for i = 1, #S.resourceHits do
             local hit = S.resourceHits[i]
-            if hit and hit:IsShown() and IsCursorOverBox(hit) then
+            if hit and hit:IsShown() and IsCursorOverFrame(hit.text) then
                 return true
             end
         end
@@ -1756,8 +1764,43 @@ local function ResourceTextForBar(frame)
     return _G[name .. "Text"]
 end
 
+local RESOURCE_HIT_STRATA = {
+    BACKGROUND = 1, LOW = 2, MEDIUM = 3, HIGH = 4,
+    DIALOG = 5, FULLSCREEN = 6, FULLSCREEN_DIALOG = 7, TOOLTIP = 8,
+}
+
+local function SyncResourceHitLayer(hit, owner)
+    -- Resource text can live on a higher sibling frame than its status bar.
+    -- Follow both hierarchies, stopping before the unrelated UI root. A fixed
+    -- HIGH/100 intercepts windows; bar level + 1 can sit below the unit UI.
+    local strata = owner:GetFrameStrata()
+    local level = owner:GetFrameLevel()
+    local text = hit.text
+    for branch = 1, 2 do
+        local frame
+        if branch == 1 then frame = owner
+        else frame = text and text.GetParent and text:GetParent() end
+        for _ = 1, 20 do
+            if not frame or frame == UIParent or frame == WorldFrame then break end
+            if frame.GetFrameStrata and frame.GetFrameLevel then
+                local candidateStrata, candidateLevel = frame:GetFrameStrata(), frame:GetFrameLevel()
+                if (RESOURCE_HIT_STRATA[candidateStrata] or 0) > (RESOURCE_HIT_STRATA[strata] or 0) then
+                    strata, level = candidateStrata, candidateLevel
+                elseif candidateStrata == strata and candidateLevel > level then
+                    level = candidateLevel
+                end
+            end
+            frame = frame.GetParent and frame:GetParent()
+        end
+    end
+    level = level + 1
+    if hit:GetFrameStrata() ~= strata then hit:SetFrameStrata(strata) end
+    if hit:GetFrameLevel() ~= level then hit:SetFrameLevel(level) end
+end
+
 local function SyncResourceHits()
-    local show = AltCD.IsUnitBarActive() and IsAltKeyDown and IsAltKeyDown()
+    local show = AltCD.IsUnitBarActive() and SarychUI.AltMode:IsAltPressed()
+    if not show and S.resourceHitWatcher then S.resourceHitWatcher:Hide() end
     local hits = S.resourceHits
     if not hits then
         return
@@ -1767,20 +1810,23 @@ local function SyncResourceHits()
         local text = hit and hit.text
         local owner = hit and hit.owner
         local ownerShown = owner and owner.IsVisible and owner:IsVisible()
-        if not show or not ownerShown or not text then
+        local left, bottom, right, top, cx, cy
+        if show and ownerShown and text then
+            left, bottom, right, top, cx, cy = ResourceClickBounds(text, owner)
+        end
+        if not left then
             if hit and hit:IsShown() then
                 hit:Hide()
             end
         else
-            local width = text.GetStringWidth and text:GetStringWidth() or 0
-            local height = text.GetStringHeight and text:GetStringHeight() or 0
-            if not width or width < 8 then
-                width = 40
+            SyncResourceHitLayer(hit, owner)
+            local scale = hit:GetEffectiveScale()
+            local width, height = (right - left) / scale, (top - bottom) / scale
+            local x, y = ((left + right) / 2 - cx) / scale, ((bottom + top) / 2 - cy) / scale
+            if hit.resourceOffsetX ~= x or hit.resourceOffsetY ~= y then
+                hit:SetPoint("CENTER", text, "CENTER", x, y)
+                hit.resourceOffsetX, hit.resourceOffsetY = x, y
             end
-            if not height or height < 8 then
-                height = 14
-            end
-            width, height = width + 18, height + 12
             if hit:GetWidth() ~= width or hit:GetHeight() ~= height then
                 hit:SetSize(width, height)
             end
@@ -1789,13 +1835,33 @@ local function SyncResourceHits()
     end
 end
 
+local function RefreshResourceHitWatcher()
+    if not S.resourceHitWatcher then return end
+    if AltCD.IsUnitBarActive() and SarychUI.AltMode:IsAltPressed() then
+        S.resourceHitWatcher:Show()
+    else
+        S.resourceHitWatcher:Hide()
+    end
+    SyncResourceHits()
+end
+
 local function EnsureResourceHitWatcher()
     if S.resourceHitWatcher then
         return
     end
     local watcher = CreateFrame("Frame")
+    watcher:Hide()
     watcher:SetScript("OnUpdate", SyncResourceHits)
     S.resourceHitWatcher = watcher
+    SarychUI.AltMode:RegisterCallback("announcements_resources", RefreshResourceHitWatcher)
+end
+
+local function AnnounceResourceOnPress(text, unit, resourceType, fallbackName, button)
+    if not AltCD.IsUnitBarActive() or not AltCD.IsAltLeftMouseClick(button)
+        or not IsCursorOverFrame(text) then return false end
+    S.suppressFocuserForAnnounceBar = true
+    AltCD.SendUnitResourcePing(unit, resourceType, fallbackName)
+    return true
 end
 
 local function CreateResourceHit(owner, text, unit, resourceType, fallbackName, unitFrame)
@@ -1803,6 +1869,7 @@ local function CreateResourceHit(owner, text, unit, resourceType, fallbackName, 
         return nil
     end
     S.resourceHits = S.resourceHits or {}
+    S.resourceHitByText = S.resourceHitByText or setmetatable({}, { __mode = "k" })
     S.resourceHitByButton = S.resourceHitByButton or setmetatable({}, { __mode = "k" })
     if S.resourceHitByOwner then
         local existing = S.resourceHitByOwner[owner]
@@ -1814,15 +1881,14 @@ local function CreateResourceHit(owner, text, unit, resourceType, fallbackName, 
     end
 
     local hit = CreateFrame("Button", nil, UIParent)
-    hit:SetFrameStrata("HIGH")
-    hit:SetFrameLevel(100)
+    hit.text = text
+    SyncResourceHitLayer(hit, owner)
     hit:EnableMouse(true)
-    hit:RegisterForClicks("LeftButtonUp")
+    hit:RegisterForClicks("LeftButtonDown")
     local plate = hit:CreateTexture(nil, "BACKGROUND")
     plate:SetAllPoints()
     plate:SetTexture("Interface\\Buttons\\WHITE8X8")
     plate:SetAlpha(0)
-    hit.text = text
     hit.owner = owner
     hit.unit = unit
     hit.resourceType = resourceType or "health"
@@ -1831,25 +1897,20 @@ local function CreateResourceHit(owner, text, unit, resourceType, fallbackName, 
     hit:SetPoint("CENTER", text, "CENTER", 0, 0)
     hit:SetSize(48, 16)
     hit:Hide()
-    hit:SetScript("OnMouseDown", function(_, button)
-        if AltCD.IsAltLeftMouseClick(button) then
-            S.suppressFocuserForAnnounceBar = true
-        end
-    end)
-    hit:SetScript("OnMouseUp", function(self, button)
-        S.suppressFocuserForAnnounceBar = nil
-        if not AltCD.IsUnitBarActive() or not AltCD.IsAltLeftMouseClick(button) then
-            return
-        end
+    hit:SetScript("OnMouseDown", function(self, button)
         local pingUnit = self.unit
         local source = self.unitFrame
         if source then
             pingUnit = source.unit or (source.GetAttribute and source:GetAttribute("unit")) or pingUnit
         end
-        AltCD.SendUnitResourcePing(pingUnit, self.resourceType, self.fallbackName)
+        AnnounceResourceOnPress(self.text, pingUnit, self.resourceType, self.fallbackName, button)
+    end)
+    hit:SetScript("OnMouseUp", function()
+        S.suppressFocuserForAnnounceBar = nil
     end)
     S.resourceHitByOwner[owner] = hit
     S.resourceHitByButton[hit] = true
+    S.resourceHitByText[text] = hit
     S.resourceHits[#S.resourceHits + 1] = hit
     EnsureResourceHitWatcher()
     return hit
@@ -1939,20 +2000,6 @@ function AltCD.SendUnitResourcePing(unit, resourceType, fallbackName)
     SendChatMessage(message, AltCD.GetChatChannel())
 end
 
-function AltCD.OnUnitBarMouseUp(frame, unit, resourceType, fallbackName, button)
-    if not AltCD.IsUnitBarActive() then
-        return
-    end
-    if not AltCD.IsAltLeftMouseClick(button) then
-        return
-    end
-    local text = ResourceTextForBar(frame)
-    if not text or not IsCursorOverFrame(text) then
-        return
-    end
-    AltCD.SendUnitResourcePing(unit, resourceType, fallbackName)
-end
-
 function AltCD.HookUnitBarPing(frameName, unit, resourceType, fallbackName)
     local frame = frameName and _G[frameName]
     S.unitBarHooked = S.unitBarHooked or setmetatable({}, { __mode = "k" })
@@ -1962,25 +2009,11 @@ function AltCD.HookUnitBarPing(frameName, unit, resourceType, fallbackName)
 
     -- Announce only when the cursor is on the resource number. The bar click itself focuses.
     frame:HookScript("OnMouseDown", function(self, button)
-        if not AltCD.IsAltLeftMouseClick(button) then
-            return
-        end
-        local text = ResourceTextForBar(self)
-        if text and IsCursorOverFrame(text) then
-            S.suppressFocuserForAnnounceBar = true
-        end
+        AnnounceResourceOnPress(ResourceTextForBar(self), unit, resourceType, fallbackName, button)
     end)
 
-    frame:HookScript("OnMouseUp", function(self, button)
+    frame:HookScript("OnMouseUp", function()
         S.suppressFocuserForAnnounceBar = nil
-        local text = ResourceTextForBar(self)
-        local overText = text and IsCursorOverFrame(text)
-        if overText then
-            AltCD.OnUnitBarMouseUp(frame, unit, resourceType, fallbackName, button)
-        end
-        if overText and AltCD.IsUnitBarActive() and AltCD.IsAltLeftMouseClick(button) then
-            return
-        end
     end)
     S.unitBarHooked[frame] = true
     CreateResourceHit(frame, ResourceTextForBar(frame), unit, resourceType, fallbackName)
@@ -2039,14 +2072,9 @@ InstallCompactResourceAnnounce = function(frame)
     end
 
     frame:HookScript("OnMouseDown", function(self, button)
-        if not AltCD.IsAltLeftMouseClick(button) then
-            return
-        end
         local text = statusText(self)
-        if not text or not IsCursorOverFrame(text) then
-            return
-        end
-        S.suppressFocuserForAnnounceBar = true
+        local unit = self.unit or (self.GetAttribute and self:GetAttribute("unit"))
+        if not AnnounceResourceOnPress(text, unit, "health", nil, button) then return end
         if not ShouldSuppressFocusOnAnnounceBars() then
             return
         end
@@ -2058,17 +2086,8 @@ InstallCompactResourceAnnounce = function(frame)
         self:SetAttribute(attr, nil)
     end)
 
-    frame:HookScript("OnMouseUp", function(self, button)
+    frame:HookScript("OnMouseUp", function()
         S.suppressFocuserForAnnounceBar = nil
-        if not AltCD.IsUnitBarActive() or not AltCD.IsAltLeftMouseClick(button) then
-            return
-        end
-        local text = statusText(self)
-        if not text or not IsCursorOverFrame(text) then
-            return
-        end
-        local unit = self.unit or (self.GetAttribute and self:GetAttribute("unit"))
-        AltCD.SendUnitResourcePing(unit, "health", nil)
     end)
 end
 
@@ -2391,6 +2410,7 @@ end
 
 function SarychUI.modules.announcements:ApplyAltUnitBars()
     local db = DB()
+    RefreshResourceHitWatcher()
     if not db or not SarychUI:IsAnnouncementsEnabled() then
         return
     end

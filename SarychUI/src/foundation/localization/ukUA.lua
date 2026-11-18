@@ -2,6 +2,9 @@ do
 -- SarychUI Ukrainian Localization (ukUA)
 
 local L = {}
+L["ui.plates_auras.general"] = "Основна"
+L["ui.plates_auras.cooldown_enabled"] = "Увімкнути круговий CD"
+L["ui.plates_auras.cooldown_desc"] = "Показувати круговий перебіг таймера поверх іконки аури. Цифри таймера залишаються видимими."
 
 -- Chat data text labels and tooltip content.
 L["ChatData_AFK"] = "Відійшов"
@@ -979,6 +982,7 @@ SarychUI:RegisterUIMap("ukUA", {
     ["ui.nameplates.totem_display"] = "Відображення тотемів",
     ["ui.nameplates.totem_plates"] = "Показувати індикатори тотемів",
     ["ui.nameplates.totem_icons"] = "Показувати іконки замість індикаторів",
+    ["ui.nameplates.tremor_animation"] = "Увімкнути анімацію спрацьовування тотема тремтіння",
     ["ui.nameplates.native_settings"] = "Індикатори здоров’я",
     ["ui.nameplates.allow_overlap"] = "Накладання індикаторів один на одного",
     ["ui.nameplates.show_friends"] = "Індикатори союзників",
@@ -989,8 +993,15 @@ SarychUI:RegisterUIMap("ukUA", {
 SarychUI.RegisterUIMap("ukUA", {
     ["ui.cc.last_five_red"] = "Останні |cffff00005 секунд червоним|r",
     ["ui.cc.show_tenths"] = "Показувати десяті секунди",
+    ["ui.cc.timer_limit_enabled"] = "Обмежувати таймери",
+    ["ui.cc.timer_limit"] = "Обмежувач таймера (сек.)",
+    ["ui.cc.addon_management"] = "Керування аддонами",
+    ["ui.cc.addon_timers"] = "Таймери на сторонніх аддонах",
+    ["ui.cc.addon_timers_desc"] = "Показувати цифри перезарядки SarychUI на елементах цього аддона. Цей перемикач не вмикає і не вимикає сам аддон.",
+    ["ui.cc.addon_timers_empty"] = "Сторонніх аддонів не знайдено.",
     ["ui.cc.tenths_threshold"] = "Показувати десяті починаючи з (сек.)",
     ["ui.cc.tenths_exceptions"] = "Винятки",
+    ["ui.cc.show_tenths_exceptions"] = "Показати винятки",
     ["ui.cc.tenths_locations_help"] = "Зніміть позначку, щоб у цьому місці показувалися лише цілі секунди.",
     ["ui.cc.location.actionBars"] = "Панелі дій",
     ["ui.cc.location.petBar"] = "Панель улюбленця",

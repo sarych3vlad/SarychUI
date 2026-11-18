@@ -722,6 +722,7 @@ function mod:StyleFilterUpdate(frame, event)
 		mod:StyleFilterSetChanges(frame, {}, false, false, false, false, false, false,
 			false, false, false, true, false, false)
 		if owner and owner.UpdatePetLifetime then owner:UpdatePetLifetime(frame:GetParent()) end
+		if owner and owner.UpdateTotemPulse then owner:UpdateTotemPulse(frame:GetParent()) end
 		if _G.Autolos and _G.Autolos.RefreshNameplate then
 			_G.Autolos.RefreshNameplate(frame:GetParent(), {layoutOnly=true})
 		end
@@ -754,6 +755,9 @@ function mod:StyleFilterUpdate(frame, event)
 	end
 	if owner and owner.UpdatePetLifetime then
 		owner:UpdatePetLifetime(frame:GetParent(), petTexture and frame.IconOnlyChanged and not frame.VisibilityChanged and frame.IconFrame or nil)
+	end
+	if owner and owner.UpdateTotemPulse then
+		owner:UpdateTotemPulse(frame:GetParent(), frame.IconOnlyChanged and not frame.VisibilityChanged and frame.IconFrame or nil)
 	end
 end
 

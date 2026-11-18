@@ -72,6 +72,16 @@ function module:GetTotemOptions(mode, order)
                 end,
             },
             selection={type="group", name="", inline=true, order=2, suiTwoCol=true, args=choices},
+            tremorAnimation={
+                type="toggle", name="ui.nameplates.tremor_animation", order=3, width="full",
+                hidden=function() return Totems:GetMode() ~= "icons" end,
+                get=function() local db=DB(); return not db or db.tremorAnimation ~= false end,
+                set=function(_, value)
+                    local db=DB(); if not db then return end
+                    db.tremorAnimation=value and true or false
+                    module:RefreshTotems()
+                end,
+            },
         },
     }
 end

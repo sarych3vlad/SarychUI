@@ -1,6 +1,9 @@
 do
 -- SarychUI esES Localization
 local L = {}
+L["ui.plates_auras.general"] = "General"
+L["ui.plates_auras.cooldown_enabled"] = "Activar indicador circular"
+L["ui.plates_auras.cooldown_desc"] = "Mostrar un barrido circular sobre los iconos de aura. Los números del temporizador permanecen visibles."
 
 -- Chat data text labels and tooltip content.
 L["ChatData_AFK"] = "Ausente"
@@ -633,6 +636,12 @@ do
 -- UI string map: Russian source -> esES
 local M = {}
 M["ui.unit_frames.show_blizzard_text"] = "Ajustes originales de Blizzard"
+M["ui.cc.addon_management"] = "Gestión de addons"
+M["ui.cc.timer_limit_enabled"] = "Limitar temporizadores"
+M["ui.cc.timer_limit"] = "Límite del temporizador (segundos)"
+M["ui.cc.addon_timers"] = "Temporizadores en otros addons"
+M["ui.cc.addon_timers_desc"] = "Mostrar los números de reutilización de SarychUI en los elementos de este addon. Este interruptor no activa ni desactiva el propio addon."
+M["ui.cc.addon_timers_empty"] = "No se encontraron addons de terceros."
 M["ui.unit_frames.hide_text"] = "Estilo SarychUI"
 M["ui.unit_frames.bfa_text"] = "Ajustes originales de Blizzard BFA"
 M["ui.unit_frames.thousands_separator"] = "Separador de miles"
@@ -2958,6 +2967,7 @@ SarychUI:RegisterUIMap("esES", {
     ["ui.nameplates.totem_display"] = "Visualización de tótems",
     ["ui.nameplates.totem_plates"] = "Mostrar indicadores de tótems",
     ["ui.nameplates.totem_icons"] = "Mostrar iconos en lugar de indicadores",
+    ["ui.nameplates.tremor_animation"] = "Activar la animación de pulsos del Tótem de tremor",
     ["ui.nameplates.native_settings"] = "Indicadores de salud",
     ["ui.nameplates.allow_overlap"] = "Permitir superposición de indicadores",
     ["ui.nameplates.show_friends"] = "Indicadores de aliados",
@@ -2970,6 +2980,7 @@ SarychUI.RegisterUIMap("esES", {
     ["ui.cc.show_tenths"] = "Mostrar décimas de segundo",
     ["ui.cc.tenths_threshold"] = "Mostrar décimas a partir de (s)",
     ["ui.cc.tenths_exceptions"] = "Excepciones",
+    ["ui.cc.show_tenths_exceptions"] = "Mostrar excepciones",
     ["ui.cc.tenths_locations_help"] = "Desmarca una ubicación para mostrar solo segundos enteros.",
     ["ui.cc.location.actionBars"] = "Barras de acción",
     ["ui.cc.location.petBar"] = "Barra de mascota",

@@ -27,6 +27,7 @@ function module:GetDB()
         if cfg.score[key] == nil then cfg.score[key] = 1 end
     end
     if cfg.score.Item == 2 then cfg.score.Item = 1 end
+    if cfg.score.ThousandsSeparator == nil then cfg.score.ThousandsSeparator = true end
     if cfg.score.DisplayMode ~= "itemlevel" then cfg.score.DisplayMode = "gearscore" end
     return cfg
 end

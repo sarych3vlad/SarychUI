@@ -892,6 +892,27 @@ function module:GetOptions()
 					end
 				end,
 			},
+			general = {
+				type = "group",
+				name = "ui.plates_auras.general",
+				order = 1,
+				disabled = function() return not SarychUI.db.profile.modules[moduleName].enabled end,
+				args = {
+					profileNotice = { type = "description", name = ProfileModeInfoText, order = 0 },
+					cooldownEnabled = {
+						type = "toggle",
+						name = "ui.plates_auras.cooldown_enabled",
+						desc = "ui.plates_auras.cooldown_desc",
+						order = 1,
+						width = "full",
+						get = function() return ProfileDisplay().cooldownEnabled == true end,
+						set = function(_, value)
+							ProfileDisplay().cooldownEnabled = value
+							OnDisplaySetting("cooldownEnabled", value)
+						end,
+					},
+				},
+			},
 			-- Sizes and Display tab
 			sizes = {
 				type = "group",

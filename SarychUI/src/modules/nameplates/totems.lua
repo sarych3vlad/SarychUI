@@ -8,6 +8,58 @@ driver:Hide()
 local active = false
 local states, hooked = {}, setmetatable({}, {__mode="k"})
 local Paint
+local pulseEnabled = false
+local pulseIcons = {}
+local pulseDriver = CreateFrame("Frame")
+pulseDriver:Hide()
+
+local function HidePulse(root)
+    local icon = pulseIcons[root]
+    if icon then SarychUI.TremorIcon:Hide(icon._suiTremorView) end
+    pulseIcons[root] = nil
+    if not next(pulseIcons) then pulseDriver:Hide() end
+end
+
+local function DrawPulse(root, icon)
+    local frame = root.UnitFrame
+    local guid = frame and frame.guid or lib:GetGUID(root)
+    local name = frame and frame.UnitName
+    if not frame then
+        local text = lib:GetNameRegion(root)
+        name = text and text:GetText()
+    end
+    local isPlayer = frame and frame.UnitType ~= "FRIENDLY_NPC" and frame.UnitType ~= "ENEMY_NPC"
+        or (not frame and lib:GetType(root) ~= "NPC")
+    if not root:IsShown() or not icon:IsShown() or Totems:Resolve(name, guid, isPlayer) ~= "e6" then
+        HidePulse(root)
+        return
+    end
+    local now = GetTime()
+    local record = SarychUI.TremorTicks:Get(guid, now)
+    if record then
+        icon._suiTremorView = icon._suiTremorView or SarychUI.TremorIcon:Create(icon, icon.texture)
+        SarychUI.TremorIcon:Draw(icon._suiTremorView, record.start, now, "nameplate")
+    else
+        -- Seeing a plate is not evidence of when the totem was summoned.
+        SarychUI.TremorIcon:Hide(icon._suiTremorView)
+    end
+end
+
+function module:UpdateTotemPulse(root, icon)
+    if not pulseEnabled or not icon then HidePulse(root); return end
+    if pulseIcons[root] and pulseIcons[root] ~= icon then HidePulse(root) end
+    pulseIcons[root] = icon
+    DrawPulse(root, icon)
+    if next(pulseIcons) then pulseDriver:Show() end
+end
+
+local pulseElapsed = 0
+pulseDriver:SetScript("OnUpdate", function(_, delta)
+    pulseElapsed = pulseElapsed + delta
+    if pulseElapsed < .05 then return end
+    pulseElapsed = 0
+    for root, icon in pairs(pulseIcons) do DrawPulse(root, icon) end
+end)
 
 local function SetDistanceAnchor(root, icon)
     if root._suiTotemIconAnchor == icon then return end
@@ -18,6 +70,7 @@ local function SetDistanceAnchor(root, icon)
 end
 
 local function Restore(root)
+    HidePulse(root)
     SarychUI.NameplateVisibility:SetHidden(root, "totem", false)
     local state = states[root]
     if not state then return end
@@ -60,6 +113,7 @@ Paint = function(root)
         if np and (frame._suiTotemAction ~= action or frame._suiTotemTexture ~= texture) then
             np:StyleFilterUpdate(frame, "SARYCHUI_TOTEM")
         end
+        module:UpdateTotemPulse(root, frame.IconOnlyChanged and not frame.VisibilityChanged and frame.IconFrame or nil)
         return
     end
     if not active or not root:IsShown() or SarychUI:GetNameplateMode() ~= "classic" then Restore(root); return end
@@ -75,6 +129,7 @@ Paint = function(root)
     host:SetAlpha(0)
     SarychUI.NameplateVisibility:SetHidden(root, "totem", action == "hide")
     if action == "hide" or not texture then
+        HidePulse(root)
         if state.icon then state.icon:Hide() end
         SetDistanceAnchor(root, nil)
         return
@@ -96,6 +151,7 @@ Paint = function(root)
     if state.icon.texture:GetTexture() ~= texture then state.icon.texture:SetTexture(texture) end
     if not state.icon:IsShown() then state.icon:Show() end
     SetDistanceAnchor(root, state.icon)
+    module:UpdateTotemPulse(root, state.icon)
 end
 
 local function Refresh()
@@ -122,6 +178,10 @@ end)
 
 function module:RefreshTotems()
     local db = SarychUI:GetModuleProfile("health_indicators")
+    pulseEnabled = db and db.enabled ~= false and db.tremorAnimation ~= false and Totems:GetMode() == "icons"
+        and (not db.totemEnabled or db.totemEnabled.e6 ~= false) or false
+    SarychUI.TremorTicks:SetConsumer("nameplates", pulseEnabled)
+    if not pulseEnabled then for root in pairs(pulseIcons) do HidePulse(root) end end
     local configured = db and db.totemDisplay ~= nil
     if db and db.totemEnabled then
         for _, enabled in pairs(db.totemEnabled) do if enabled == false then configured = true; break end end
@@ -141,6 +201,9 @@ function module:RefreshTotems()
 end
 
 function module:DisableTotems()
+    pulseEnabled = false
+    for root in pairs(pulseIcons) do HidePulse(root) end
+    SarychUI.TremorTicks:SetConsumer("nameplates", false)
     active = false; elapsed = 0
     driver:UnregisterAllEvents(); driver:Hide()
     Refresh()

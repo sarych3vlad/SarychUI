@@ -289,7 +289,7 @@ function CdPreview:Create(parent)
 	local function ApplyStyle()
 		local live = CdPreview._live
         local sample = GetSetting("showTenths", false)
-            and (max(1, min(10, tonumber(GetSetting("tenthsThreshold", 1)) or 1)) - .2) or 45
+            and (max(1, min(10, tonumber(GetSetting("tenthsThreshold", 3)) or 3)) - .2) or 45
         if buttons[1]._remain ~= sample then
             buttons[1]._remain = sample
             buttons[1]._cdEnds = nil

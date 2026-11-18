@@ -31,7 +31,7 @@ local function GetIconSettings(db, buttonID)
 end
 
 local function SanitizeOptionKey(buttonID)
-	return "icon_" .. (buttonID:gsub("[^%w]", "_"))
+	return "icon_" .. (buttonID:gsub("[^%w]", function(c) return string.format("_%02x", c:byte()) end))
 end
 
 local function OnIconSettingChanged(buttonID, field, value)
@@ -40,19 +40,8 @@ local function OnIconSettingChanged(buttonID, field, value)
 	end
 end
 
-local function CountSavedAddonButtons(db)
-	if not db or not db.addonButtons or not db.addonButtons.icons then
-		return 0
-	end
-	local count = 0
-	for buttonID in pairs(db.addonButtons.icons) do
-		if module.IsBlizzardMinimapButton and module:IsBlizzardMinimapButton(buttonID) then
-		elseif module.IsIgnoredMinimapButtonID and module:IsIgnoredMinimapButtonID(buttonID) then
-		else
-			count = count + 1
-		end
-	end
-	return count
+local function CountLiveAddonButtons()
+    return #module:GetLiveAddonButtonIDs()
 end
 
 local function RefreshConfig()
@@ -97,40 +86,24 @@ local function WriteMinimapOffset(axis, value)
 	end
 end
 
-function module:BuildAddonButtonIconOptions()
+function module:BuildAddonButtonIconOptions(ids)
 
-	return module:_BuildAddonButtonIconOptionsImpl()
+	return module:_BuildAddonButtonIconOptionsImpl(ids)
 end
 
 function module:InvalidateAddonButtonIconOptionsCache()
 	self._cachedIconOptions = nil
 	self._cachedIconOptionsCount = nil
+	self._cachedIconOptionsDB = nil
 end
 
-function module:_BuildAddonButtonIconOptionsImpl()
-	if self._cachedIconOptions then
-		return self._cachedIconOptions
-	end
-
-	local args = {}
-	local db = self.addon.db.profile.modules[moduleName]
-	if not db.addonButtons or not db.addonButtons.icons then
-		self._cachedIconOptions = args
-		self._cachedIconOptionsCount = 0
-		return args
-	end
-
-	local ids = {}
-	for buttonID in pairs(db.addonButtons.icons) do
-		if module.IsBlizzardMinimapButton and module:IsBlizzardMinimapButton(buttonID) then
-			-- skip Blizzard frames (managed in «Внешний вид»)
-		elseif module.IsIgnoredMinimapButtonID and module:IsIgnoredMinimapButtonID(buttonID) then
-			-- skip service / quest pin frames
-		else
-			ids[#ids + 1] = buttonID
-		end
-	end
-	table.sort(ids)
+function module:_BuildAddonButtonIconOptionsImpl(ids)
+    ids = ids or self:GetLiveAddonButtonIDs()
+    local db = self.addon.db.profile.modules[moduleName]
+    if self._cachedIconOptions and self._cachedIconOptionsDB == db then
+        return self._cachedIconOptions
+    end
+    local args = {}
 
 	for i, buttonID in ipairs(ids) do
 		local key = SanitizeOptionKey(buttonID)
@@ -194,22 +167,21 @@ function module:_BuildAddonButtonIconOptionsImpl()
 	end
 
 	self._cachedIconOptions = args
+	self._cachedIconOptionsDB = db
 	self._cachedIconOptionsCount = #ids
 	return args
 end
 
 function module:GetOptions()
 	local db = self.addon.db.profile.modules[moduleName]
-	local savedButtonCount = CountSavedAddonButtons(db)
-	-- Если кнопки уже есть в профиле - сразу показываем настройки угла.
-	if savedButtonCount > 0 then
+	local liveIDs = self:GetLiveAddonButtonIDs()
+	-- Only existing minimap widgets contribute controls, even with an old profile.
+	if #liveIDs > 0 then
 		self._addonButtonOptionsExpanded = true
 	end
 	local iconOptions = {}
-	local iconCount = savedButtonCount
 	if self._addonButtonOptionsExpanded then
-		iconOptions = self:BuildAddonButtonIconOptions()
-		iconCount = self._cachedIconOptionsCount or savedButtonCount
+		iconOptions = self:BuildAddonButtonIconOptions(liveIDs)
 	end
 
 
@@ -288,7 +260,7 @@ function module:GetOptions()
 		btnListInfo = {
 			type = "description",
 			name = function()
-				local count = CountSavedAddonButtons(db)
+				local count = CountLiveAddonButtons()
 				if count == 0 then
 					return SarychUI:T("ui.options_e85b1186c9")
 				end

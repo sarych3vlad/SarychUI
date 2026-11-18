@@ -32,6 +32,7 @@ local iconTicker -- AceTimer handle для периодического пози
 local managedButtonsList = {}
 local managedButtonsListDirty = true
 local addonButtonFramesByID = {}
+local addonButtonIDsByFrame = setmetatable({}, { __mode = "k" })
 local mouseWatchHooksInstalled = false
 local layoutPending = false
 local layoutForcePending = false
@@ -66,6 +67,7 @@ local function RememberAddonButtonFrame(buttonID, button)
 	buttonID = CanonicalizeButtonID(buttonID)
 	if buttonID and button then
 		addonButtonFramesByID[buttonID] = button
+		addonButtonIDsByFrame[button] = buttonID
 	end
 	return buttonID
 end
@@ -117,29 +119,19 @@ local function MigrateCanonicalButtonSettings(icons)
 	return #moves
 end
 
--- Дефолтные углы для известных кнопок (LibDBIcon-имя или полный buttonID)
-local ADDON_BUTTON_ANGLE_DEFAULTS = {
-	DBM = 40,
-	Details = 130,
-	AtlasLoot = 190,
-	Collections = 300,
-	Transmogrify = 320,
-	WeakAuras = 60,
-	TransmorpherMinimapButton = 340,
-}
-
+-- Seed only discovered buttons, preserving the addon's own initial position.
 local function GetDefaultAngleForButton(buttonID)
-	if not buttonID then
-		return DEFAULT_ICON_SETTINGS.angle
-	end
-	local libName = buttonID:match("^LibDBIcon10_(.+)$")
-	if libName and ADDON_BUTTON_ANGLE_DEFAULTS[libName] then
-		return ADDON_BUTTON_ANGLE_DEFAULTS[libName]
-	end
-	if ADDON_BUTTON_ANGLE_DEFAULTS[buttonID] then
-		return ADDON_BUTTON_ANGLE_DEFAULTS[buttonID]
-	end
-	return DEFAULT_ICON_SETTINGS.angle
+    local button = buttonID and ResolveAddonButtonFrame(buttonID)
+    local angle = button and button.db and tonumber(button.db.minimapPos)
+    if angle then return angle % 360 end
+    if button and button.GetCenter and Minimap and Minimap.GetCenter then
+        local bx, by = button:GetCenter()
+        local mx, my = Minimap:GetCenter()
+        if bx and by and mx and my and (bx ~= mx or by ~= my) then
+            return floor(deg(atan2(by - my, bx - mx)) + 0.5) % 360
+        end
+    end
+    return DEFAULT_ICON_SETTINGS.angle
 end
 
 local function BuildDefaultIconSettings(buttonID)
@@ -177,6 +169,10 @@ local lastMinimapButtonScanStats = nil
 
 -- Стандартные кнопки Blizzard: управляются вкладкой «Внешний вид», не «Кнопки аддонов»
 local BLIZZARD_MINIMAP_BUTTONS = {
+	Minimap = true,
+	MinimapCluster = true,
+	MinimapZoneTextButton = true,
+	MiniMapRecordingButton = true,
 	MiniMapWorldMapButton = true,
 	MiniMapTracking = true,
 	MiniMapMailFrame = true,
@@ -196,9 +192,6 @@ local function IsBlizzardMinimapButton(frameName)
 		return false
 	end
 	if BLIZZARD_MINIMAP_BUTTONS[frameName] then
-		return true
-	end
-	if frameName:match("^Minimap") or frameName:match("^MiniMap") then
 		return true
 	end
 	return false
@@ -528,12 +521,12 @@ local function FrameHasButtonVisual(frame)
 	return false
 end
 
-local function IsValidAddonMinimapButton(frame)
+local function IsValidAddonMinimapButton(frame, registeredID)
 	if not frame or not frame.GetName or not frame.GetParent then
 		return false, "no_frame"
 	end
 
-	local frameName = frame:GetName()
+	local frameName = frame:GetName() or registeredID or addonButtonIDsByFrame[frame]
 	if not frameName or frameName == "" then
 		return false, "unnamed"
 	end
@@ -543,9 +536,12 @@ local function IsValidAddonMinimapButton(frame)
 	if IsIgnoredMinimapButtonID(frameName) then
 		return false, "blacklist"
 	end
-	if frame:GetParent() ~= Minimap then
-		return false, "parent"
-	end
+    local parent = frame:GetParent()
+    for _ = 1, 12 do
+        if not parent or parent == Minimap or parent == MinimapCluster then break end
+        parent = parent.GetParent and parent:GetParent()
+    end
+    if not parent or (parent ~= Minimap and parent ~= MinimapCluster) then return false, "parent" end
 	if IsQuestieMapPinFrame(frame, frameName) then
 		return false, "questie_pin"
 	end
@@ -574,45 +570,76 @@ function module:GetStableMinimapButtonKey(frame)
 	if not frame or not frame.GetName then
 		return nil
 	end
-	return RememberAddonButtonFrame(frame:GetName(), frame)
+	return RememberAddonButtonFrame(frame:GetName() or addonButtonIDsByFrame[frame], frame)
 end
 
-local function RegisterAddonButtonIcon(icons, buttonID, stats, source, button)
-	buttonID = RememberAddonButtonFrame(buttonID, button)
-	if IsIgnoredMinimapButtonID(buttonID) then
-		stats.skippedBlacklist = stats.skippedBlacklist + 1
-		return false
-	end
-
-	if stats.seenKeys[buttonID] then
-		stats.skippedDuplicate = stats.skippedDuplicate + 1
-		return false
-	end
-
-	stats.seenKeys[buttonID] = source or "unknown"
-	if not icons[buttonID] then
-		icons[buttonID] = BuildDefaultIconSettings(buttonID)
-		stats.added = stats.added + 1
-
-	end
-	stats.registered = stats.registered + 1
-	return true
-end
-
-local function ScanLibDBIconButtons(icons, stats)
-	local lib = LibStub and LibStub("LibDBIcon-1.0", true)
-	if not lib or not lib.objects then
-		return
-	end
-
-	for name, button in pairs(lib.objects) do
-		if button and button.GetName then
-			local buttonID = button:GetName() or ("LibDBIcon10_" .. name)
-			stats.scanned = stats.scanned + 1
-			stats.candidates = stats.candidates + 1
-			RegisterAddonButtonIcon(icons, buttonID, stats, "LibDBIcon", button)
-		end
-	end
+-- Discover real widgets, not saved settings or installed addon names.
+-- Hidden buttons still exist and must remain configurable (including our auto-hide).
+function module:GetLiveAddonButtonIDs()
+    wipe(addonButtonFramesByID)
+    wipe(addonButtonIDsByFrame)
+    local ids, seenFrames, seenKeys = {}, {}, {}
+    local stats = { scanned = 0, candidates = 0, registered = 0, added = 0,
+        skippedDuplicate = 0, skippedBlacklist = 0, skippedInvalid = 0, seenKeys = {} }
+    local function Add(button, buttonID, source)
+        stats.scanned = stats.scanned + 1
+        if not button then return end
+        buttonID = buttonID or (button.GetName and button:GetName())
+        local valid, reason = IsValidAddonMinimapButton(button, buttonID)
+        if not valid then
+            if reason == "blacklist" or reason == "questie_pin" then
+                stats.skippedBlacklist = stats.skippedBlacklist + 1
+            else stats.skippedInvalid = stats.skippedInvalid + 1 end
+            return
+        end
+        buttonID = CanonicalizeButtonID(buttonID)
+        if not buttonID then return end
+        stats.candidates = stats.candidates + 1
+        if seenFrames[button] or seenKeys[buttonID] then
+            stats.skippedDuplicate = stats.skippedDuplicate + 1
+            return
+        end
+        seenFrames[button], seenKeys[buttonID] = true, true
+        RememberAddonButtonFrame(buttonID, button)
+        ids[#ids + 1] = buttonID
+        stats.seenKeys[buttonID] = source
+        stats.registered = stats.registered + 1
+    end
+    local lib = LibStub and LibStub("LibDBIcon-1.0", true)
+    if lib and lib.objects then
+        for name, button in pairs(lib.objects) do
+            if button and button.GetName then
+                Add(button, button:GetName() or (LIBDBICON_PREFIX .. name), "LibDBIcon")
+            end
+        end
+    end
+    local function Visit(parent, depth)
+        if not parent or not parent.GetChildren or depth > 6 then return end
+        for _, child in ipairs({parent:GetChildren()}) do
+            Add(child, nil, "frame-scan")
+            if not IsQuestieMapPinFrame(child) and not IsBlizzardMinimapButton(child:GetName())
+                and not (child.GetObjectType and child:GetObjectType() == "Button") then
+                Visit(child, depth + 1)
+            end
+        end
+    end
+    Visit(Minimap, 1)
+    Visit(MinimapCluster, 1)
+    table.sort(ids)
+    local signature = table.concat(ids, "\n")
+    if self._liveButtonSignature ~= signature then
+        local hadOptions = self._cachedIconOptions ~= nil
+        self._liveButtonSignature = signature
+        if self.InvalidateAddonButtonIconOptionsCache then self:InvalidateAddonButtonIconOptionsCache() end
+        if hadOptions and not self._buttonOptionsRefreshPending then
+            self._buttonOptionsRefreshPending = true
+            SuiTimer.After(0, function()
+                self._buttonOptionsRefreshPending = nil
+                if SarychUI.RebuildModuleOptions then SarychUI:RebuildModuleOptions("minimap") end
+            end)
+        end
+    end
+    return ids, stats
 end
 
 function module:CleanupAddonButtonIcons()
@@ -633,17 +660,9 @@ function module:CleanupAddonButtonIcons()
 			remove = true
 		elseif buttonID:match("^QuestieFrame") then
 			remove = true
-		else
-			local frame = ResolveAddonButtonFrame(buttonID)
-			if frame then
-				local valid = IsValidAddonMinimapButton(frame)
-				if not valid then
-					remove = true
-				end
-			elseif buttonID:match("^Questie") then
-				remove = true
-			end
 		end
+		-- Missing/unloaded widgets are absent from discovery, not deleted from the
+		-- profile: their position and visibility can be restored if they return.
 		if remove then
 			icons[buttonID] = nil
 			removed = removed + 1
@@ -658,12 +677,28 @@ local function PurgeBlacklistedIconSettings()
 end
 
 function module:GetButtonDisplayName(buttonID)
-	buttonID = CanonicalizeButtonID(buttonID)
-	local libName = buttonID:match("^LibDBIcon10_(.+)$")
-	if libName then
-		return libName
-	end
-	return buttonID
+    buttonID = CanonicalizeButtonID(buttonID)
+    local name = buttonID:match("^LibDBIcon10_(.+)$") or buttonID
+    local button = ResolveAddonButtonFrame(buttonID)
+    local object = button and button.dataObject
+    local label = object and object.label
+    if type(label) ~= "string" or label == "" then label = name end
+    local grouping = SarychUI.AddonGrouping
+    local addon = grouping.FindByName(name)
+    if not addon and button then
+        local texture = object and object.icon
+        if not texture and button.icon and button.icon.GetTexture then texture = button.icon:GetTexture() end
+        if not texture and button.GetNormalTexture then
+            local normal = button:GetNormalTexture()
+            texture = normal and normal.GetTexture and normal:GetTexture()
+        end
+        addon = grouping.FindInPath(texture)
+    end
+    if addon then
+        if label == addon.name or label == addon.family then return addon.title end
+        if not grouping.FindByName(label) then return addon.family .. " - " .. label end
+    end
+    return label
 end
 
 function module:IsBlizzardMinimapButton(frameName)
@@ -696,7 +731,7 @@ local function IsButtonManagedBySarychUI(frame)
 	if not IsManagedMinimapButton(frame) then
 		return false
 	end
-	local buttonID = RememberAddonButtonFrame(frame:GetName(), frame)
+	local buttonID = RememberAddonButtonFrame(frame:GetName() or addonButtonIDsByFrame[frame], frame)
 	local cfg = buttonID and GetButtonSettings(buttonID)
 	return cfg and cfg.managed == true
 end
@@ -705,7 +740,7 @@ local function ShouldParticipateInAutoHide(frame)
 	if not IsButtonManagedBySarychUI(frame) then
 		return false
 	end
-	local buttonID = RememberAddonButtonFrame(frame:GetName(), frame)
+	local buttonID = RememberAddonButtonFrame(frame:GetName() or addonButtonIDsByFrame[frame], frame)
 	local cfg = GetButtonSettings(buttonID)
 	return cfg and cfg.shown ~= false
 end
@@ -1596,7 +1631,7 @@ local function ApplySingleButtonLayout(buttonID, button, force)
 	if not button then
 		button = ResolveAddonButtonFrame(buttonID)
 	end
-	if not button then
+	if not button or not IsValidAddonMinimapButton(button) then
 		return
 	end
 
@@ -1641,24 +1676,9 @@ local function ApplyAddonButtonLayoutNow(force)
 	MigrateCanonicalButtonSettings(db.addonButtons.icons)
 	RefreshMinimapChildrenCache()
 
-	for buttonID, cfg in pairs(db.addonButtons.icons) do
-		if not IsBlizzardMinimapButton(buttonID) then
-			local button = ResolveAddonButtonFrame(buttonID)
-			if button then
-				ApplySingleButtonLayout(buttonID, button, force)
-			end
-		end
-	end
-
-	for _, child in ipairs(GetMinimapChildren()) do
-		if IsManagedMinimapButton(child) then
-			local buttonID = RememberAddonButtonFrame(child:GetName(), child)
-			if buttonID then
-				GetButtonSettings(buttonID)
-				ApplySingleButtonLayout(buttonID, child, force)
-			end
-		end
-	end
+    for _, buttonID in ipairs(module:GetLiveAddonButtonIDs()) do
+        ApplySingleButtonLayout(buttonID, ResolveAddonButtonFrame(buttonID), force)
+    end
 
 	RebuildManagedButtonsList()
 	if mouseWatchHooksInstalled then
@@ -1694,36 +1714,14 @@ function module:ScanAddonMinimapButtons()
 		return nil
 	end
 
-	RefreshMinimapChildrenCache()
-	local stats = {
-		scanned = 0,
-		candidates = 0,
-		registered = 0,
-		added = 0,
-		skippedDuplicate = 0,
-		skippedBlacklist = 0,
-		skippedInvalid = 0,
-		seenKeys = {},
-	}
-
-	ScanLibDBIconButtons(icons, stats)
-
-	for _, child in ipairs(GetMinimapChildren()) do
-		stats.scanned = stats.scanned + 1
-		local valid, reason = IsValidAddonMinimapButton(child)
-		if valid then
-			stats.candidates = stats.candidates + 1
-			local buttonID = child:GetName()
-			if buttonID then
-				RegisterAddonButtonIcon(icons, buttonID, stats, "frame-scan", child)
-			end
-		elseif reason == "blacklist" or reason == "questie_pin" then
-			stats.skippedBlacklist = stats.skippedBlacklist + 1
-		else
-			stats.skippedInvalid = stats.skippedInvalid + 1
-		end
-	end
-
+    RefreshMinimapChildrenCache()
+    local ids, stats = self:GetLiveAddonButtonIDs()
+    for _, buttonID in ipairs(ids) do
+        if not icons[buttonID] then
+            icons[buttonID] = BuildDefaultIconSettings(buttonID)
+            stats.added = stats.added + 1
+        end
+    end
 
 	lastMinimapButtonScanStats = stats
 

@@ -3579,8 +3579,9 @@ function R:RenderTwoPaneAddonList(parent, groupOpt, path, nestedViewport)
 		local detailWidth = rightScroll:GetWidth()
 		if detailWidth and detailWidth > 80 and self._lastDetailWidth ~= detailWidth then
 			self._lastDetailWidth = detailWidth
-			if detailHost._body and detailHost._body._layoutTabs
-				and detailHost._onContentHeightChanged then
+			-- A scrollbar changes the viewport width on any detail page. Tab
+			-- wrapping is optional and must not gate the body/child width sync.
+			if detailHost._body and detailHost._onContentHeightChanged then
 				detailHost:_onContentHeightChanged()
 			end
 		end

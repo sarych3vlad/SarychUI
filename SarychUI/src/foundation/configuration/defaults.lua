@@ -42,6 +42,7 @@ local platesAurasDisplayDefaults = {
 	display = {
 		alpha = 1,
 		scale = 1,
+		cooldownEnabled = false,
 	},
 	layout = {
 		player = {
@@ -209,8 +210,8 @@ SarychUI.defaults = {
             arena = {
                 enabled = true,
                 timers = {
-                    tremor = { enabled = true, scale = 1.1, point = "LEFT", relativePoint = "CENTER", x = 320, y = -156 },
-                    eyes = { enabled = true, display = "bars", barWidth = 139, scale = 1, point = "LEFT", relativePoint = "CENTER", x = 416, y = -174 },
+                    tremor = { enabled = false, scale = 1.1, point = "LEFT", relativePoint = "CENTER", x = 95, y = -62 },
+                    eyes = { enabled = false, display = "bars", barWidth = 139, scale = 1, point = "LEFT", relativePoint = "CENTER", x = 712, y = 226 },
                 },
                 frameType = "classic",
                 diminishingDisplay = "show",
@@ -398,6 +399,7 @@ SarychUI.defaults = {
             health_indicators = {
                 enabled = true,
                 nameplateMode = "elvui",
+                tremorAnimation = true,
                 totemEnabled = {
                     a1 = true, -- Grounding
                     a2 = false, a3 = false, a4 = false, a5 = false,
@@ -598,8 +600,12 @@ SarychUI.defaults = {
 				defaultColor = { 1, 1, 1, 1 },
                 lastFiveSecondsRed = false,
                 showTenths = false,
-                tenthsThreshold = 1,
-                tenthsLocations = {},
+                tenthsThreshold = 3,
+                timerLimit = 0,
+                timerLimitEnabled = false,
+                tenthsLocations = { auraTracking = true, trackedCooldowns = true },
+                showTenthsExceptions = false,
+                addonTimers = {},
 				-- Behaviour
 				minScale = 0.5,
 				minDuration = 3,
@@ -891,17 +897,7 @@ SarychUI.defaults = {
 				zoneTextOffsetY = 4,
 				positioningEnabled = 0,
 				buttonsEnabled = 1,
-				addonButtons = {
-					icons = {
-						["LibDBIcon10_DBM"] = { managed = true, shown = true, angle = 40, radius = 82, scale = 1.0 },
-						["LibDBIcon10_WeakAuras"] = { managed = true, shown = true, angle = 60, radius = 82, scale = 1.0 },
-						["LibDBIcon10_Details"] = { managed = true, shown = true, angle = 130, radius = 82, scale = 1.0 },
-						["LibDBIcon10_AtlasLoot"] = { managed = true, shown = true, angle = 190, radius = 82, scale = 1.0 },
-						["LibDBIcon10_Collections"] = { managed = true, shown = true, angle = 300, radius = 82, scale = 1.0 },
-						["LibDBIcon10_Transmogrify"] = { managed = true, shown = true, angle = 320, radius = 82, scale = 1.0 },
-						["LibDBIcon10_TransmorpherMinimapButton"] = { managed = true, shown = true, angle = 340, radius = 82, scale = 1.0 },
-					},
-				},
+				addonButtons = { icons = {} },
 				leftClickEnabled = 1,
 				rightClickEnabled = 1,
 				middleClickEnabled = 1,

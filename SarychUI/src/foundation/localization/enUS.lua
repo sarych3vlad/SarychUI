@@ -2,6 +2,9 @@ do
 -- SarychUI English Localization (enUS) - default / fallback pack
 
 local L = {}
+L["ui.plates_auras.general"] = "General"
+L["ui.plates_auras.cooldown_enabled"] = "Enable radial cooldown"
+L["ui.plates_auras.cooldown_desc"] = "Show a radial timer sweep over aura icons. Timer numbers remain visible."
 L["ui.interface_style.crop_icons"] = "Apply icon style"
 L["ui.interface_style.crop_icons_desc"] = "Applies the dark style to icons by zooming the image and cropping its edges. Disabling immediately restores the original geometry and full image. Border and background settings are preserved."
 L["ui.interface_style.background"] = "Button background and shadow"
@@ -692,8 +695,15 @@ M["ui.unit_frames.status_text_scale_desc"] = "Health and resource text size on b
 M["Последние 5 секунд красным"] = "Last 5 seconds in red"
 M["Последние |cffff00005 секунд красными|r"] = "Last |cffff00005 seconds in red|r"
 M["Показывать десятые секунды"] = "Show tenths of a second"
+M["ui.cc.timer_limit_enabled"] = "Limit timer display"
+M["ui.cc.timer_limit"] = "Timer display limit (seconds)"
+M["ui.cc.addon_management"] = "Addon management"
+M["ui.cc.addon_timers"] = "Timers on other addons"
+M["ui.cc.addon_timers_desc"] = "Show SarychUI cooldown numbers on this addon's widgets. This switch does not enable or disable the addon itself."
+M["ui.cc.addon_timers_empty"] = "No third-party addons found."
 M["Показывать десятые начиная с (сек.)"] = "Show tenths below (seconds)"
 M["Исключения"] = "Exceptions"
+M["ui.cc.show_tenths_exceptions"] = "Show exceptions"
 M["Снимите отметку, чтобы в этом месте показывались только целые секунды."] = "Uncheck a location to show only whole seconds there."
 M["Панели действий"] = "Action bars"
 M["Панель питомца"] = "Pet action bar"
@@ -3063,6 +3073,7 @@ SarychUI:RegisterUIMap("enUS", {
     ["ui.nameplates.totem_display"] = "Totem display",
     ["ui.nameplates.totem_plates"] = "Show totem nameplates",
     ["ui.nameplates.totem_icons"] = "Show icons instead of nameplates",
+    ["ui.nameplates.tremor_animation"] = "Enable Tremor Totem tick animation",
     ["ui.nameplates.native_settings"] = "Nameplates",
     ["ui.nameplates.allow_overlap"] = "Allow overlapping nameplates",
     ["ui.nameplates.show_friends"] = "Friendly nameplates",

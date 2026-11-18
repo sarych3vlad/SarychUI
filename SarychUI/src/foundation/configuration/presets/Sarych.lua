@@ -1434,45 +1434,7 @@ SarychUI.BuiltinProfiles["Sarych"] = {
 					["minimapSavedA"] = "TOPRIGHT",
 					["minimapSavedX"] = -5,
 					["minimapSavedR"] = "TOPRIGHT",
-					["addonButtons"] = {
-						["icons"] = {
-							["LibDBIcon10_WCollections - Transmogrify"] = {
-								["radius"] = 82,
-								["shown"] = true,
-								["angle"] = 320,
-								["managed"] = true,
-								["scale"] = 1,
-							},
-							["LibDBIcon10_AtlasLoot"] = {
-								["radius"] = 82,
-								["shown"] = true,
-								["angle"] = 190,
-								["managed"] = true,
-								["scale"] = 1,
-							},
-							["LibDBIcon10_WCollections - Collections"] = {
-								["radius"] = 82,
-								["shown"] = true,
-								["angle"] = 300,
-								["managed"] = true,
-								["scale"] = 1,
-							},
-							["LibDBIcon10_Questie"] = {
-								["radius"] = 82,
-								["shown"] = true,
-								["angle"] = 225,
-								["managed"] = true,
-								["scale"] = 1,
-							},
-							["TransmorpherMinimapButton"] = {
-								["radius"] = 82,
-								["shown"] = true,
-								["angle"] = 340,
-								["managed"] = true,
-								["scale"] = 1,
-							},
-						},
-					},
+					["addonButtons"] = { ["icons"] = {} },
 					["minimapSavedY"] = -5,
 				},
 				["floating_text"] = {
