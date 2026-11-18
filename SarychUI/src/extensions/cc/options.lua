@@ -358,11 +358,11 @@ function module:GetOptions()
                                 order = 5,
                                 width = "full",
                                 suiFullRow = true,
-                                get = function() return GetSetting("minDuration", 3) >= 3 end,
+                                get = function() return SarychUI.CooldownText.MinimumDuration(GetSetting("minDuration")) >= 1.5 end,
                                 set = function(_, v)
-                                    SetAndApply("minDuration", v and 3 or 0)
+                                    SetAndApply("minDuration", v and 1.5 or 0)
                                     if SarychUI.GcdCooldownPreview and SarychUI.GcdCooldownPreview.SetLiveValue then
-                                        SarychUI.GcdCooldownPreview:SetLiveValue("minDuration", v and 3 or 0)
+                                        SarychUI.GcdCooldownPreview:SetLiveValue("minDuration", v and 1.5 or 0)
                                     end
                                 end,
                             },

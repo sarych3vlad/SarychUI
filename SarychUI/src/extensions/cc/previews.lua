@@ -388,9 +388,9 @@ end
 local function IsHideOnGCD()
 	local live = GcdPreview._live
 	if live.minDuration ~= nil then
-		return tonumber(live.minDuration) >= 3
+		return SarychUI.CooldownText.MinimumDuration(live.minDuration) >= 1.5
 	end
-	return GetSetting("minDuration", 3) >= 3
+	return SarychUI.CooldownText.MinimumDuration(GetSetting("minDuration")) >= 1.5
 end
 
 function GcdPreview:Create(parent)

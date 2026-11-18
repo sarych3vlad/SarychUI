@@ -608,7 +608,7 @@ SarychUI.defaults = {
                 addonTimers = {},
 				-- Behaviour
 				minScale = 0.5,
-				minDuration = 3,
+				minDuration = 1.5,
 				minIconSize = 23,
 				partyAbilitiesExempt = true,
 				-- Invite / arena countdown (castbar timers live under modules.castbar)

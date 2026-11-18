@@ -120,7 +120,7 @@ function module:UpdateTimerText(text, remaining, duration, owner, preserveAppear
     local allowed = isEnabledFlag and getSetting("enabled", true)
         and remaining > 0
         and WithinDisplayLimit(remaining)
-        and (periodic or duration > getSetting("minDuration", 3))
+        and (periodic or duration > SarychUI.CooldownText.MinimumDuration(getSetting("minDuration")))
     if allowed and not PartyAbilityExempt(owner) then
         allowed = size >= getSetting("minIconSize", 23)
             and owner:GetEffectiveScale() / UIParent:GetEffectiveScale() >= getSetting("minScale", 0.5)
@@ -310,7 +310,7 @@ local function cooldown_OnUpdate(frame, elapsed, now)
     if state.nextUpdate > 0 then return end
 
     -- Short control effects (including DR) are not global cooldowns.
-    if not frame.__sary_controlAura and state.duration <= getSetting("minDuration", 3) then
+    if not frame.__sary_controlAura and state.duration <= SarychUI.CooldownText.MinimumDuration(getSetting("minDuration")) then
         HideCountdown(state)
         state.nextUpdate = 0
         return

@@ -5,6 +5,14 @@ local floor, ceil, min, max, format = math.floor, math.ceil, math.min, math.max,
 local ru = GetLocale and GetLocale() == "ruRU"
 local day, hour, minute = ru and " д." or "d", ru and " ч." or "h", ru and "м" or "m"
 
+function F.MinimumDuration(value)
+    value = tonumber(value)
+    -- The GCD toggle used to save 3, hiding real short ability cooldowns.
+    -- Interpret that legacy value consistently without rewriting profiles.
+    if value == nil or value == 3 then return 1.5 end
+    return value
+end
+
 function F.IsTenthsLocationEnabled(locations, context)
     if locations and locations[context] ~= nil then return locations[context] == true end
     return context == "auraTracking" or context == "trackedCooldowns"
