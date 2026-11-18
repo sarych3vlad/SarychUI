@@ -225,11 +225,12 @@ end
 local function StyleButton(button, isItem)
 	if not Style.enabled or not button or not button.GetNormalTexture then return end
 	-- TalentButtonTemplate inherits ItemButtonTemplate and uses the same global
-	-- item-update helpers. The native talent window owns all of its artwork.
-	-- Resolve ancestry at call time: Blizzard_TalentUI is loaded on demand.
+	-- item-update helpers. Both native talent panels own all of their artwork.
+	-- Resolve ancestry at call time: TalentUI and InspectUI load on demand.
+	-- Exclude the inspect talent subtree, not its sibling equipment slots.
 	local owner = button
 	while owner do
-		if owner == _G.PlayerTalentFrame then return end
+		if owner == _G.PlayerTalentFrame or owner == _G.InspectTalentFrame then return end
 		owner = owner.GetParent and owner:GetParent()
 	end
 	-- LargeItemButtonTemplate includes both an icon and a text label. Its full

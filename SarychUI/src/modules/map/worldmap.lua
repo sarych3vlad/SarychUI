@@ -679,7 +679,9 @@ end
 -- around (and stops them from repositioning it).
 local function detachFromUIPanels()
 	UIPanelWindows["WorldMapFrame"] = nil
-	WorldMapFrame:SetAttribute("UIPanelLayout-defined", nil)
+	-- Native SetMiniMode writes into UIPanelWindows unless layout is defined.
+	-- Keep its attribute path valid while enabled=false keeps the map detached.
+	WorldMapFrame:SetAttribute("UIPanelLayout-defined", true)
 	WorldMapFrame:SetAttribute("UIPanelLayout-enabled", false)
 	WorldMapFrame:SetAttribute("UIPanelLayout-area", nil)
 	WorldMapFrame:SetAttribute("UIPanelLayout-pushable", nil)
@@ -747,8 +749,8 @@ function worldmap:Enable()
 	-- The advanced/mini world map CVars fight our own layout, so the map starts
 	-- from its vanilla state and the size is driven by our setting instead.
 	local advanced, mini = GetCVarBool("advancedWorldMap"), GetCVarBool("miniWorldMap")
-	SetCVar("miniWorldMap", nil)
-	SetCVar("advancedWorldMap", nil)
+	SetCVar("miniWorldMap", 0)
+	SetCVar("advancedWorldMap", 0)
 	if InterfaceOptionsObjectivesPanelAdvancedWorldMap then
 		InterfaceOptionsObjectivesPanelAdvancedWorldMap:Disable()
 		InterfaceOptionsObjectivesPanelAdvancedWorldMapText:SetTextColor(0.5, 0.5, 0.5)
@@ -774,7 +776,7 @@ function worldmap:Enable()
 	end
 
 	detachFromUIPanels()
-	-- WorldMap_ToggleSizeDown re-registers the map as a "center" panel.
+	-- Native size changes still rewrite the map's panel area attributes.
 	if not hooksInstalled then
 		hooksecurefunc("WorldMap_ToggleSizeDown", detachFromUIPanels)
 	end

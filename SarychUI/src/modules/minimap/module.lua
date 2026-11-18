@@ -1175,10 +1175,8 @@ local function SetManagedButtonRuntimeVisible(button, visible, fadeTime)
 	if not button then return end
 	PrepareManagedButtonForAutoHide(button)
 
-	if button.__SarychUILastShown == visible and not isAnimatingShow then
-		return
-	end
-
+	-- The owner may restore alpha/mouse input after login or a button refresh.
+	-- A cached state (including first-time preparation) is not actual visibility.
 	local a = button:GetAlpha() or 0
 	if visible then
 		if button.EnableMouse then button:EnableMouse(true) end
